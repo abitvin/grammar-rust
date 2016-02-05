@@ -1,0 +1,136 @@
+Error messages
+==============
+
+Grammer:
+	digit = [0-9]
+	int = {digit}+
+	float = {digit}+.{digit}+
+	id = [a-z]+
+	ws = ( |\t)
+
+	varStmt = var{ws}+{id}{ws}*={ws}*(float|int);
+
+Code:
+	var a = 10;
+	var b = 20.5;
+	var c = 30,1;
+
+
+
+Rule scanning failed at line 3 character 9. Expected "any of: 'int', 'float'"
+Rule scanning failed at line 3 character 11. Expected "literal: ';'"
+
+
+
+Variable<T>
+===========
+
+Casting
+-------
+We now have a interface with `booleanValue` and `integerValue`. So if we add a
+string type we add `stringValue`, if we add a date type we add `dateValue`
+ensofort. But this does not make it very scalable. 
+
+Can we do something like C++ does? Casting goes by <othertype>operand which is a
+unary operation.
+
+Addition
+--------
++		true	2		3.1		"a"
+true	2		3		4.1		"truea"
+2		3		4		5.1		"2a"
+3.1		4.1		5.1		6.2		"3.1a"
+"a"		"atrue"	"a2"	"a3.1"	"aa"
+
+
+interface IVariable
+{
+	cast( v: IVariable ): IVariable
+}
+
+class Boolean implements IVariable
+{
+	private _value: boolean;
+
+
+	// TODO: Functions
+	invoke( ? ): ?
+	{
+		// Invoke function?
+		// Or is it a primitive type so do `toFunction(): IAstNode`?
+		// Do we store a function body somewhere else or do we store it in a variable type.
+		// What if we invoke a non function? Is it the same as invoking a constructor?
+
+		// It is an unary operation like `-inverseMe` or `array[2]` so `()` is invocation.
+	}
+
+	
+
+
+
+	addition( rhs: IVariable ): IVariable
+	{
+		switch( rhs.constructor )
+		{
+			case Boolean: return new Integer( this.toInteger() + rhs.toInteger() );
+			case Integer: return new Integer( this.toInteger() + rhs.toInteger() );
+			case Float: return new Float( this.toFloat() + rhs.toFloat() );
+			case String: return new String( this.toString() + rhs.toString() );
+		}
+	}
+
+	at( index: integer ): IVariable
+	{
+		throw "Runtime error.";
+	}
+
+	castTo( kind: Kind ): IVariable
+	{
+		switch( kind )
+		{
+			case Kind.Boolean: return this;
+			case Kind.Integer: return new Integer( this.toInteger() );
+			case Kind.Float: return new Float( this.toFloat() );
+			case Kind.String: return new String( this.toString() );
+		}
+
+		throw "Could not cast from " v.constructor;
+	}
+
+	toBoolean(): boolean
+	{
+		return _value;
+	}
+
+	toFloat(): float
+	{
+		return _value ? 1.0 : 0.0;
+	}
+
+	toFunction(): IAstNode
+	{
+		throw "Runtime error.";
+	}
+
+	toInteger(): integer
+	{
+		return _value ? 1 : 0;
+	}
+
+	toString(): string
+	{
+		return _value ? "true" : "false";
+	}
+}
+
+class Function
+{
+	// What about parameters?
+
+	_body: IAstNode;
+
+	toFunction(): IAstNode
+	{
+		return _body;
+	}
+}

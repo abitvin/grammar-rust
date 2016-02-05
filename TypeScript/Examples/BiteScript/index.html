@@ -1,0 +1,129 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>ByteScript</title>
+    <style>
+        
+        textarea {
+            height: 400px;
+            width: 400px;
+        }
+
+    </style>
+</head>
+<body>
+    <h1>ByteScript</h1>
+    <script src="TypeScript/Rule.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/BaseClasses/BaseLiteral.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/BaseClasses/BaseOperation.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Core/AssignmentAtIndex.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Core/AssignmentAtKey.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Core/AssignmentAtScope.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Core/Branch.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Core/Conditional.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Core/GetVariableAtIndex.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Core/GetVariableAtKey.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Core/GetVariableAtScope.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Core/FunctionCall.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Core/If.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Core/Return.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Core/Variable.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Core/While.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/List/Range.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/List/RangeFrom.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/List/RangeTo.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Literals/Boolean.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Literals/Function.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Literals/List.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Literals/Number.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Literals/String.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Literals/Struct.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Math/Addition.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Math/Divide.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Math/Inverse.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Math/Modules.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Math/Multiply.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Math/Power.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Math/Substract.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/NativeFunctions/Print.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Relational/Equals.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Relational/GreaterThen.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Relational/LogicalAnd.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Relational/LogicalOr.js"></script>
+    <script src="TypeScript/ByteScript/AstNode/Relational/SmallerThen.js"></script>
+    <script src="TypeScript/ByteScript/Types/BaseType.js"></script>
+    <script src="TypeScript/ByteScript/Types/Boolean.js"></script>
+    <script src="TypeScript/ByteScript/Types/Function.js"></script>
+    <script src="TypeScript/ByteScript/Types/List.js"></script>
+    <script src="TypeScript/ByteScript/Types/Null.js"></script>
+    <script src="TypeScript/ByteScript/Types/Number.js"></script>
+    <script src="TypeScript/ByteScript/Types/String.js"></script>
+    <script src="TypeScript/ByteScript/Types/Struct.js"></script>
+    <script src="TypeScript/ByteScript/Compiler.js"></script>
+    <script src="TypeScript/ByteScript/Interperter.js"></script>
+    <script src="TypeScript/Test.js"></script>
+<textarea id="code">
+foo = fn(n)
+    batman = "nan"
+    return batman * 2
+end
+
+print (foo(2) + foo(2)[false or true])[..2]
+// This space at the eol below is a rule error. Remove it and it will compile.
+ </textarea>
+    <input id="btn-run" type="button" value="run" />
+    <script>
+
+        function run()
+        {
+            var program = Abitvin.ByteScript.Compiler.compile(code.value);
+            var interperter = new Abitvin.ByteScript.Interpreter(program);
+
+            var step = function()
+        {
+                if (interperter.step())
+                    setTimeout(step, 0);
+            };
+
+            step();
+        }
+
+        var btnRun = document.getElementById("btn-run");
+        var code = document.getElementById("code");
+        code.focus();
+
+        code.onkeydown = function (e) {
+            if (e.which === 9) {
+                e.preventDefault();
+                var s = this.selectionStart;
+                this.value = this.value.substring(0, this.selectionStart) + "\t" + this.value.substring(this.selectionEnd);
+                this.selectionEnd = s + 1;
+            }
+
+            if (e.ctrlKey && e.which === 13)
+                run();
+        };
+
+        btnRun.onclick = function () {
+            run();
+        };
+
+    </script>
+    <h2>Todo</h2>
+    <ul>
+        <li>Todo: List is stored in the folder `Literal`, but it not really a literal, likewise for struct.</li>
+        <li>Todo: Better error messages for Rule's.</li>
+        <li>Todo: Add output interface to the interperter.</li>
+        <li>Todo: Check all new Error thrown messages for errors in the message itself.</li>
+        <li>Todo: Add extra relational operators.</li>
+        <li>Todo: Do we really need to switch( v.constructor ) in the Type classes if the toXXX on the type throw's an error anyway if it doens't support it?</li>
+        <li>Todo: The implementation of all the operators on a type is tidius. Make a table instead.</li>
+        <li>Todo: You cannot do `foo()()` on a single line. `a = foo()()` works thou.</li>
+        <li>Todo: Let the lexical scoping works See notes on my iPhone.</li>
+        <li>Fixme: Rule error with one space or tab at the end on a new line.</li>
+        <li>Fixme: Index operation by decimal: `index[3.4]`.</li>
+        <li>Fixme: point.x (10) * point.x (10) + point.y (20) * point.y (20) !== 500</li>
+    </ul>
+</body>
+</html>
