@@ -4,8 +4,9 @@ module Abitvin
 	{
         branches: TBranch[];
         code: string;
-		errorIndex: number;
+        errorIndex: number;
         errorMessage: string;
+        hasEof: boolean,
         index: number;
         lexeme: string;
 	}
@@ -71,6 +72,12 @@ module Abitvin
 			this._parts.push(this.scanBetween.bind(this, charA.charCodeAt(0), charB.charCodeAt(0)));
 			return this;
 		}
+        
+        public eof(): Rule<TBranch>
+        {
+            this._parts.push(this.scanEof.bind(this));
+            return this;
+        }
 
 		public maybe(rule: Rule<TBranch>): Rule<TBranch>
 		public maybe(text: string): Rule<TBranch>
@@ -110,9 +117,10 @@ module Abitvin
 
 		public scan(code: string): TBranch[]
 		{
-            var ctx: IScanContext<TBranch> = {
+            const ctx: IScanContext<TBranch> = {
                 branches: [],
                 code: code,
+                hasEof: false,
 				errorMessage: "",
                 errorIndex: -1,
                 index: 0, 
@@ -124,7 +132,11 @@ module Abitvin
 				this.showCode(ctx.code, ctx.errorIndex);
 				throw new Error(`Error on position ${ctx.errorIndex}: ${ctx.errorMessage}`);
             }
-            else if (ctx.index !== ctx.code.length)
+            
+            if (ctx.hasEof)
+                ctx.index--;
+            
+            if (ctx.index !== ctx.code.length)
             {
 				this.showCode(ctx.code, ctx.index);
                 throw new Error(`Error: Root rule scan stopped on position ${ctx.index}. No rules matching after this position.`);
@@ -143,6 +155,7 @@ module Abitvin
 			return {
 				branches: [],
                 code: ctx.code,
+                hasEof: ctx.hasEof,
 				errorIndex: ctx.errorIndex,
 				errorMessage: ctx.errorMessage,
 				index: ctx.index,
@@ -152,7 +165,8 @@ module Abitvin
 
 		private merge(target: IScanContext<TBranch>, source: IScanContext<TBranch>, isRule: boolean = false): boolean
 		{
-			target.index = source.index;
+			target.hasEof = source.hasEof;
+            target.index = source.index;
 			target.lexeme += source.lexeme;
 
             if (!isRule || this._branchFn === null)
@@ -160,8 +174,9 @@ module Abitvin
             else
                 this.pushList(target.branches, this._branchFn(source.branches, source.lexeme));
 
-			// Always true so we can create a tail call by invocation.
-			return true;
+			// TODO Is the following true?
+            // Always true so we can create a tail call by invocation. 
+            return true;
 		}
 
 		private pushList<T>( a: T[], b: T[] ): void
@@ -171,7 +186,7 @@ module Abitvin
 
         private scanAllExcept(list: string[], ctx: IScanContext<TBranch>): boolean
 		{
-            var char: string = ctx.code[ctx.index] || null;
+            const char: string = ctx.code[ctx.index] || null;
 
             if (char === null)
             {
@@ -212,55 +227,55 @@ module Abitvin
             return false;
 		}
 
-		private scanAtLeastOne( rule: Rule<TBranch>, ctx: IScanContext<TBranch> ): boolean
+		private scanAtLeastOne(rule: Rule<TBranch>, ctx: IScanContext<TBranch>): boolean
 		{
-            var ok: boolean = false;
-            var newCtx: IScanContext<TBranch> = this.branch( ctx );
+            let ok: boolean = false;
+            const newCtx: IScanContext<TBranch> = this.branch(ctx);
 
-            while( newCtx.index !== newCtx.code.length && rule.scanRule( newCtx ) )
+            while (newCtx.index !== newCtx.code.length && rule.scanRule(newCtx))
                 ok = true;
 
-            if( ok )
-                return this.merge( ctx, newCtx );
+            if (ok)
+                return this.merge(ctx, newCtx);
             
-            this.updateError( ctx, newCtx );
+            this.updateError(ctx, newCtx);
             return false;
 		}
 
-		private scanAnyOf( rules: Rule<TBranch>[], ctx: IScanContext<TBranch> ): boolean
+		private scanAnyOf(rules: Rule<TBranch>[], ctx: IScanContext<TBranch>): boolean
 		{
-            var c: number = rules.length;
+            const c: number = rules.length;
 
-            for( var i: number = 0; i < c; i++ )
+            for(let i: number = 0; i < c; i++)
             {
-                var newCtx: IScanContext<TBranch> = this.branch( ctx );
-                var rule: Rule<TBranch> = rules[i];
+                const newCtx: IScanContext<TBranch> = this.branch(ctx);
+                const rule: Rule<TBranch> = rules[i];
 
-                if( rule.scanRule( newCtx ) )
-                    return this.merge( ctx, newCtx );
+                if (rule.scanRule(newCtx))
+                    return this.merge(ctx, newCtx);
                 else
-                    this.updateError( ctx, newCtx );
+                    this.updateError(ctx, newCtx);
             }
 
             return false;
 		}
 
-		private scanBetween( codeA: number, codeB: number, ctx: IScanContext<TBranch> ): boolean
+		private scanBetween(codeA: number, codeB: number, ctx: IScanContext<TBranch>): boolean
 		{
-            var char: string = ctx.code[ctx.index] || null;
+            const char: string = ctx.code[ctx.index] || null;
             
-            if( char === null )
+            if (char === null)
             {
                 ctx.errorMessage = "End of code.";
                 ctx.errorIndex = ctx.index;
                 return false;
             }
 
-            var code: number = char.charCodeAt( 0 );
+            const code: number = char.charCodeAt(0);
             
-            if( code < codeA || code > codeB )
+            if (code < codeA || code > codeB)
             {
-                ctx.errorMessage = "Expected a character between '" + String.fromCharCode( codeA ) + "' and '" + String.fromCharCode( codeB) + "'; got a '" + char + "'";
+                ctx.errorMessage = `Expected a character between '${String.fromCharCode( codeA )}' and '${String.fromCharCode( codeB)}'; got a '${char}'`;
                 ctx.errorIndex = ctx.index;
                 return false;
             }
@@ -269,80 +284,94 @@ module Abitvin
             ctx.index++;
             return true;
 		}
+        
+        private scanEof(ctx: IScanContext<TBranch>): boolean
+        {
+            if (ctx.index === ctx.code.length)
+            {
+                ctx.hasEof = true;
+                ctx.index++;
+                return true;
+            }
+               
+            ctx.errorMessage = `Expected an EOF at index ${ctx.index} but the EOF is at ${ctx.code.length}`;
+            ctx.errorIndex = ctx.index;    
+            return false;
+        }
 
-		private scanLiteral( find: string, ctx: IScanContext<TBranch> ): boolean
+		private scanLiteral(find: string, ctx: IScanContext<TBranch>): boolean
 		{
-            var len: number = find.length;
-            var text: string = ctx.code.substr( ctx.index, len );
+            const len: number = find.length;
+            const text: string = ctx.code.substr(ctx.index, len);
 
-            if( find === text )
+            if (find === text)
             {
                 ctx.lexeme += text;
                 ctx.index += len;
                 return true;
             }
 
-            ctx.errorMessage = "Expected '" + find + "'; got '" + text + "'.";
+            ctx.errorMessage = `Expected '${find}'; got '${text}'.`;
             ctx.errorIndex = ctx.index;
             return false;
 		}
 
-		private scanMaybe( rule: Rule<TBranch>, ctx: IScanContext<TBranch> ): boolean
+		private scanMaybe(rule: Rule<TBranch>, ctx: IScanContext<TBranch>): boolean
 		{
-            var newCtx: IScanContext<TBranch> = this.branch( ctx );
+            const newCtx: IScanContext<TBranch> = this.branch(ctx);
 
-            if( rule.scanRule( newCtx ) )
-                this.merge( ctx, newCtx );
+            if (rule.scanRule(newCtx))
+                this.merge(ctx, newCtx);
 
             return true;
 		}
 
-		private scanNoneOrMany( rule: Rule<TBranch>, ctx: IScanContext<TBranch> ): boolean
+		private scanNoneOrMany(rule: Rule<TBranch>, ctx: IScanContext<TBranch>): boolean
 		{
-            var newCtx: IScanContext<TBranch> = this.branch( ctx );
-            while( rule.scanRule( newCtx ) ) {}
-            return this.merge( ctx, newCtx );
+            const newCtx: IScanContext<TBranch> = this.branch(ctx);
+            while (rule.scanRule(newCtx)) {}
+            return this.merge(ctx, newCtx);
 		}
 
-		private scanOne( rule: Rule<TBranch>, ctx: IScanContext<TBranch> ): boolean
+		private scanOne(rule: Rule<TBranch>, ctx: IScanContext<TBranch>): boolean
 		{
-            var newCtx: IScanContext<TBranch> = this.branch( ctx );
+            const newCtx: IScanContext<TBranch> = this.branch(ctx);
 
-            if( rule.scanRule( newCtx ) )
-                return this.merge( ctx, newCtx );
+            if (rule.scanRule(newCtx))
+                return this.merge(ctx, newCtx);
 
-            this.updateError( ctx, newCtx );
+            this.updateError(ctx, newCtx);
             return false;
 		}
 
-		private scanRule( ctx: IScanContext<TBranch> ): boolean
+		private scanRule(ctx: IScanContext<TBranch>): boolean
 		{
-			if( this._parts.length === 0 )
+			if (this._parts.length === 0)
 				throw new Error("Empty rule.");
 
-			var l: number = this._parts.length;
-            var newCtx: IScanContext<TBranch> = this.branch( ctx );
+			const l: number = this._parts.length;
+            const newCtx: IScanContext<TBranch> = this.branch(ctx);
 
-            for( var i: number = 0 ; i < l; i++ )
+            for (let i: number = 0 ; i < l; i++)
             {
-                if( this._parts[i]( newCtx ) )
+                if (this._parts[i](newCtx))
                     continue;
 
-                this.updateError( ctx, newCtx );
+                this.updateError(ctx, newCtx);
 				return false;
             }
 			
-            return this.merge( ctx, newCtx, true );
+            return this.merge(ctx, newCtx, true);
 		}
 
-		private showCode( text: string, position: number ): void
+		private showCode(text: string, position: number): void
         {
-            console.error( text.substr( position, 40 ) );
+            console.error(text.substr(position, 40));
         }
 
-		private updateError( oldCtx: IScanContext<TBranch>, newCtx: IScanContext<TBranch> ): void
+		private updateError(oldCtx: IScanContext<TBranch>, newCtx: IScanContext<TBranch>): void
 		{
-			if( newCtx.errorIndex < oldCtx.errorIndex )
+			if (newCtx.errorIndex < oldCtx.errorIndex)
 				return;
 
 			oldCtx.errorIndex = newCtx.errorIndex;

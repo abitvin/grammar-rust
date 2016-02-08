@@ -25,7 +25,7 @@ namespace Abitvin
             let currentScope = ini;
             
             // Common
-            const ws = new Rule<IScanContext>().anyOf([" ", "\r", "\n", "\t"]);
+            const ws = new Rule<IScanContext>().anyOf([" ", "\t"]);
             
             // Comment
             const commentChar = new Rule<IScanContext>().allExcept(["\r", "\n"]);
@@ -72,8 +72,9 @@ namespace Abitvin
             
             // Content
             const content = new Rule<IScanContext>().anyOf([comment, prop, section]);
+            const eof = new Rule<IScanContext>().eof();
             const nl = new Rule<IScanContext>().maybe("\r").literal("\n");
-            const line = new Rule<IScanContext>().noneOrMany(ws).maybe(content).one(nl);
+            const line = new Rule<IScanContext>().noneOrMany(ws).maybe(content).anyOf([nl, eof]);
             
             // Root
             this._root = new Rule<IScanContext>(() => [{ ini: ini }]).noneOrMany(line);
