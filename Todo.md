@@ -23,7 +23,12 @@ TypeScript/Rule.ts
 * Idea to create a Grammer<T> class around the Rule<T>s.
     - This reduces a lot of tidious Rule<T>s
     - New methods: nl, ws, wss, wssnl?
-    - Embedded whitespace rules.   
+    - Embedded whitespace rules.
+    - Line counting.   
+* Return a failed parsing object instead of an exception when scanning.
+    - Return the most matched rule trail, for example to give detailed syntax errors or auto-completion.
+* Add version numbering to the class.
+* Add rule counts in trail to allow (easy) parsing, for example Python syntax that uses whitespace to delimit program blocks.
 
 TypeScript/Examples
 -------------------
