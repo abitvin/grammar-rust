@@ -1,3 +1,5 @@
+// TODO Remove me.
+
 module Abitvin
 {
 	interface IScanContext<TBranch>
@@ -10,7 +12,7 @@ module Abitvin
         lexeme: string;
 	}
 
-    export class Rule<TBranch>
+    export class Rule2<TBranch>
 	{
 		protected _branchFn: ( branches: TBranch[], lexeme: string ) => TBranch[];
 		protected _parts: {(ctx): boolean}[] = [];
@@ -20,7 +22,7 @@ module Abitvin
 			this.setBranchFn( branchFn );
 		}
 
-        public allExcept( list: string[] ): Rule<TBranch>
+        public allExcept( list: string[] ): Rule2<TBranch>
 		{
             list.forEach( item => {
                 if( item.length !== 1 )
@@ -31,7 +33,7 @@ module Abitvin
 			return this;
 		}
 
-		public alter( list: string[] ): Rule<TBranch>
+		public alter( list: string[] ): Rule2<TBranch>
 		{
             if( list.length % 2 === 1 )
                 throw new Error( "Alter list must be a factor of 2." );
@@ -40,67 +42,67 @@ module Abitvin
 			return this;
 		}
 
-		public atLeastOne( rule: Rule<TBranch> ): Rule<TBranch>
-		public atLeastOne( text: string ): Rule<TBranch>
-		public atLeastOne( item: any ): Rule<TBranch>
+		public atLeastOne( rule: Rule2<TBranch> ): Rule2<TBranch>
+		public atLeastOne( text: string ): Rule2<TBranch>
+		public atLeastOne( item: any ): Rule2<TBranch>
 		{
             if( typeof item === 'string' )
-                this._parts.push( this.scanAtLeastOne.bind( this, new Rule<TBranch>().literal( item ) ) );
+                this._parts.push( this.scanAtLeastOne.bind( this, new Rule2<TBranch>().literal( item ) ) );
 			else
 				this._parts.push( this.scanAtLeastOne.bind( this, item ) );
 
 			return this;
 		}
 
-		public anyOf( rules: Rule<TBranch>[] ): Rule<TBranch>
-		public anyOf( literals: string[] ): Rule<TBranch>
-		public anyOf( items: any[] ): Rule<TBranch>
+		public anyOf( rules: Rule2<TBranch>[] ): Rule2<TBranch>
+		public anyOf( literals: string[] ): Rule2<TBranch>
+		public anyOf( items: any[] ): Rule2<TBranch>
 		{
 			if( typeof items[0] === 'string' )
-                this._parts.push( this.scanAnyOf.bind( this, items.map( l => new Rule<TBranch>().literal( l ) ) ) );
+                this._parts.push( this.scanAnyOf.bind( this, items.map( l => new Rule2<TBranch>().literal( l ) ) ) );
 			else
 				this._parts.push( this.scanAnyOf.bind( this, items ) );
 
 			return this;
 		}
 
-		public between( charA: string, charB: string ): Rule<TBranch>
+		public between( charA: string, charB: string ): Rule2<TBranch>
 		{
 			this._parts.push( this.scanBetween.bind( this, charA.charCodeAt(0), charB.charCodeAt(0) ) );
 			return this;
 		}
 
-		public maybe( rule: Rule<TBranch> ): Rule<TBranch>
-		public maybe( text: string ): Rule<TBranch>
-		public maybe( item: any ): Rule<TBranch>
+		public maybe( rule: Rule2<TBranch> ): Rule2<TBranch>
+		public maybe( text: string ): Rule2<TBranch>
+		public maybe( item: any ): Rule2<TBranch>
 		{
 			if( typeof item === 'string' )
-                this._parts.push( this.scanMaybe.bind( this, new Rule<TBranch>().literal( item ) ) );
+                this._parts.push( this.scanMaybe.bind( this, new Rule2<TBranch>().literal( item ) ) );
 			else
 				this._parts.push( this.scanMaybe.bind( this, item ) );
 
 			return this;
 		}
 
-		public literal( text: string ): Rule<TBranch>
+		public literal( text: string ): Rule2<TBranch>
 		{
 			this._parts.push( this.scanLiteral.bind( this, text ) );
 			return this;
 		}
 
-		public noneOrMany( rule: Rule<TBranch> ): Rule<TBranch>
-		public noneOrMany( text: string ): Rule<TBranch>
-		public noneOrMany( item: any ): Rule<TBranch>
+		public noneOrMany( rule: Rule2<TBranch> ): Rule2<TBranch>
+		public noneOrMany( text: string ): Rule2<TBranch>
+		public noneOrMany( item: any ): Rule2<TBranch>
 		{
             if( typeof item === 'string' )
-			    this._parts.push( this.scanNoneOrMany.bind( this, new Rule<TBranch>().literal( item ) ) );
+			    this._parts.push( this.scanNoneOrMany.bind( this, new Rule2<TBranch>().literal( item ) ) );
             else
 			    this._parts.push( this.scanNoneOrMany.bind( this, item ) );
 
 			return this;
 		}	
 
-		public one( rule: Rule<TBranch> ): Rule<TBranch>
+		public one( rule: Rule2<TBranch> ): Rule2<TBranch>
 		{
 			this._parts.push( this.scanOne.bind( this, rule ) );
 			return this;
@@ -210,7 +212,7 @@ module Abitvin
             return false;
 		}
 
-		private scanAtLeastOne( rule: Rule<TBranch>, ctx: IScanContext<TBranch> ): boolean
+		private scanAtLeastOne( rule: Rule2<TBranch>, ctx: IScanContext<TBranch> ): boolean
 		{
             var ok: boolean = false;
             var newCtx: IScanContext<TBranch> = this.branch( ctx );
@@ -225,14 +227,14 @@ module Abitvin
             return false;
 		}
 
-		private scanAnyOf( rules: Rule<TBranch>[], ctx: IScanContext<TBranch> ): boolean
+		private scanAnyOf( rules: Rule2<TBranch>[], ctx: IScanContext<TBranch> ): boolean
 		{
             var c: number = rules.length;
 
             for( var i: number = 0; i < c; i++ )
             {
                 var newCtx: IScanContext<TBranch> = this.branch( ctx );
-                var rule: Rule<TBranch> = rules[i];
+                var rule: Rule2<TBranch> = rules[i];
 
                 if( rule.scanRule( newCtx ) )
                     return this.merge( ctx, newCtx );
@@ -285,7 +287,7 @@ module Abitvin
             return false;
 		}
 
-		private scanMaybe( rule: Rule<TBranch>, ctx: IScanContext<TBranch> ): boolean
+		private scanMaybe( rule: Rule2<TBranch>, ctx: IScanContext<TBranch> ): boolean
 		{
             var newCtx: IScanContext<TBranch> = this.branch( ctx );
 
@@ -295,14 +297,14 @@ module Abitvin
             return true;
 		}
 
-		private scanNoneOrMany( rule: Rule<TBranch>, ctx: IScanContext<TBranch> ): boolean
+		private scanNoneOrMany( rule: Rule2<TBranch>, ctx: IScanContext<TBranch> ): boolean
 		{
             var newCtx: IScanContext<TBranch> = this.branch( ctx );
             while( rule.scanRule( newCtx ) ) {}
             return this.merge( ctx, newCtx );
 		}
 
-		private scanOne( rule: Rule<TBranch>, ctx: IScanContext<TBranch> ): boolean
+		private scanOne( rule: Rule2<TBranch>, ctx: IScanContext<TBranch> ): boolean
 		{
             var newCtx: IScanContext<TBranch> = this.branch( ctx );
 

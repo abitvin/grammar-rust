@@ -1,4 +1,6 @@
-﻿module Abitvin.ByteScript
+﻿///<reference path="../../References.ts"/>
+
+module Abitvin.ByteScript
 {
     interface IParseContext 
     {
