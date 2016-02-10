@@ -9,7 +9,6 @@ Ideas
 
 TypeScript general
 ------------------
-* Replace `module` with `namespace` keyword.
 * Use `const` and `let` instead of `var` when we can.
 
 TypeScript/Rule.ts
@@ -27,7 +26,6 @@ TypeScript/Rule.ts
     - Line counting.   
 * Return a failed parsing object instead of an exception when scanning.
     - Return the most matched rule trail, for example to give detailed syntax errors or auto-completion.
-* Add version numbering to the class.
 * Add rule counts in trail to allow (easy) parsing, for example Python syntax that uses whitespace to delimit program blocks.
 
 TypeScript/Examples

@@ -1,4 +1,4 @@
-module Abitvin.ByteScript.Type
+namespace Abitvin.ByteScript.Type
 {
 	export class Boolean extends BaseType implements IVariable
 	{

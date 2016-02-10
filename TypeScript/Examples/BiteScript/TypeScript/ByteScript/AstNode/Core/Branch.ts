@@ -1,4 +1,4 @@
-﻿module Abitvin.ByteScript.AstNode
+﻿namespace Abitvin.ByteScript.AstNode
 {
     export class Branch implements IAstNode
     {

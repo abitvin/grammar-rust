@@ -1,4 +1,4 @@
-﻿module Abitvin.ByteScript.AstNode
+﻿namespace Abitvin.ByteScript.AstNode
 {
     export class Boolean extends BaseLiteral<boolean> implements IAstNode
     {

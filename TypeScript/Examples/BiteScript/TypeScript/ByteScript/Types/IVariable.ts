@@ -1,4 +1,4 @@
-﻿module Abitvin.ByteScript
+﻿namespace Abitvin.ByteScript
 {
     export interface IVariable
     {

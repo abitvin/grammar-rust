@@ -1,6 +1,6 @@
 ﻿///<reference path="../../References.ts"/>
 
-module Abitvin.ByteScript
+namespace Abitvin.ByteScript
 {
     export class Interpreter
     {

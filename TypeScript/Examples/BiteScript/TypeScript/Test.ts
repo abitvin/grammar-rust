@@ -1,6 +1,6 @@
 ﻿///<reference path="../References.ts"/>
 
-module Abitvin
+namespace Abitvin
 {
     enum Kind
     {

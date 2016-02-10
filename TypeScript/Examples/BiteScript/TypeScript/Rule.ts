@@ -1,6 +1,6 @@
 // TODO Remove me.
 
-module Abitvin
+namespace Abitvin
 {
 	interface IScanContext<TBranch>
 	{

@@ -1,4 +1,4 @@
-module Abitvin.ByteScript.Type
+namespace Abitvin.ByteScript.Type
 {
 	export class String extends BaseType implements IVariable
 	{
