@@ -15,13 +15,15 @@ module Abitvin
 
     export class Rule<TBranch>
 	{
-		protected _branchFn: BranchFn<TBranch>;
+        protected _branchFn: BranchFn<TBranch>;
 		protected _parts: {(ctx): boolean}[] = [];
 
 		constructor(branchFn: BranchFn<TBranch> = null)
         {
 			this.setBranchFn(branchFn);
 		}
+        
+        public static get version(): string  { return "0.1"; }
 
         public allExcept(list: string[]): Rule<TBranch>
 		{
