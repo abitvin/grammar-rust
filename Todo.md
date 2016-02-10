@@ -4,6 +4,7 @@ Todo
 Ideas
 -----
 * Parse BNF grammer?
+* Make colorfier; maybe for another repository.
 
 TypeScript general
 ------------------
@@ -11,6 +12,7 @@ TypeScript general
 * Use `const` and `let` instead of `var` when we can.
 
 TypeScript/Rule.ts
+------------------
 * Format code to new guidelines.
 * Support for variadic arguments.
 * Tell in the documentation why do you need to do anyOf([float, signedInt]) and not anyOf([signedInt, float]).
@@ -28,7 +30,14 @@ TypeScript/Examples
 * Create Tabbed hierachie key value parser.
 * Create XML parser.
 * Create INI parser.
-* Create ByteScript/ToyScript. 
+
+TypeScript/Examples/BiteScript
+------------------------------
+* Rename namespaces.
+* Rename IInterpreterScope to IInterperterScope.
+* Remove Rule.ts
+* Refactor it everything else.
+* Rename it to ToyScript the emphasize that it's a toy language?
 
 TypeScript/Examples/Brainfuck
 -----------------------------
