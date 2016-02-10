@@ -25,10 +25,10 @@ namespace Abitvin
             let currentScope = ini;
             
             // Common
-            const ws = new Rule<IScanContext>().anyOf([" ", "\t"]);
+            const ws = new Rule<IScanContext>().anyOf(" ", "\t");
             
             // Comment
-            const commentChar = new Rule<IScanContext>().allExcept(["\r", "\n"]);
+            const commentChar = new Rule<IScanContext>().allExcept("\r", "\n");
             const comment = new Rule<IScanContext>().literal(";").noneOrMany(commentChar);
             
             // Property
@@ -46,9 +46,9 @@ namespace Abitvin
                 return [];
             };
             
-            const propNameChar = new Rule<IScanContext>().allExcept(["[", "]", "\r", "\n", "="]); 
+            const propNameChar = new Rule<IScanContext>().allExcept("[", "]", "\r", "\n", "="); 
             const propName = new Rule<IScanContext>(propNameFn).atLeastOne(propNameChar);
-            const propValueChar = new Rule<IScanContext>().allExcept(["\r", "\n"]); 
+            const propValueChar = new Rule<IScanContext>().allExcept("\r", "\n"); 
             const propValue = new Rule<IScanContext>(propValueFn).atLeastOne(propValueChar);
             const prop = new Rule<IScanContext>(propFn).one(propName).literal("=").one(propValue);
             
@@ -64,17 +64,17 @@ namespace Abitvin
                 return [];
             };
             
-            const sectionChar = new Rule<IScanContext>().allExcept(["[", "]", "\r", "\n", " ", "."]);
+            const sectionChar = new Rule<IScanContext>().allExcept("[", "]", "\r", "\n", " ", ".");
             const sectionScope = new Rule<IScanContext>(sectionScopeFn).atLeastOne(sectionChar);
             const sectionScopeLoop = new Rule<IScanContext>().literal(".").one(sectionScope);
             const sectionRoot = new Rule<IScanContext>(sectionRootFn).literal("[");
             const section = new Rule<IScanContext>().one(sectionRoot).one(sectionScope).noneOrMany(sectionScopeLoop).literal("]");
             
             // Content
-            const content = new Rule<IScanContext>().anyOf([comment, prop, section]);
+            const content = new Rule<IScanContext>().anyOf(comment, prop, section);
             const eof = new Rule<IScanContext>().eof();
             const nl = new Rule<IScanContext>().maybe("\r").literal("\n");
-            const line = new Rule<IScanContext>().noneOrMany(ws).maybe(content).anyOf([nl, eof]);
+            const line = new Rule<IScanContext>().noneOrMany(ws).maybe(content).anyOf(nl, eof);
             
             // Root
             this._root = new Rule<IScanContext>(() => [{ ini: ini }]).noneOrMany(line);

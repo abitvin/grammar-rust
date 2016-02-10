@@ -17,20 +17,20 @@ namespace Abitvin
             const digit = new ScanOnlyRule().between("0", "9");
             const af = new ScanOnlyRule().between("a", "f");
             const AF = new ScanOnlyRule().between("A", "F");
-            const hex = new ScanOnlyRule().anyOf([digit, af, AF]);
+            const hex = new ScanOnlyRule().anyOf(digit, af, AF);
             const nonZeroDigit = new ScanOnlyRule().between("1", "9");
             const newline = new ScanOnlyRule().maybe("\r").literal("\n");
-            const ws = new ScanOnlyRule().anyOf([" ", "\t"]);
+            const ws = new ScanOnlyRule().anyOf(" ", "\t");
             
             // Boolean
-            const bool = new ScanOnlyRule(passLexemeFn).anyOf(["false", "true"]);
+            const bool = new ScanOnlyRule(passLexemeFn).anyOf("false", "true");
             
             // Binary
             const binary = new ScanOnlyRule(passLexemeFn).literal("b").atLeastOne(bit);
             
             // Signed Integer
             const nonZeroSignedInt = new ScanOnlyRule(passLexemeFn).maybe("-").one(nonZeroDigit).noneOrMany(digit);
-            const signedInt = new ScanOnlyRule().anyOf([zero, nonZeroSignedInt]);
+            const signedInt = new ScanOnlyRule().anyOf(zero, nonZeroSignedInt);
             
             // Floating point
             const fraction = new ScanOnlyRule().literal(".").atLeastOne(digit);
@@ -42,17 +42,17 @@ namespace Abitvin
             const combineCharsFn = (branches: string[], lexeme: string) => [branches.join("")];
             const parseCharCodeFn = (branches: string[], lexeme: string) => [String.fromCharCode(parseInt(lexeme.substr(2), 16))];
              
-            const strEscapeControl = new ScanOnlyRule(passLexemeFn).alter(["\\0", "\0", "\\b", "\b", "\\f", "\f", "\\n", "\n", "\\r", "\r", "\\t", "\t", "\\v", "\v", "\\\"", "\""]);
+            const strEscapeControl = new ScanOnlyRule(passLexemeFn).alter("\\0", "\0", "\\b", "\b", "\\f", "\f", "\\n", "\n", "\\r", "\r", "\\t", "\t", "\\v", "\v", "\\\"", "\"");
             const strEscapeLatin1 = new ScanOnlyRule(parseCharCodeFn).literal("\\x").one(hex).one(hex);
             const strEscapeUTF16 = new ScanOnlyRule(parseCharCodeFn).literal("\\u").one(hex).one(hex).one(hex).one(hex);
             const strEscapeUnknown = new ScanOnlyRule(passLexemeFn).literal("\\");
-            const strAllExceptBs2 = new ScanOnlyRule(passLexemeFn).allExcept(["\""]);
-            const strChar = new ScanOnlyRule().anyOf([strEscapeControl, strEscapeLatin1, strEscapeUTF16, strEscapeUnknown, strAllExceptBs2]);
+            const strAllExceptBs = new ScanOnlyRule(passLexemeFn).allExcept(["\""]);
+            const strChar = new ScanOnlyRule().anyOf(strEscapeControl, strEscapeLatin1, strEscapeUTF16, strEscapeUnknown, strAllExceptBs);
             const strValue = new ScanOnlyRule(combineCharsFn).noneOrMany(strChar);
             const str = new ScanOnlyRule().literal("\"").one(strValue).literal("\"");
             
             // Array of the different types above
-            const arrItem = new ScanOnlyRule().anyOf([bool, binary, float, signedInt, str]);    // Note that `float` must be before `signedInt`
+            const arrItem = new ScanOnlyRule().anyOf(bool, binary, float, signedInt, str);    // Note that `float` must be before `signedInt`
             const arrManyItems = new ScanOnlyRule().noneOrMany(ws).literal(",").noneOrMany(ws).one(arrItem);
             const arr = new ScanOnlyRule(passLexemeFn).literal("[").noneOrMany(ws).one(arrItem).noneOrMany(arrManyItems).noneOrMany(ws).literal("]");
             
@@ -61,8 +61,6 @@ namespace Abitvin
             this.createExample("Binary", "new Rule().atLeastOne(bit)", "b00110110", binary);
             this.createExample("Signed integer", "- TODO -", "-1234567", signedInt);
             this.createExample("Floating point", "- TODO -", "1234.567", float);
-            //this.createExample("String with strict escape characters", "- TODO -", '"\\"Adapt what is useful, reject what is useless, and add what is specifically your own.\\"\\n- Bruce Lee"', str1);
-            //this.createExample("String with forgiven escape characters", "- TODO -", '"\\u266A No no limits, we\'ll reach for the sky!\\x0aNo valley to deep, no maintain to high\\x0aNo no limits, won\'t give up the fight\\x0aWe do what we want and we do it with pride \\u266A"', str2);
             this.createExample("String with strict escape characters", "- TODO -", '"\\u201cAdapt what is useful, reject what is useless, and add what is specifically your own.\\u201d\\n\\u2013 Bruce Lee"', str);
             this.createExample("Array of the different types above", "- TODO -", '[      777, false,     b10011001, "Hello, world",    2323.600   ]', arr);
         }

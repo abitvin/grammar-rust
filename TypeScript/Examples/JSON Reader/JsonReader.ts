@@ -17,19 +17,21 @@ namespace Abitvin
         {
             const zero = new Rule<IScanContext>().literal("0");
             const nonZeroDigit = new Rule<IScanContext>().between("1", "9");
-            const ws = new Rule<IScanContext>().anyOf([" ", "\n", "\r", "\t"]);
+            const ws = new Rule<IScanContext>().anyOf(" ", "\n", "\r", "\t");
             const dec = new Rule<IScanContext>().between("0", "9");
             const oct = new Rule<IScanContext>().between("0", "7");
             const af = new Rule<IScanContext>().between("a", "f");
             const AF = new Rule<IScanContext>().between("A", "F");
-            const hex = new Rule<IScanContext>().anyOf([dec, af, AF]);
+            const letter = new Rule<IScanContext>().between("a", "z");
+            const LETTER = new Rule<IScanContext>().between("A", "Z");
+            const hex = new Rule<IScanContext>().anyOf(dec, af, AF);
+            const alphaNum = new Rule<IScanContext>().anyOf(letter, LETTER, dec);
             
-            // TODO const varName = new 
             const value = new Rule<IScanContext>();
             
             // Boolean
             const parseBoolFn = (branches: IScanContext[], lexeme: string) => [{ value: lexeme === "true" }];
-            const bool = new Rule<IScanContext>(parseBoolFn).anyOf(["true", "false"]);
+            const bool = new Rule<IScanContext>(parseBoolFn).anyOf("true", "false");
             
             // Null
             const parseNullFn = (branches: IScanContext[], lexeme: string) => [{ value: null }];
@@ -45,7 +47,7 @@ namespace Abitvin
             const parseFloatFn = (branches: IScanContext[], lexeme: string) => [{ value: parseFloat(lexeme) }];
             
             const nonZeroSignedInt = new Rule<IScanContext>().maybe("-").one(nonZeroDigit).noneOrMany(dec);
-            const signedInt = new Rule<IScanContext>().anyOf([zero, nonZeroSignedInt]);
+            const signedInt = new Rule<IScanContext>().anyOf(zero, nonZeroSignedInt);
             const fraction = new Rule<IScanContext>().literal(".").atLeastOne(dec);
 			const hexNum = new Rule<IScanContext>(parseHexFn).literal("0x").atLeastOne(hex);
             const octNum = new Rule<IScanContext>(parseOctFn).literal("0").atLeastOne(oct);
@@ -57,11 +59,11 @@ namespace Abitvin
             const parseCharCodeFn = (branches: IScanContext[], lexeme: string) => [{ value: String.fromCharCode(parseInt(lexeme.substr(2), 16)) }];
             const passLexemeFn = (branches: IScanContext[], lexeme: string) => [{ value: lexeme }];
             
-            const strEscapeControl = new Rule<IScanContext>(passLexemeFn).alter(["\\0", "\0", "\\b", "\b", "\\f", "\f", "\\n", "\n", "\\r", "\r", "\\t", "\t", "\\v", "\v", "\\\"", "\""]);
+            const strEscapeControl = new Rule<IScanContext>(passLexemeFn).alter("\\0", "\0", "\\b", "\b", "\\f", "\f", "\\n", "\n", "\\r", "\r", "\\t", "\t", "\\v", "\v", "\\\"", "\"");
             const strEscapeLatin1 = new Rule<IScanContext>(parseCharCodeFn).literal("\\x").one(hex).one(hex);
             const strEscapeUTF16 = new Rule<IScanContext>(parseCharCodeFn).literal("\\u").one(hex).one(hex).one(hex).one(hex);
             const strEscapeUnknown = new Rule<IScanContext>(passLexemeFn).literal("\\");
-            const strAllExceptBs = new Rule<IScanContext>(passLexemeFn).allExcept(["\""]);
+            const strAllExceptBs = new Rule<IScanContext>(passLexemeFn).allExcept("\"");
             const strChar = new Rule<IScanContext>().anyOf([strEscapeControl, strEscapeLatin1, strEscapeUTF16, strEscapeUnknown, strAllExceptBs]);
             const strValue = new Rule<IScanContext>(combineCharsFn).noneOrMany(strChar);
             const str = new Rule<IScanContext>().literal("\"").one(strValue).literal("\"");
@@ -84,14 +86,14 @@ namespace Abitvin
                 return [{ value: obj }];
             };
             
-            
-            const objPropName = new Rule<IScanContext>(parsePropNameFn).anyOf([str/* TODO , varName */]);
+            const varName = new Rule<IScanContext>().anyOf(letter, LETTER).noneOrMany(alphaNum); // Note that this is not the full range of allowed characters in JavaScript variables.
+            const objPropName = new Rule<IScanContext>(parsePropNameFn).anyOf(str, varName);
             const objProp = new Rule<IScanContext>(parsePropFn).one(objPropName).noneOrMany(ws).literal(":").noneOrMany(ws).one(value);
             const objItem = new Rule<IScanContext>().literal(",").noneOrMany(ws).one(objProp).noneOrMany(ws);
             const objItems = new Rule<IScanContext>().one(objProp).noneOrMany(ws).noneOrMany(objItem).maybe(","); 
             const obj = new Rule<IScanContext>(parseObjFn).literal("{").noneOrMany(ws).maybe(objItems).noneOrMany(ws).literal("}");
             
-            value.anyOf([bool, nul, und, hexNum, octNum, numDec, numDecFraction, str, arr, obj]);
+            value.anyOf(bool, nul, und, hexNum, octNum, numDec, numDecFraction, str, arr, obj);
             
             this._root = value;
         }

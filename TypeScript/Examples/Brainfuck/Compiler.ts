@@ -16,10 +16,10 @@ namespace Abitvin.Brainfuck
             const printByte = new Rule<Token>(() => [Token.PrintByte]).literal(".");
             const startWhile = new Rule<Token>(() => [Token.StartWhile]).literal("[");
             const endWhile = new Rule<Token>(() => [Token.EndWhile]).literal("]");
-            const ignore = new Rule<Token>().allExcept(["-", "+", "<", ">", ".", ",", "[", "]"]);
+            const ignore = new Rule<Token>().allExcept("-", "+", "<", ">", ".", ",", "[", "]");
 
             const whileLoop = new Rule<Token>();
-            const instruction = new Rule<Token>().anyOf([decByte, decPointer, incByte, incPointer, inputByte, printByte, whileLoop, ignore]);
+            const instruction = new Rule<Token>().anyOf(decByte, decPointer, incByte, incPointer, inputByte, printByte, whileLoop, ignore);
             const branch = new Rule<Token>().noneOrMany(instruction);
             whileLoop.one(startWhile).one(branch).one(endWhile);
 

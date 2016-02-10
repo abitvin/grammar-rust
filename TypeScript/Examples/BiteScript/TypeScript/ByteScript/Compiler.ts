@@ -399,28 +399,28 @@ namespace Abitvin.ByteScript
 			var nonZeroDigit = new Rule<IParseContext>().between( "1", "9" );
 			var digit = new Rule<IParseContext>().between( "0", "9" );
             var az = new Rule<IParseContext>().between( "a", "z" );
-            var ws = new Rule<IParseContext>().anyOf([ " ", "\t" ]);
-            var eol = new Rule<IParseContext>().anyOf([ "\r\n", "\n", "\r" ]);
+            var ws = new Rule<IParseContext>().anyOf(" ", "\t");
+            var eol = new Rule<IParseContext>().anyOf("\r\n", "\n", "\r");
             var emptyLine = new Rule<IParseContext>().noneOrMany( ws ).one( eol );
             var branch = new Rule<IParseContext>( branchNode ).noneOrMany( stmt );
             var end = new Rule<IParseContext>().noneOrMany( ws ).literal( "end" );
 
             // Comment
-            var commentChar = new Rule<IParseContext>().allExcept([ "\n", "\r" ]);
+            var commentChar = new Rule<IParseContext>().allExcept("\n", "\r");
             var comment = new Rule<IParseContext>( commentNode ).literal( "//" ).noneOrMany( commentChar );
 
 			// Identifier, variable and types
-			var bool = new Rule<IParseContext>( booleanNode ).anyOf([ "false", "true" ]);
+			var bool = new Rule<IParseContext>( booleanNode ).anyOf("false", "true");
             var id = new Rule<IParseContext>( idNode ).atLeastOne( az );
 			var signedInteger = new Rule<IParseContext>().maybe( "-" ).one( nonZeroDigit ).noneOrMany( digit );
 			var variable = new Rule<IParseContext>( variableNode ).atLeastOne( az );
-            var integer = new Rule<IParseContext>().anyOf([ zero, signedInteger ]);
+            var integer = new Rule<IParseContext>().anyOf(zero, signedInteger);
             var decimalFraction = new Rule<IParseContext>().literal( "." ).atLeastOne( digit );
 			var numbr = new Rule<IParseContext>( numberNode ).one( integer ).maybe( decimalFraction );
             
-            var strEscape = new Rule<IParseContext>().alter([ "\\\"", "\"" ]);
-            var strAllExcept = new Rule<IParseContext>().allExcept([ "\"" ]);
-            var strChar = new Rule<IParseContext>().anyOf([ strEscape, strAllExcept ]);
+            var strEscape = new Rule<IParseContext>().alter("\\\"", "\"");
+            var strAllExcept = new Rule<IParseContext>().allExcept("\"");
+            var strChar = new Rule<IParseContext>().anyOf(strEscape, strAllExcept);
             var strValue = new Rule<IParseContext>( stringNode ).noneOrMany( strChar );
             var str = new Rule<IParseContext>().literal( "\"" ).one( strValue ).literal( "\"" );
 
@@ -447,7 +447,7 @@ namespace Abitvin.ByteScript
             var opGetAtIndex = new Rule<IParseContext>( opGetAtIndexNode ).one( atIndex );
             var opGetAtKey = new Rule<IParseContext>( opGetAtKeyNode ).one( atKey );
             var opGetAtScope = new Rule<IParseContext>( opGetAtScopeNode ).one( atScope );
-            var getAtIndexOrKey = new Rule<IParseContext>().anyOf([ opGetAtIndex, opGetAtKey ]);
+            var getAtIndexOrKey = new Rule<IParseContext>().anyOf(opGetAtIndex, opGetAtKey);
             var getVar = new Rule<IParseContext>( buildAst ).one( opGetAtScope ).noneOrMany( getAtIndexOrKey );
             
             // Expression group
@@ -480,13 +480,13 @@ namespace Abitvin.ByteScript
             var opLOr = new Rule<IParseContext>( opLogicalOrNode ).atLeastOne( ws ).literal( "or " );
             
             // Expressions
-            var getOpsOrFuncInvocation = new Rule<IParseContext>().anyOf([ opGetAtIndex, opGetAtKey, opRange, opRangeFrom, opRangeTo, funcOp ]);
+            var getOpsOrFuncInvocation = new Rule<IParseContext>().anyOf(opGetAtIndex, opGetAtKey, opRange, opRangeFrom, opRangeTo, funcOp);
             var operand = new Rule<IParseContext>();
-            var operation = new Rule<IParseContext>().anyOf([ opAdd, opDiv, opMod, opMul, opPow, opSub, opEq, opLAnd, opLOr, opGt, opSt ]).noneOrMany( ws ).one( operand );
+            var operation = new Rule<IParseContext>().anyOf(opAdd, opDiv, opMod, opMul, opPow, opSub, opEq, opLAnd, opLOr, opGt, opSt).noneOrMany( ws ).one( operand );
             var exprLoop = new Rule<IParseContext>().one( operand ).noneOrMany( operation );
             var exprGroup = new Rule<IParseContext>().one( grpBegin ).noneOrMany( ws ).one( exprLoop ).noneOrMany( ws ).one( grpEnd );
-            var unaryble = new Rule<IParseContext>().maybe( opInverse ).anyOf([ variable, exprGroup ]);
-            operand.anyOf([ bool, numbr, list, str, func, struct, unaryble ]).noneOrMany( getOpsOrFuncInvocation );
+            var unaryble = new Rule<IParseContext>().maybe( opInverse ).anyOf(variable, exprGroup);
+            operand.anyOf(bool, numbr, list, str, func, struct, unaryble).noneOrMany( getOpsOrFuncInvocation );
             expr.one( exprLoop );
             
             // Print statement
@@ -511,7 +511,7 @@ namespace Abitvin.ByteScript
             var returnStmt = new Rule<IParseContext>( returnStmtNode ).literal( "return" ).atLeastOne( ws ).one( expr );
 
             // Any statement (implementation)
-            stmt.noneOrMany( ws ).anyOf([ emptyLine, comment, assignmentStmt, funcCallStmt, ifStmtRoot, printStmt, returnStmt, whileStmt ]).noneOrMany( ws ).maybe( eol );
+            stmt.noneOrMany( ws ).anyOf(emptyLine, comment, assignmentStmt, funcCallStmt, ifStmtRoot, printStmt, returnStmt, whileStmt).noneOrMany( ws ).maybe( eol );
 
             // Root
             this._rootRule = new Rule<IParseContext>().atLeastOne( stmt );

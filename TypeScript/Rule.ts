@@ -23,10 +23,14 @@ namespace Abitvin
 			this.setBranchFn(branchFn);
 		}
         
-        public static get version(): string  { return "0.1"; }
+        public static get version(): string  { return "0.1.1"; }
 
+        public allExcept(...list: string[]): Rule<TBranch>
         public allExcept(list: string[]): Rule<TBranch>
+        public allExcept(arg1: any): Rule<TBranch>
 		{
+            const list: string[] = this.getVariadicArray<string>(arguments);
+            
             list.forEach(item => {
                 if (item.length !== 1)
                     throw new Error("An 'all except' list item can only be a single character.")
@@ -36,8 +40,12 @@ namespace Abitvin
 			return this;
 		}
 
-		public alter(list: string[]): Rule<TBranch>
+		public alter(...list: string[]): Rule<TBranch>
+        public alter(list: string[]): Rule<TBranch>
+        public alter(arg1: any): Rule<TBranch>
 		{
+            const list: string[] = this.getVariadicArray<string>(arguments); 
+            
             if (list.length % 2 === 1)
                 throw new Error("Alter list must be a factor of 2.");
 
@@ -49,7 +57,7 @@ namespace Abitvin
 		public atLeastOne(text: string): Rule<TBranch>
 		public atLeastOne(arg: any): Rule<TBranch>
 		{
-            if (typeof arg === 'string')
+            if (this.isString(arg))
                 this._parts.push(this.scanAtLeastOne.bind(this, new Rule<TBranch>().literal(arg)));
 			else
 				this._parts.push(this.scanAtLeastOne.bind(this, arg));
@@ -57,12 +65,16 @@ namespace Abitvin
 			return this;
 		}
 
-		public anyOf(rules: Rule<TBranch>[]): Rule<TBranch>
-		public anyOf(literals: string[]): Rule<TBranch>
-		public anyOf(items: any[]): Rule<TBranch>
+        public anyOf(...rules: Rule<TBranch>[]): Rule<TBranch>
+        public anyOf(rules: Rule<TBranch>[]): Rule<TBranch>
+		public anyOf(...literals: string[]): Rule<TBranch>
+        public anyOf(literals: string[]): Rule<TBranch>
+		public anyOf(arg1: any): Rule<TBranch>
 		{
-			if (typeof items[0] === 'string')
-                this._parts.push(this.scanAnyOf.bind(this, items.map(l => new Rule<TBranch>().literal(l))));
+            const items: (Rule<TBranch>|string)[] = this.getVariadicArray<Rule<TBranch>|string>(arguments);
+            
+			if (this.isString(items[0]))
+                this._parts.push(this.scanAnyOf.bind(this, (<string[]>items).map(l => new Rule<TBranch>().literal(l))));
 			else
 				this._parts.push(this.scanAnyOf.bind(this, items));
 
@@ -85,7 +97,7 @@ namespace Abitvin
 		public maybe(text: string): Rule<TBranch>
 		public maybe(item: any): Rule<TBranch>
 		{
-			if (typeof item === 'string')
+			if (this.isString(item))
                 this._parts.push(this.scanMaybe.bind(this, new Rule<TBranch>().literal(item)));
 			else
 				this._parts.push(this.scanMaybe.bind(this, item));
@@ -103,7 +115,7 @@ namespace Abitvin
 		public noneOrMany(text: string): Rule<TBranch>
 		public noneOrMany(item: any): Rule<TBranch>
 		{
-            if (typeof item === 'string')
+            if (this.isString(item))
 			    this._parts.push(this.scanNoneOrMany.bind(this, new Rule<TBranch>().literal(item)));
             else
 			    this._parts.push(this.scanNoneOrMany.bind(this, item));
@@ -164,8 +176,26 @@ namespace Abitvin
 				lexeme: ""
 			};
 		}
-
-		private merge(target: IScanContext<TBranch>, source: IScanContext<TBranch>, isRule: boolean = false): boolean
+        
+        private getVariadicArray<T>(args: IArguments): T[]
+        {
+            if (Array.isArray(args[0]))
+                return args[0];
+            
+            var arr: T[] = [];
+                
+            for (let i: number = 0; i < args.length; i++)
+                arr.push(args[i]);
+                
+            return arr;
+        }
+        
+        private isString(v: any): v is string
+        {
+            return v == null ? false : v.constructor === String;
+        }
+        
+        private merge(target: IScanContext<TBranch>, source: IScanContext<TBranch>, isRule: boolean = false): boolean
 		{
 			target.hasEof = source.hasEof;
             target.index = source.index;

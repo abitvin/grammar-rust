@@ -14,7 +14,6 @@ TypeScript general
 TypeScript/Rule.ts
 ------------------
 * Format code to new guidelines.
-* Support for variadic arguments.
 * Tell in the documentation why do you need to do anyOf([float, signedInt]) and not anyOf([signedInt, float]).
 * Replace `atLeastOne(rule)` with `atLeast(n, rule)` or `minOf(n, rule)`
 * Add `maxOf(n, rule)` or `utmost(n, rule)`
@@ -57,3 +56,4 @@ TypeScript/Examples/INI Reader
 TypeScript/Examples/JSON Reader
 --------------------------------
 * Fancy the visuals.
+* Property as string or variable.
