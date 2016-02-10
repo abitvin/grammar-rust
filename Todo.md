@@ -5,6 +5,7 @@ Ideas
 -----
 * Parse BNF grammer?
 * Make colorfier; maybe for another repository.
+* Make examples for parsing different language formatting styles, for example: Python using spaces/tabs, JavaScript using {}, etc. 
 
 TypeScript general
 ------------------
@@ -26,13 +27,12 @@ TypeScript/Rule.ts
 
 TypeScript/Examples
 -------------------
-* Create JSON parser.
 * Create Tabbed hierachie key value parser.
 * Create XML parser.
-* Create INI parser.
 
 TypeScript/Examples/BiteScript
 ------------------------------
+* Format code to new guidelines.
 * Rename namespaces.
 * Rename IInterpreterScope to IInterperterScope.
 * Remove Rule.ts
@@ -44,10 +44,13 @@ TypeScript/Examples/Brainfuck
 * Test these examples: http://www.hevanet.com/cristofd/brainfuck/
 
 TypeScript/Examples/Common rules
-* Add common rules for example: parsing numbers, strings, array
+--------------------------------
+* Fancy the visuals.
 
-TypeScript/Examples/Math
-------------------------
-* Remove Rule2.ts prototype
-* Refactor
-* Rename "IInterpreterScope" to "IInterperterScope"
+TypeScript/Examples/INI Reader
+--------------------------------
+* Fancy the visuals.
+
+TypeScript/Examples/JSON Reader
+--------------------------------
+* Fancy the visuals.
