@@ -15,19 +15,19 @@ namespace Abitvin
 
     export class Rule<TBranch>
 	{
-        protected _branchFn: BranchFn<TBranch>;
-		protected _parts: {(ctx): boolean}[] = [];
+        private _branchFn: BranchFn<TBranch>;
+		private _parts: {(ctx): boolean}[] = [];
 
 		constructor(branchFn: BranchFn<TBranch> = null)
         {
 			this.setBranchFn(branchFn);
 		}
         
-        public static get version(): string  { return "0.2.4"; }
+        public static get version(): string  { return "0.2.5"; }
 
-        public allExcept(...list: string[]): Rule<TBranch>
-        public allExcept(list: string[]): Rule<TBranch>
-        public allExcept(arg1: any): Rule<TBranch>
+        public allExcept(...list: string[]): this
+        public allExcept(list: string[]): this
+        public allExcept(arg1: any): this
 		{
             const list: string[] = this.getVariadicArray<string>(arguments);
             
@@ -40,9 +40,9 @@ namespace Abitvin
 			return this;
 		}
 
-		public alter(...list: string[]): Rule<TBranch>
-        public alter(list: string[]): Rule<TBranch>
-        public alter(arg1: any): Rule<TBranch>
+		public alter(...list: string[]): this
+        public alter(list: string[]): this
+        public alter(arg1: any): this
 		{
             const list: string[] = this.getVariadicArray<string>(arguments); 
             
@@ -53,9 +53,9 @@ namespace Abitvin
 			return this;
 		}
 
-		public atLeast(num: number, rule: Rule<TBranch>): Rule<TBranch>
-		public atLeast(num: number, text: string): Rule<TBranch>
-		public atLeast(num: number, arg2: any): Rule<TBranch>
+		public atLeast(num: number, rule: Rule<TBranch>): this
+		public atLeast(num: number, text: string): this
+		public atLeast(num: number, arg2: any): this
 		{
             if (this.isString(arg2))
                 this._parts.push(this.scanRuleRange.bind(this, num, Number.POSITIVE_INFINITY, new Rule<TBranch>().literal(arg2)));
@@ -65,9 +65,9 @@ namespace Abitvin
 			return this;
 		}
         
-        public atMost(num: number, rule: Rule<TBranch>): Rule<TBranch>
-		public atMost(num: number, text: string): Rule<TBranch>
-		public atMost(num: number, arg2: any): Rule<TBranch>
+        public atMost(num: number, rule: Rule<TBranch>): this
+		public atMost(num: number, text: string): this
+		public atMost(num: number, arg2: any): this
 		{
             if (this.isString(arg2))
                 this._parts.push(this.scanRuleRange.bind(this, 0, num, new Rule<TBranch>().literal(arg2)));
@@ -77,11 +77,11 @@ namespace Abitvin
 			return this;
 		}
 
-        public anyOf(...rules: Rule<TBranch>[]): Rule<TBranch>
-        public anyOf(rules: Rule<TBranch>[]): Rule<TBranch>
-		public anyOf(...literals: string[]): Rule<TBranch>
-        public anyOf(literals: string[]): Rule<TBranch>
-		public anyOf(arg1: any): Rule<TBranch>
+        public anyOf(...rules: Rule<TBranch>[]): this
+        public anyOf(rules: Rule<TBranch>[]): this
+		public anyOf(...literals: string[]): this
+        public anyOf(literals: string[]): this
+		public anyOf(arg1: any): this
 		{
             const items: (Rule<TBranch>|string)[] = this.getVariadicArray<Rule<TBranch>|string>(arguments);
             
@@ -93,9 +93,9 @@ namespace Abitvin
 			return this;
 		}
 
-		public between(min: number, max: number, rule: Rule<TBranch>): Rule<TBranch>
-        public between(charA: string, charB: string, notUsed?: any): Rule<TBranch>
-        public between(arg1: any, arg2: any, arg3: any): Rule<TBranch>
+		public between(min: number, max: number, rule: Rule<TBranch>): this
+        public between(charA: string, charB: string, notUsed?: any): this
+        public between(arg1: any, arg2: any, arg3: any): this
 		{
             if (this.isString(arg1))
                 this._parts.push(this.scanCharRange.bind(this, arg1.charCodeAt(0), arg2.charCodeAt(0)));
@@ -105,15 +105,15 @@ namespace Abitvin
 			return this;
 		}
         
-        public eof(): Rule<TBranch>
+        public eof(): this
         {
             this._parts.push(this.scanEof.bind(this));
             return this;
         }
         
-        public exact(num: number, rule: Rule<TBranch>): Rule<TBranch>
-		public exact(num: number, text: string): Rule<TBranch>
-		public exact(num: number, arg2: any): Rule<TBranch>
+        public exact(num: number, rule: Rule<TBranch>): this
+		public exact(num: number, text: string): this
+		public exact(num: number, arg2: any): this
 		{
             if (this.isString(arg2))
                 this._parts.push(this.scanRuleRange.bind(this, num, num, new Rule<TBranch>().literal(arg2)));
@@ -123,9 +123,9 @@ namespace Abitvin
 			return this;
 		}
 
-		public maybe(rule: Rule<TBranch>): Rule<TBranch>
-		public maybe(text: string): Rule<TBranch>
-		public maybe(item: any): Rule<TBranch>
+		public maybe(rule: Rule<TBranch>): this
+		public maybe(text: string): this
+		public maybe(item: any): this
 		{
 			if (this.isString(item))
                 this._parts.push(this.scanRuleRange.bind(this, 0, 1, new Rule<TBranch>().literal(item)));
@@ -135,15 +135,15 @@ namespace Abitvin
 			return this;
 		}
 
-		public literal(text: string): Rule<TBranch>
+		public literal(text: string): this
 		{
 			this._parts.push(this.scanLiteral.bind(this, text));
 			return this;
 		}
         
-        public noneOrMany(rule: Rule<TBranch>): Rule<TBranch>
-		public noneOrMany(text: string): Rule<TBranch>
-		public noneOrMany(item: any): Rule<TBranch>
+        public noneOrMany(rule: Rule<TBranch>): this
+		public noneOrMany(text: string): this
+		public noneOrMany(item: any): this
 		{
             if (this.isString(item))
 			    this._parts.push(this.scanRuleRange.bind(this, 0, Number.POSITIVE_INFINITY, new Rule<TBranch>().literal(item)));
@@ -153,7 +153,7 @@ namespace Abitvin
 			return this;
 		}	
 
-		public one(rule: Rule<TBranch>): Rule<TBranch>
+		public one(rule: Rule<TBranch>): this
 		{
 			this._parts.push(this.scanRuleRange.bind(this, 1, 1, rule));
 			return this;

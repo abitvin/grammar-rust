@@ -14,9 +14,19 @@ namespace Abitvin
         [sectionOrProp: string]: string|IIni;
     }
     
+    class IniRule extends Rule<IScanContext>
+    {
+        private _ws = new Rule<IScanContext>().anyOf(" ", "\t");
+        
+        public ws(): this
+        {
+            return this.noneOrMany(this._ws);
+        }
+    } 
+    
     export class IniReader
     {
-        private static _root: Rule<IScanContext>;
+        private static _root: IniRule;
         private static _initialized: boolean = false;
         
         public static initialize(): void
@@ -24,12 +34,9 @@ namespace Abitvin
             const ini: IIni = {};
             let currentScope = ini;
             
-            // Common
-            const ws = new Rule<IScanContext>().anyOf(" ", "\t");
-            
             // Comment
-            const commentChar = new Rule<IScanContext>().allExcept("\r", "\n");
-            const comment = new Rule<IScanContext>().literal(";").noneOrMany(commentChar);
+            const commentChar = new IniRule().allExcept("\r", "\n");
+            const comment = new IniRule().literal(";").noneOrMany(commentChar);
             
             // Property
             const propNameFn = (b, l) => [{ name: l }];
@@ -46,11 +53,11 @@ namespace Abitvin
                 return [];
             };
             
-            const propNameChar = new Rule<IScanContext>().allExcept("[", "]", "\r", "\n", "="); 
-            const propName = new Rule<IScanContext>(propNameFn).atLeast(1, propNameChar);
-            const propValueChar = new Rule<IScanContext>().allExcept("\r", "\n"); 
-            const propValue = new Rule<IScanContext>(propValueFn).atLeast(1, propValueChar);
-            const prop = new Rule<IScanContext>(propFn).one(propName).literal("=").one(propValue);
+            const propNameChar = new IniRule().allExcept("[", "]", "\r", "\n", "="); 
+            const propName = new IniRule(propNameFn).atLeast(1, propNameChar);
+            const propValueChar = new IniRule().allExcept("\r", "\n"); 
+            const propValue = new IniRule(propValueFn).atLeast(1, propValueChar);
+            const prop = new IniRule(propFn).one(propName).literal("=").one(propValue);
             
             // Section
             const sectionRootFn = (b, l) => { currentScope = ini; return []; };
@@ -64,20 +71,20 @@ namespace Abitvin
                 return [];
             };
             
-            const sectionChar = new Rule<IScanContext>().allExcept("[", "]", "\r", "\n", " ", ".");
-            const sectionScope = new Rule<IScanContext>(sectionScopeFn).atLeast(1, sectionChar);
-            const sectionScopeLoop = new Rule<IScanContext>().literal(".").one(sectionScope);
-            const sectionRoot = new Rule<IScanContext>(sectionRootFn).literal("[");
-            const section = new Rule<IScanContext>().one(sectionRoot).one(sectionScope).noneOrMany(sectionScopeLoop).literal("]");
+            const sectionChar = new IniRule().allExcept("[", "]", "\r", "\n", " ", ".");
+            const sectionScope = new IniRule(sectionScopeFn).atLeast(1, sectionChar);
+            const sectionScopeLoop = new IniRule().literal(".").one(sectionScope);
+            const sectionRoot = new IniRule(sectionRootFn).literal("[");
+            const section = new IniRule().one(sectionRoot).one(sectionScope).noneOrMany(sectionScopeLoop).literal("]");
             
             // Content
-            const content = new Rule<IScanContext>().anyOf(comment, prop, section);
-            const eof = new Rule<IScanContext>().eof();
-            const nl = new Rule<IScanContext>().maybe("\r").literal("\n");
-            const line = new Rule<IScanContext>().noneOrMany(ws).maybe(content).anyOf(nl, eof);
+            const content = new IniRule().anyOf(comment, prop, section);
+            const eof = new IniRule().eof();
+            const nl = new IniRule().maybe("\r").literal("\n");
+            const line = new IniRule().ws().maybe(content).anyOf(nl, eof);
             
             // Root
-            this._root = new Rule<IScanContext>(() => [{ ini: ini }]).noneOrMany(line);
+            this._root = new IniRule(() => [{ ini: ini }]).noneOrMany(line);
         }
         
         public static read(input: string): IIni
