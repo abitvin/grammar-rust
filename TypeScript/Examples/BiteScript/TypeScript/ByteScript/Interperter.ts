@@ -4,7 +4,7 @@ namespace Abitvin.ByteScript
 {
     export class Interpreter
     {
-        private _current: IInterpreterScope;
+        private _current: IInterperterScope;
         private _varStack: IVariable[] = [];
 
         constructor( program: IAstNode )
@@ -115,7 +115,7 @@ namespace Abitvin.ByteScript
             }
             else
             {
-                var pushScope: IInterpreterScope = {
+                var pushScope: IInterperterScope = {
 					index: 0,
                     node: node,
                     parent: this._current,
@@ -146,7 +146,7 @@ namespace Abitvin.ByteScript
 
 		private findVariable( id: string ): IVariable
         {
-            var scope: IInterpreterScope = this._current;
+            var scope: IInterperterScope = this._current;
 
 			while( scope )
             {

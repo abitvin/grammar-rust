@@ -38,7 +38,7 @@
 ///<reference path="TypeScript/ByteScript/AstNode/Relational/SmallerThen.ts"/>
 ///<reference path="TypeScript/ByteScript/Compiler.ts"/>
 ///<reference path="TypeScript/ByteScript/IAstNode.ts"/>
-///<reference path="TypeScript/ByteScript/IInterpreterScope.ts"/>
+///<reference path="TypeScript/ByteScript/IInterperterScope.ts"/>
 ///<reference path="TypeScript/ByteScript/Interperter.ts"/>
 ///<reference path="TypeScript/ByteScript/Types/BaseType.ts"/>
 ///<reference path="TypeScript/ByteScript/Types/Boolean.ts"/>

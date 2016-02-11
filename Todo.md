@@ -14,7 +14,7 @@ TypeScript general
 TypeScript/Rule.ts
 ------------------
 * Tell in the documentation why do you need to do anyOf([float, signedInt]) and not anyOf([signedInt, float]).
-* Add `maxOf(n, rule)` or `utmost(n, rule)`
+* Add `maxOf(n, rule)` or `utmost(n, rule)` or `atMost(n, rule)`
 * Idea to create a Grammer<T> class around the Rule<T>s.
     - This reduces a lot of tidious Rule<T>s
     - New methods: nl, ws, wss, wssnl?
@@ -33,9 +33,7 @@ TypeScript/Examples/BiteScript
 ------------------------------
 * Format code to new guidelines.
 * Rename namespaces.
-* Rename IInterpreterScope to IInterperterScope.
-* Remove Rule.ts
-* Refactor it everything else.
+* Refactor everything else.
 * Rename it to ToyScript the emphasize that it's a toy language?
 
 TypeScript/Examples/Brainfuck

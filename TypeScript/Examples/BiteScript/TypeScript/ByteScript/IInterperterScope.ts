@@ -1,10 +1,10 @@
 ﻿namespace Abitvin.ByteScript
 {
-    export interface IInterpreterScope
+    export interface IInterperterScope
     {
 		index: number;
         node: IAstNode;
-        parent: IInterpreterScope;
+        parent: IInterperterScope;
         return: { value: IVariable };
         stackLength: number;
         variables: { [id: string]: IVariable };
