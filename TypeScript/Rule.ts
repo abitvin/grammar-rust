@@ -23,7 +23,7 @@ namespace Abitvin
 			this.setBranchFn(branchFn);
 		}
         
-        public static get version(): string  { return "0.2"; }
+        public static get version(): string  { return "0.2.1"; }
 
         public allExcept(...list: string[]): Rule<TBranch>
         public allExcept(list: string[]): Rule<TBranch>
@@ -92,6 +92,18 @@ namespace Abitvin
             this._parts.push(this.scanEof.bind(this));
             return this;
         }
+        
+        public exact(num: number, rule: Rule<TBranch>): Rule<TBranch>
+		public exact(num: number, text: string): Rule<TBranch>
+		public exact(num: number, arg2: any): Rule<TBranch>
+		{
+            if (this.isString(arg2))
+                this._parts.push(this.scanExact.bind(this, num, new Rule<TBranch>().literal(arg2)));
+			else
+				this._parts.push(this.scanExact.bind(this, num, arg2));
+
+			return this;
+		}
 
 		public maybe(rule: Rule<TBranch>): Rule<TBranch>
 		public maybe(text: string): Rule<TBranch>
@@ -330,6 +342,22 @@ namespace Abitvin
             ctx.errorIndex = ctx.index;    
             return false;
         }
+        
+        private scanExact(num: number, rule: Rule<TBranch>, ctx: IScanContext<TBranch>): boolean
+		{
+            let count: number = 0;
+            const newCtx: IScanContext<TBranch> = this.branch(ctx);
+
+            while (newCtx.index !== newCtx.code.length && rule.scanRule(newCtx))
+                if (++count === num)
+                    break;
+
+            if (count === num)
+                return this.merge(ctx, newCtx);
+            
+            this.updateError(ctx, newCtx);
+            return false;
+		}
 
 		private scanLiteral(find: string, ctx: IScanContext<TBranch>): boolean
 		{
