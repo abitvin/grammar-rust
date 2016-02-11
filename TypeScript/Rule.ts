@@ -23,7 +23,7 @@ namespace Abitvin
 			this.setBranchFn(branchFn);
 		}
         
-        public static get version(): string  { return "0.2.1"; }
+        public static get version(): string  { return "0.2.2"; }
 
         public allExcept(...list: string[]): Rule<TBranch>
         public allExcept(list: string[]): Rule<TBranch>
@@ -128,16 +128,16 @@ namespace Abitvin
 		public noneOrMany(item: any): Rule<TBranch>
 		{
             if (this.isString(item))
-			    this._parts.push(this.scanNoneOrMany.bind(this, new Rule<TBranch>().literal(item)));
+			    this._parts.push(this.scanAtLeast.bind(this, 0, new Rule<TBranch>().literal(item)));
             else
-			    this._parts.push(this.scanNoneOrMany.bind(this, item));
+			    this._parts.push(this.scanAtLeast.bind(this, 0, item));
 
 			return this;
 		}	
 
 		public one(rule: Rule<TBranch>): Rule<TBranch>
 		{
-			this._parts.push(this.scanOne.bind(this, rule));
+			this._parts.push(this.scanExact.bind(this, 1, rule));
 			return this;
 		}
 
@@ -384,24 +384,6 @@ namespace Abitvin
                 this.merge(ctx, newCtx);
 
             return true;
-		}
-
-		private scanNoneOrMany(rule: Rule<TBranch>, ctx: IScanContext<TBranch>): boolean
-		{
-            const newCtx: IScanContext<TBranch> = this.branch(ctx);
-            while (rule.scanRule(newCtx)) {}
-            return this.merge(ctx, newCtx);
-		}
-
-		private scanOne(rule: Rule<TBranch>, ctx: IScanContext<TBranch>): boolean
-		{
-            const newCtx: IScanContext<TBranch> = this.branch(ctx);
-
-            if (rule.scanRule(newCtx))
-                return this.merge(ctx, newCtx);
-
-            this.updateError(ctx, newCtx);
-            return false;
 		}
 
 		private scanRule(ctx: IScanContext<TBranch>): boolean
