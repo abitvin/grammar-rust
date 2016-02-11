@@ -23,7 +23,7 @@ namespace Abitvin
 			this.setBranchFn(branchFn);
 		}
         
-        public static get version(): string  { return "0.2.3"; }
+        public static get version(): string  { return "0.2.4"; }
 
         public allExcept(...list: string[]): Rule<TBranch>
         public allExcept(list: string[]): Rule<TBranch>
@@ -58,9 +58,9 @@ namespace Abitvin
 		public atLeast(num: number, arg2: any): Rule<TBranch>
 		{
             if (this.isString(arg2))
-                this._parts.push(this.scanAtLeast.bind(this, num, new Rule<TBranch>().literal(arg2)));
+                this._parts.push(this.scanRuleRange.bind(this, num, Number.POSITIVE_INFINITY, new Rule<TBranch>().literal(arg2)));
 			else
-				this._parts.push(this.scanAtLeast.bind(this, num, arg2));
+				this._parts.push(this.scanRuleRange.bind(this, num, Number.POSITIVE_INFINITY, arg2));
 
 			return this;
 		}
@@ -70,9 +70,9 @@ namespace Abitvin
 		public atMost(num: number, arg2: any): Rule<TBranch>
 		{
             if (this.isString(arg2))
-                this._parts.push(this.scanAtMost.bind(this, num, new Rule<TBranch>().literal(arg2)));
+                this._parts.push(this.scanRuleRange.bind(this, 0, num, new Rule<TBranch>().literal(arg2)));
 			else
-				this._parts.push(this.scanAtMost.bind(this, num, arg2));
+				this._parts.push(this.scanRuleRange.bind(this, 0, num, arg2));
 
 			return this;
 		}
@@ -93,9 +93,15 @@ namespace Abitvin
 			return this;
 		}
 
-		public between(charA: string, charB: string): Rule<TBranch>
+		public between(min: number, max: number, rule: Rule<TBranch>): Rule<TBranch>
+        public between(charA: string, charB: string, notUsed?: any): Rule<TBranch>
+        public between(arg1: any, arg2: any, arg3: any): Rule<TBranch>
 		{
-			this._parts.push(this.scanBetween.bind(this, charA.charCodeAt(0), charB.charCodeAt(0)));
+            if (this.isString(arg1))
+                this._parts.push(this.scanCharRange.bind(this, arg1.charCodeAt(0), arg2.charCodeAt(0)));
+            else
+                this._parts.push(this.scanRuleRange.bind(this, arg1, arg2, arg3));
+                
 			return this;
 		}
         
@@ -110,9 +116,9 @@ namespace Abitvin
 		public exact(num: number, arg2: any): Rule<TBranch>
 		{
             if (this.isString(arg2))
-                this._parts.push(this.scanExact.bind(this, num, new Rule<TBranch>().literal(arg2)));
+                this._parts.push(this.scanRuleRange.bind(this, num, num, new Rule<TBranch>().literal(arg2)));
 			else
-				this._parts.push(this.scanExact.bind(this, num, arg2));
+				this._parts.push(this.scanRuleRange.bind(this, num, num, arg2));
 
 			return this;
 		}
@@ -122,9 +128,9 @@ namespace Abitvin
 		public maybe(item: any): Rule<TBranch>
 		{
 			if (this.isString(item))
-                this._parts.push(this.scanMaybe.bind(this, new Rule<TBranch>().literal(item)));
+                this._parts.push(this.scanRuleRange.bind(this, 0, 1, new Rule<TBranch>().literal(item)));
 			else
-				this._parts.push(this.scanMaybe.bind(this, item));
+				this._parts.push(this.scanRuleRange.bind(this, 0, 1, item));
 
 			return this;
 		}
@@ -140,16 +146,16 @@ namespace Abitvin
 		public noneOrMany(item: any): Rule<TBranch>
 		{
             if (this.isString(item))
-			    this._parts.push(this.scanAtLeast.bind(this, 0, new Rule<TBranch>().literal(item)));
+			    this._parts.push(this.scanRuleRange.bind(this, 0, Number.POSITIVE_INFINITY, new Rule<TBranch>().literal(item)));
             else
-			    this._parts.push(this.scanAtLeast.bind(this, 0, item));
+			    this._parts.push(this.scanRuleRange.bind(this, 0, Number.POSITIVE_INFINITY, item));
 
 			return this;
 		}	
 
 		public one(rule: Rule<TBranch>): Rule<TBranch>
 		{
-			this._parts.push(this.scanExact.bind(this, 1, rule));
+			this._parts.push(this.scanRuleRange.bind(this, 1, 1, rule));
 			return this;
 		}
 
@@ -283,37 +289,6 @@ namespace Abitvin
             return false;
 		}
 
-		private scanAtLeast(num: number, rule: Rule<TBranch>, ctx: IScanContext<TBranch>): boolean
-		{
-            let count: number = 0;
-            const newCtx: IScanContext<TBranch> = this.branch(ctx);
-
-            while (newCtx.index !== newCtx.code.length && rule.scanRule(newCtx))
-                count++;
-
-            if (count >= num)
-                return this.merge(ctx, newCtx);
-            
-            this.updateError(ctx, newCtx);
-            return false;
-		}
-        
-        private scanAtMost(num: number, rule: Rule<TBranch>, ctx: IScanContext<TBranch>): boolean
-		{
-            let count: number = 0;
-            const newCtx: IScanContext<TBranch> = this.branch(ctx);
-
-            while (newCtx.index !== newCtx.code.length && rule.scanRule(newCtx))
-                if (++count === num)
-                    break;
-
-            if (count <= num)
-                return this.merge(ctx, newCtx);
-            
-            this.updateError(ctx, newCtx);
-            return false;
-		}
-
 		private scanAnyOf(rules: Rule<TBranch>[], ctx: IScanContext<TBranch>): boolean
 		{
             const c: number = rules.length;
@@ -332,7 +307,7 @@ namespace Abitvin
             return false;
 		}
 
-		private scanBetween(codeA: number, codeB: number, ctx: IScanContext<TBranch>): boolean
+		private scanCharRange(codeA: number, codeB: number, ctx: IScanContext<TBranch>): boolean
 		{
             const char: string = ctx.code[ctx.index] || null;
             
@@ -371,23 +346,7 @@ namespace Abitvin
             return false;
         }
         
-        private scanExact(num: number, rule: Rule<TBranch>, ctx: IScanContext<TBranch>): boolean
-		{
-            let count: number = 0;
-            const newCtx: IScanContext<TBranch> = this.branch(ctx);
-
-            while (newCtx.index !== newCtx.code.length && rule.scanRule(newCtx))
-                if (++count === num)
-                    break;
-
-            if (count === num)
-                return this.merge(ctx, newCtx);
-            
-            this.updateError(ctx, newCtx);
-            return false;
-		}
-
-		private scanLiteral(find: string, ctx: IScanContext<TBranch>): boolean
+        private scanLiteral(find: string, ctx: IScanContext<TBranch>): boolean
 		{
             const len: number = find.length;
             const text: string = ctx.code.substr(ctx.index, len);
@@ -402,16 +361,6 @@ namespace Abitvin
             ctx.errorMessage = `Expected '${find}'; got '${text}'.`;
             ctx.errorIndex = ctx.index;
             return false;
-		}
-
-		private scanMaybe(rule: Rule<TBranch>, ctx: IScanContext<TBranch>): boolean
-		{
-            const newCtx: IScanContext<TBranch> = this.branch(ctx);
-
-            if (rule.scanRule(newCtx))
-                this.merge(ctx, newCtx);
-
-            return true;
 		}
 
 		private scanRule(ctx: IScanContext<TBranch>): boolean
@@ -433,7 +382,23 @@ namespace Abitvin
 			
             return this.merge(ctx, newCtx, true);
 		}
+        
+        private scanRuleRange(min: number, max: number, rule: Rule<TBranch>, ctx: IScanContext<TBranch>): boolean
+		{
+            let count: number = 0;
+            const newCtx: IScanContext<TBranch> = this.branch(ctx);
+            
+            while (newCtx.index !== newCtx.code.length && rule.scanRule(newCtx))
+                if (++count === max)
+                    break;
 
+            if (count >= min && count <= max)
+                return this.merge(ctx, newCtx);
+            
+            this.updateError(ctx, newCtx);
+            return false;
+        }
+        
 		private showCode(text: string, position: number): void
         {
             console.error(text.substr(position, 40));
