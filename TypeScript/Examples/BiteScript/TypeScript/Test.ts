@@ -29,15 +29,15 @@ namespace Abitvin
     {
         console.log( "Running: errors" );
 
-        var code = "varasd = 12";
+        var code = "var asd = 14";
 
         var alpha = new Rule<boolean>().between( "a", "z" );
         var digit = new Rule<boolean>().between( "0", "9" );
-        var id = new Rule<boolean>().atLeastOne( alpha );
-        var integer = new Rule<boolean>().atLeastOne( digit );
+        var id = new Rule<boolean>().atLeast(1, alpha);
+        var integer = new Rule<boolean>().atLeast(1, digit);
         var ws = new Rule<boolean>().anyOf([ " ", "\t" ]);
         
-        var varStmt = new Rule<boolean>().literal( "var" ).atLeastOne( ws ).one( id ).noneOrMany( ws ).literal( "=" ).noneOrMany( ws ).one( integer );
+        var varStmt = new Rule<boolean>().literal( "var" ).atLeast(2, ws).one( id ).noneOrMany( ws ).literal( "=" ).noneOrMany( ws ).one( integer );
 
         varStmt.scan( code );
     }
@@ -54,7 +54,7 @@ namespace Abitvin
 
         root.scan( code ).forEach( kind => console.log( Kind[kind] ) );
     }
-
+    
     // errors();
     // interperter();
     // noCode();

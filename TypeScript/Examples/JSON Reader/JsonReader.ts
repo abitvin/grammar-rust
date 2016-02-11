@@ -48,11 +48,11 @@ namespace Abitvin
             
             const nonZeroSignedInt = new Rule<IScanContext>().maybe("-").one(nonZeroDigit).noneOrMany(dec);
             const signedInt = new Rule<IScanContext>().anyOf(zero, nonZeroSignedInt);
-            const fraction = new Rule<IScanContext>().literal(".").atLeastOne(dec);
-			const hexNum = new Rule<IScanContext>(parseHexFn).literal("0x").atLeastOne(hex);
-            const octNum = new Rule<IScanContext>(parseOctFn).literal("0").atLeastOne(oct);
+            const fraction = new Rule<IScanContext>().literal(".").atLeast(1, dec);
+			const hexNum = new Rule<IScanContext>(parseHexFn).literal("0x").atLeast(1, hex);
+            const octNum = new Rule<IScanContext>(parseOctFn).literal("0").atLeast(1, oct);
             const numDec = new Rule<IScanContext>(parseFloatFn).one(signedInt).maybe(fraction);
-            const numDecFraction = new Rule<IScanContext>(parseFloatFn).literal(".").atLeastOne(dec);
+            const numDecFraction = new Rule<IScanContext>(parseFloatFn).literal(".").atLeast(1, dec);
             
             // String
             const combineCharsFn = (branches: IScanContext[], lexeme: string) => [{ value: branches.map(b => b.value).join("") }];

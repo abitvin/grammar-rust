@@ -13,16 +13,14 @@ TypeScript general
 
 TypeScript/Rule.ts
 ------------------
-* Format code to new guidelines.
 * Tell in the documentation why do you need to do anyOf([float, signedInt]) and not anyOf([signedInt, float]).
-* Replace `atLeastOne(rule)` with `atLeast(n, rule)` or `minOf(n, rule)`
 * Add `maxOf(n, rule)` or `utmost(n, rule)`
 * Add `preciseOf(n, rule)` or `exact(n, rule)`
 * Idea to create a Grammer<T> class around the Rule<T>s.
     - This reduces a lot of tidious Rule<T>s
     - New methods: nl, ws, wss, wssnl?
     - Embedded whitespace rules.
-    - Line counting.   
+    - Line counting.  
 * Return a failed parsing object instead of an exception when scanning.
     - Return the most matched rule trail, for example to give detailed syntax errors or auto-completion.
 * Add rule counts in trail to allow (easy) parsing, for example Python syntax that uses whitespace to delimit program blocks.
@@ -56,4 +54,3 @@ TypeScript/Examples/INI Reader
 TypeScript/Examples/JSON Reader
 --------------------------------
 * Fancy the visuals.
-* Property as string or variable.

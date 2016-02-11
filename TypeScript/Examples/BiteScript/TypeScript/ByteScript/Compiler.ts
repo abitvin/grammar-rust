@@ -411,11 +411,11 @@ namespace Abitvin.ByteScript
 
 			// Identifier, variable and types
 			var bool = new Rule<IParseContext>( booleanNode ).anyOf("false", "true");
-            var id = new Rule<IParseContext>( idNode ).atLeastOne( az );
+            var id = new Rule<IParseContext>( idNode ).atLeast(1, az);
 			var signedInteger = new Rule<IParseContext>().maybe( "-" ).one( nonZeroDigit ).noneOrMany( digit );
-			var variable = new Rule<IParseContext>( variableNode ).atLeastOne( az );
+			var variable = new Rule<IParseContext>( variableNode ).atLeast(1, az);
             var integer = new Rule<IParseContext>().anyOf(zero, signedInteger);
-            var decimalFraction = new Rule<IParseContext>().literal( "." ).atLeastOne( digit );
+            var decimalFraction = new Rule<IParseContext>().literal( "." ).atLeast(1, digit);
 			var numbr = new Rule<IParseContext>( numberNode ).one( integer ).maybe( decimalFraction );
             
             var strEscape = new Rule<IParseContext>().alter("\\\"", "\"");
@@ -434,7 +434,7 @@ namespace Abitvin.ByteScript
             var funcArguments = new Rule<IParseContext>().noneOrMany( ws ).one( expr ).noneOrMany( funcArgumentsLoop ).noneOrMany( ws );
             var funcOp = new Rule<IParseContext>( opInvokeFuncNode ).literal( "(" ).maybe( funcArguments ).literal( ")" );
 
-            var funcParametersLoop = new Rule<IParseContext>().atLeastOne( ws ).one( id );
+            var funcParametersLoop = new Rule<IParseContext>().atLeast(1, ws).one( id );
             var funcParametersStart = new Rule<IParseContext>().noneOrMany( ws ).one( id ).noneOrMany( funcParametersLoop ).noneOrMany( ws );
             var funcParameters = new Rule<IParseContext>( parametersNode ).maybe( funcParametersStart );
             var func = new Rule<IParseContext>( funcNode ).literal( "fn" ).noneOrMany( ws ).literal( "(" ).one( funcParameters ).literal( ")" ).one( eol ).one( branch ).one( end );
@@ -476,8 +476,8 @@ namespace Abitvin.ByteScript
             var opSt = new Rule<IParseContext>( opSmallerThenNode ).noneOrMany( ws ).literal( "<" );
 
             // Logical operators
-            var opLAnd = new Rule<IParseContext>( opLogicalAndNode ).atLeastOne( ws ).literal( "and " );
-            var opLOr = new Rule<IParseContext>( opLogicalOrNode ).atLeastOne( ws ).literal( "or " );
+            var opLAnd = new Rule<IParseContext>( opLogicalAndNode ).atLeast(1, ws).literal( "and " );
+            var opLOr = new Rule<IParseContext>( opLogicalOrNode ).atLeast(1, ws).literal( "or " );
             
             // Expressions
             var getOpsOrFuncInvocation = new Rule<IParseContext>().anyOf(opGetAtIndex, opGetAtKey, opRange, opRangeFrom, opRangeTo, funcOp);
@@ -490,31 +490,31 @@ namespace Abitvin.ByteScript
             expr.one( exprLoop );
             
             // Print statement
-            var printStmt = new Rule<IParseContext>( printStmtNode ).literal( "print" ).atLeastOne( ws ).one( expr );
+            var printStmt = new Rule<IParseContext>( printStmtNode ).literal( "print" ).atLeast(1, ws).one( expr );
 
             // Assigment statement
             var assignmentStmt = new Rule<IParseContext>( assignmentStmtNode ).one( getVar ).noneOrMany( ws ).literal( "=" ).noneOrMany( ws ).one( expr );
 
             // If statement
             var elseStmt = new Rule<IParseContext>().noneOrMany( ws ).literal( "else" ).noneOrMany( ws ).one( eol ).one( branch );
-            var elseIfStmt = new Rule<IParseContext>( conditionalNode ).noneOrMany( ws ).literal( "else if" ).atLeastOne( ws ).one( expr ).noneOrMany( ws ).one( eol ).one( branch );
-            var ifStmt = new Rule<IParseContext>( conditionalNode ).literal( "if" ).atLeastOne( ws ).one( expr ).noneOrMany( ws ).one( eol ).one( branch );
+            var elseIfStmt = new Rule<IParseContext>( conditionalNode ).noneOrMany( ws ).literal( "else if" ).atLeast(1, ws).one( expr ).noneOrMany( ws ).one( eol ).one( branch );
+            var ifStmt = new Rule<IParseContext>( conditionalNode ).literal( "if" ).atLeast(1, ws).one( expr ).noneOrMany( ws ).one( eol ).one( branch );
             var ifStmtRoot = new Rule<IParseContext>( ifStmtNode ).one( ifStmt ).noneOrMany( elseIfStmt ).maybe( elseStmt ).one( end );
 
             // While statement
-			var whileStmt = new Rule<IParseContext>( whileStmtNode ).literal( "while" ).atLeastOne( ws ).one( expr ).noneOrMany( ws ).one( eol ).one( branch ).one( end );
+			var whileStmt = new Rule<IParseContext>( whileStmtNode ).literal( "while" ).atLeast(1, ws).one( expr ).noneOrMany( ws ).one( eol ).one( branch ).one( end );
 
             // Function invocement
             funcCallStmt.one( getVar ).literal( "(" ).maybe( funcArguments ).literal( ")" );
             
             // Return statement
-            var returnStmt = new Rule<IParseContext>( returnStmtNode ).literal( "return" ).atLeastOne( ws ).one( expr );
+            var returnStmt = new Rule<IParseContext>( returnStmtNode ).literal( "return" ).atLeast(1, ws).one( expr );
 
             // Any statement (implementation)
             stmt.noneOrMany( ws ).anyOf(emptyLine, comment, assignmentStmt, funcCallStmt, ifStmtRoot, printStmt, returnStmt, whileStmt).noneOrMany( ws ).maybe( eol );
 
             // Root
-            this._rootRule = new Rule<IParseContext>().atLeastOne( stmt );
+            this._rootRule = new Rule<IParseContext>().atLeast(1, stmt);
         }
     }
 } 

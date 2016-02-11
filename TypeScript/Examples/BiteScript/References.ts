@@ -1,3 +1,4 @@
+///<reference path="../../Rule.ts"/>
 ///<reference path="TypeScript/ByteScript/AstNode/BaseClasses/BaseLiteral.ts"/>
 ///<reference path="TypeScript/ByteScript/AstNode/BaseClasses/BaseOperation.ts"/>
 ///<reference path="TypeScript/ByteScript/AstNode/Core/AssignmentAtIndex.ts"/>
@@ -49,5 +50,4 @@
 ///<reference path="TypeScript/ByteScript/Types/Number.ts"/>
 ///<reference path="TypeScript/ByteScript/Types/String.ts"/>
 ///<reference path="TypeScript/ByteScript/Types/Struct.ts"/>
-///<reference path="TypeScript/Rule.ts"/>
 ///<reference path="TypeScript/Test.ts"/>

@@ -47,9 +47,9 @@ namespace Abitvin
             };
             
             const propNameChar = new Rule<IScanContext>().allExcept("[", "]", "\r", "\n", "="); 
-            const propName = new Rule<IScanContext>(propNameFn).atLeastOne(propNameChar);
+            const propName = new Rule<IScanContext>(propNameFn).atLeast(1, propNameChar);
             const propValueChar = new Rule<IScanContext>().allExcept("\r", "\n"); 
-            const propValue = new Rule<IScanContext>(propValueFn).atLeastOne(propValueChar);
+            const propValue = new Rule<IScanContext>(propValueFn).atLeast(1, propValueChar);
             const prop = new Rule<IScanContext>(propFn).one(propName).literal("=").one(propValue);
             
             // Section
@@ -65,7 +65,7 @@ namespace Abitvin
             };
             
             const sectionChar = new Rule<IScanContext>().allExcept("[", "]", "\r", "\n", " ", ".");
-            const sectionScope = new Rule<IScanContext>(sectionScopeFn).atLeastOne(sectionChar);
+            const sectionScope = new Rule<IScanContext>(sectionScopeFn).atLeast(1, sectionChar);
             const sectionScopeLoop = new Rule<IScanContext>().literal(".").one(sectionScope);
             const sectionRoot = new Rule<IScanContext>(sectionRootFn).literal("[");
             const section = new Rule<IScanContext>().one(sectionRoot).one(sectionScope).noneOrMany(sectionScopeLoop).literal("]");

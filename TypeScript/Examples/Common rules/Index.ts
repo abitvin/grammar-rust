@@ -26,14 +26,14 @@ namespace Abitvin
             const bool = new ScanOnlyRule(passLexemeFn).anyOf("false", "true");
             
             // Binary
-            const binary = new ScanOnlyRule(passLexemeFn).literal("b").atLeastOne(bit);
+            const binary = new ScanOnlyRule(passLexemeFn).literal("b").atLeast(1, bit);
             
             // Signed Integer
             const nonZeroSignedInt = new ScanOnlyRule(passLexemeFn).maybe("-").one(nonZeroDigit).noneOrMany(digit);
             const signedInt = new ScanOnlyRule().anyOf(zero, nonZeroSignedInt);
             
             // Floating point
-            const fraction = new ScanOnlyRule().literal(".").atLeastOne(digit);
+            const fraction = new ScanOnlyRule().literal(".").atLeast(1, digit);
 			const float = new ScanOnlyRule(passLexemeFn).one(signedInt).maybe(fraction);
             
             // String escape characters
