@@ -23,7 +23,7 @@ namespace Abitvin
 			this.setBranchFn(branchFn);
 		}
         
-        public static get version(): string  { return "0.2.2"; }
+        public static get version(): string  { return "0.2.3"; }
 
         public allExcept(...list: string[]): Rule<TBranch>
         public allExcept(list: string[]): Rule<TBranch>
@@ -61,6 +61,18 @@ namespace Abitvin
                 this._parts.push(this.scanAtLeast.bind(this, num, new Rule<TBranch>().literal(arg2)));
 			else
 				this._parts.push(this.scanAtLeast.bind(this, num, arg2));
+
+			return this;
+		}
+        
+        public atMost(num: number, rule: Rule<TBranch>): Rule<TBranch>
+		public atMost(num: number, text: string): Rule<TBranch>
+		public atMost(num: number, arg2: any): Rule<TBranch>
+		{
+            if (this.isString(arg2))
+                this._parts.push(this.scanAtMost.bind(this, num, new Rule<TBranch>().literal(arg2)));
+			else
+				this._parts.push(this.scanAtMost.bind(this, num, arg2));
 
 			return this;
 		}
@@ -280,6 +292,22 @@ namespace Abitvin
                 count++;
 
             if (count >= num)
+                return this.merge(ctx, newCtx);
+            
+            this.updateError(ctx, newCtx);
+            return false;
+		}
+        
+        private scanAtMost(num: number, rule: Rule<TBranch>, ctx: IScanContext<TBranch>): boolean
+		{
+            let count: number = 0;
+            const newCtx: IScanContext<TBranch> = this.branch(ctx);
+
+            while (newCtx.index !== newCtx.code.length && rule.scanRule(newCtx))
+                if (++count === num)
+                    break;
+
+            if (count <= num)
                 return this.merge(ctx, newCtx);
             
             this.updateError(ctx, newCtx);

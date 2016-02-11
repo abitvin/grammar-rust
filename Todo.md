@@ -14,7 +14,7 @@ TypeScript general
 TypeScript/Rule.ts
 ------------------
 * Tell in the documentation why do you need to do anyOf([float, signedInt]) and not anyOf([signedInt, float]).
-* Add `maxOf(n, rule)` or `utmost(n, rule)` or `atMost(n, rule)`
+* Add ranges of rules; overloading `between()`?
 * Idea to create a Grammer<T> class around the Rule<T>s.
     - This reduces a lot of tidious Rule<T>s
     - New methods: nl, ws, wss, wssnl?
