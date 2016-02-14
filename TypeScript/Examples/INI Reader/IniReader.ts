@@ -2,6 +2,13 @@
 
 namespace Abitvin
 {
+    interface IEmpty {}
+    
+    interface IIni
+    {
+        [sectionOrProp: string]: string|IIni;
+    }
+    
     interface IScanContext
     {
         ini?: IIni;
@@ -9,14 +16,9 @@ namespace Abitvin
         value?: string;
     }
     
-    interface IIni
+    class IniRule extends Rule<IScanContext, IEmpty>
     {
-        [sectionOrProp: string]: string|IIni;
-    }
-    
-    class IniRule extends Rule<IScanContext>
-    {
-        private _ws = new Rule<IScanContext>().anyOf(" ", "\t");
+        private _ws = new Rule<IScanContext, IEmpty>().anyOf(" ", "\t");
         
         public ws(): this
         {

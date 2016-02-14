@@ -2,6 +2,8 @@
 
 namespace Abitvin.ByteScript
 {
+    interface IEmpty {}
+    
     interface IParseContext 
     {
         astNode?: IAstNode;
@@ -51,11 +53,13 @@ namespace Abitvin.ByteScript
         SmallerThen,
         Substract,
     }
+    
+    class BiteRule extends Rule<IParseContext, IEmpty> {}
 
     export class Compiler
     {
         private static _initialized: boolean = false;
-        private static _rootRule: Rule<IParseContext>;
+        private static _rootRule: BiteRule;
         private static _variables: { [id: string]: IVariable };
 
         public static compile( code: string ): IAstNode
@@ -390,131 +394,131 @@ namespace Abitvin.ByteScript
 				[{ kind: Kind.RangeTo, precedence: 9 }, nodes[0]];
             
             // Predefines
-            var expr = new Rule<IParseContext>( buildAst );
-            var stmt = new Rule<IParseContext>();
-            var funcCallStmt = new Rule<IParseContext>( funcCallNode );
+            var expr = new BiteRule( buildAst );
+            var stmt = new BiteRule();
+            var funcCallStmt = new BiteRule( funcCallNode );
 
             // Common
-            var zero = new Rule<IParseContext>().literal( "0" );
-			var nonZeroDigit = new Rule<IParseContext>().between( "1", "9" );
-			var digit = new Rule<IParseContext>().between( "0", "9" );
-            var az = new Rule<IParseContext>().between( "a", "z" );
-            var ws = new Rule<IParseContext>().anyOf(" ", "\t");
-            var eol = new Rule<IParseContext>().anyOf("\r\n", "\n", "\r");
-            var emptyLine = new Rule<IParseContext>().noneOrMany( ws ).one( eol );
-            var branch = new Rule<IParseContext>( branchNode ).noneOrMany( stmt );
-            var end = new Rule<IParseContext>().noneOrMany( ws ).literal( "end" );
+            var zero = new BiteRule().literal( "0" );
+			var nonZeroDigit = new BiteRule().between( "1", "9" );
+			var digit = new BiteRule().between( "0", "9" );
+            var az = new BiteRule().between( "a", "z" );
+            var ws = new BiteRule().anyOf(" ", "\t");
+            var eol = new BiteRule().anyOf("\r\n", "\n", "\r");
+            var emptyLine = new BiteRule().noneOrMany( ws ).one( eol );
+            var branch = new BiteRule( branchNode ).noneOrMany( stmt );
+            var end = new BiteRule().noneOrMany( ws ).literal( "end" );
 
             // Comment
-            var commentChar = new Rule<IParseContext>().allExcept("\n", "\r");
-            var comment = new Rule<IParseContext>( commentNode ).literal( "//" ).noneOrMany( commentChar );
+            var commentChar = new BiteRule().allExcept("\n", "\r");
+            var comment = new BiteRule( commentNode ).literal( "//" ).noneOrMany( commentChar );
 
 			// Identifier, variable and types
-			var bool = new Rule<IParseContext>( booleanNode ).anyOf("false", "true");
-            var id = new Rule<IParseContext>( idNode ).atLeast(1, az);
-			var signedInteger = new Rule<IParseContext>().maybe( "-" ).one( nonZeroDigit ).noneOrMany( digit );
-			var variable = new Rule<IParseContext>( variableNode ).atLeast(1, az);
-            var integer = new Rule<IParseContext>().anyOf(zero, signedInteger);
-            var decimalFraction = new Rule<IParseContext>().literal( "." ).atLeast(1, digit);
-			var numbr = new Rule<IParseContext>( numberNode ).one( integer ).maybe( decimalFraction );
+			var bool = new BiteRule( booleanNode ).anyOf("false", "true");
+            var id = new BiteRule( idNode ).atLeast(1, az);
+			var signedInteger = new BiteRule().maybe( "-" ).one( nonZeroDigit ).noneOrMany( digit );
+			var variable = new BiteRule( variableNode ).atLeast(1, az);
+            var integer = new BiteRule().anyOf(zero, signedInteger);
+            var decimalFraction = new BiteRule().literal( "." ).atLeast(1, digit);
+			var numbr = new BiteRule( numberNode ).one( integer ).maybe( decimalFraction );
             
-            var strEscape = new Rule<IParseContext>().alter("\\\"", "\"");
-            var strAllExcept = new Rule<IParseContext>().allExcept("\"");
-            var strChar = new Rule<IParseContext>().anyOf(strEscape, strAllExcept);
-            var strValue = new Rule<IParseContext>( stringNode ).noneOrMany( strChar );
-            var str = new Rule<IParseContext>().literal( "\"" ).one( strValue ).literal( "\"" );
+            var strEscape = new BiteRule().alter("\\\"", "\"");
+            var strAllExcept = new BiteRule().allExcept("\"");
+            var strChar = new BiteRule().anyOf(strEscape, strAllExcept);
+            var strValue = new BiteRule( stringNode ).noneOrMany( strChar );
+            var str = new BiteRule().literal( "\"" ).one( strValue ).literal( "\"" );
 
-            var listLoop = new Rule<IParseContext>().noneOrMany( ws ).literal( "," ).noneOrMany( ws ).one( expr );
-            var listStart = new Rule<IParseContext>().noneOrMany( ws ).one( expr ).noneOrMany( listLoop ).noneOrMany( ws );
-            var list = new Rule<IParseContext>( listNode ).literal( "[" ).maybe( listStart ).literal( "]" );
+            var listLoop = new BiteRule().noneOrMany( ws ).literal( "," ).noneOrMany( ws ).one( expr );
+            var listStart = new BiteRule().noneOrMany( ws ).one( expr ).noneOrMany( listLoop ).noneOrMany( ws );
+            var list = new BiteRule( listNode ).literal( "[" ).maybe( listStart ).literal( "]" );
 
-            var struct = new Rule<IParseContext>( structNode ).literal( "{}" );
+            var struct = new BiteRule( structNode ).literal( "{}" );
 
-            var funcArgumentsLoop = new Rule<IParseContext>().noneOrMany( ws ).literal( "," ).noneOrMany( ws ).one( expr );
-            var funcArguments = new Rule<IParseContext>().noneOrMany( ws ).one( expr ).noneOrMany( funcArgumentsLoop ).noneOrMany( ws );
-            var funcOp = new Rule<IParseContext>( opInvokeFuncNode ).literal( "(" ).maybe( funcArguments ).literal( ")" );
+            var funcArgumentsLoop = new BiteRule().noneOrMany( ws ).literal( "," ).noneOrMany( ws ).one( expr );
+            var funcArguments = new BiteRule().noneOrMany( ws ).one( expr ).noneOrMany( funcArgumentsLoop ).noneOrMany( ws );
+            var funcOp = new BiteRule( opInvokeFuncNode ).literal( "(" ).maybe( funcArguments ).literal( ")" );
 
-            var funcParametersLoop = new Rule<IParseContext>().atLeast(1, ws).one( id );
-            var funcParametersStart = new Rule<IParseContext>().noneOrMany( ws ).one( id ).noneOrMany( funcParametersLoop ).noneOrMany( ws );
-            var funcParameters = new Rule<IParseContext>( parametersNode ).maybe( funcParametersStart );
-            var func = new Rule<IParseContext>( funcNode ).literal( "fn" ).noneOrMany( ws ).literal( "(" ).one( funcParameters ).literal( ")" ).one( eol ).one( branch ).one( end );
+            var funcParametersLoop = new BiteRule().atLeast(1, ws).one( id );
+            var funcParametersStart = new BiteRule().noneOrMany( ws ).one( id ).noneOrMany( funcParametersLoop ).noneOrMany( ws );
+            var funcParameters = new BiteRule( parametersNode ).maybe( funcParametersStart );
+            var func = new BiteRule( funcNode ).literal( "fn" ).noneOrMany( ws ).literal( "(" ).one( funcParameters ).literal( ")" ).one( eol ).one( branch ).one( end );
 
             // Get variable.
-			var atIndex = new Rule<IParseContext>().literal( "[" ).noneOrMany( ws ).one( expr ).noneOrMany( ws ).literal( "]" );
-            var atKey = new Rule<IParseContext>().literal( "." ).one( id );
-            var atScope = new Rule<IParseContext>().one( id );
+			var atIndex = new BiteRule().literal( "[" ).noneOrMany( ws ).one( expr ).noneOrMany( ws ).literal( "]" );
+            var atKey = new BiteRule().literal( "." ).one( id );
+            var atScope = new BiteRule().one( id );
 
-            var opGetAtIndex = new Rule<IParseContext>( opGetAtIndexNode ).one( atIndex );
-            var opGetAtKey = new Rule<IParseContext>( opGetAtKeyNode ).one( atKey );
-            var opGetAtScope = new Rule<IParseContext>( opGetAtScopeNode ).one( atScope );
-            var getAtIndexOrKey = new Rule<IParseContext>().anyOf(opGetAtIndex, opGetAtKey);
-            var getVar = new Rule<IParseContext>( buildAst ).one( opGetAtScope ).noneOrMany( getAtIndexOrKey );
+            var opGetAtIndex = new BiteRule( opGetAtIndexNode ).one( atIndex );
+            var opGetAtKey = new BiteRule( opGetAtKeyNode ).one( atKey );
+            var opGetAtScope = new BiteRule( opGetAtScopeNode ).one( atScope );
+            var getAtIndexOrKey = new BiteRule().anyOf(opGetAtIndex, opGetAtKey);
+            var getVar = new BiteRule( buildAst ).one( opGetAtScope ).noneOrMany( getAtIndexOrKey );
             
             // Expression group
-            var grpBegin = new Rule<IParseContext>( grpBeginNode ).literal( "(" );
-            var grpEnd = new Rule<IParseContext>( grpEndNode ).literal( ")" );
+            var grpBegin = new BiteRule( grpBeginNode ).literal( "(" );
+            var grpEnd = new BiteRule( grpEndNode ).literal( ")" );
 
             // Mathematical operators
-            var opAdd = new Rule<IParseContext>( opAddNode ).noneOrMany( ws ).literal( "+" );
-            var opDiv = new Rule<IParseContext>( opDivNode ).noneOrMany( ws ).literal( "/" );
-            var opMod = new Rule<IParseContext>( opModNode ).noneOrMany( ws ).literal( "%" );
-            var opMul = new Rule<IParseContext>( opMulNode ).noneOrMany( ws ).literal( "*" );
-            var opPow = new Rule<IParseContext>( opPowNode ).noneOrMany( ws ).literal( "^" );
-            var opSub = new Rule<IParseContext>( opSubNode ).noneOrMany( ws ).literal( "-" );
+            var opAdd = new BiteRule( opAddNode ).noneOrMany( ws ).literal( "+" );
+            var opDiv = new BiteRule( opDivNode ).noneOrMany( ws ).literal( "/" );
+            var opMod = new BiteRule( opModNode ).noneOrMany( ws ).literal( "%" );
+            var opMul = new BiteRule( opMulNode ).noneOrMany( ws ).literal( "*" );
+            var opPow = new BiteRule( opPowNode ).noneOrMany( ws ).literal( "^" );
+            var opSub = new BiteRule( opSubNode ).noneOrMany( ws ).literal( "-" );
 
             // Unary operations
-            var opInverse = new Rule<IParseContext>( opInverseNode ).literal( "-" );
+            var opInverse = new BiteRule( opInverseNode ).literal( "-" );
             
             // Range operations
-            var opRange = new Rule<IParseContext>( opRangeNode ).literal( "[" ).noneOrMany( ws ).one( expr ).noneOrMany( ws ).literal( ".." ).noneOrMany( ws ).one( expr ).noneOrMany( ws ).literal( "]" );
-            var opRangeFrom = new Rule<IParseContext>( opRangeFromNode ).literal( "[" ).one( expr ).noneOrMany( ws ).literal( ".." ).noneOrMany( ws ).literal( "]" );
-            var opRangeTo = new Rule<IParseContext>( opRangeToNode ).literal( "[" ).noneOrMany( ws ).literal( ".." ).one( expr ).literal( "]" );
+            var opRange = new BiteRule( opRangeNode ).literal( "[" ).noneOrMany( ws ).one( expr ).noneOrMany( ws ).literal( ".." ).noneOrMany( ws ).one( expr ).noneOrMany( ws ).literal( "]" );
+            var opRangeFrom = new BiteRule( opRangeFromNode ).literal( "[" ).one( expr ).noneOrMany( ws ).literal( ".." ).noneOrMany( ws ).literal( "]" );
+            var opRangeTo = new BiteRule( opRangeToNode ).literal( "[" ).noneOrMany( ws ).literal( ".." ).one( expr ).literal( "]" );
 
             // Relational operators
-            var opEq = new Rule<IParseContext>( opEqualsNode ).noneOrMany( ws ).literal( "==" );
-            var opGt = new Rule<IParseContext>( opGreaterThenNode ).noneOrMany( ws ).literal( ">" );
-            var opSt = new Rule<IParseContext>( opSmallerThenNode ).noneOrMany( ws ).literal( "<" );
+            var opEq = new BiteRule( opEqualsNode ).noneOrMany( ws ).literal( "==" );
+            var opGt = new BiteRule( opGreaterThenNode ).noneOrMany( ws ).literal( ">" );
+            var opSt = new BiteRule( opSmallerThenNode ).noneOrMany( ws ).literal( "<" );
 
             // Logical operators
-            var opLAnd = new Rule<IParseContext>( opLogicalAndNode ).atLeast(1, ws).literal( "and " );
-            var opLOr = new Rule<IParseContext>( opLogicalOrNode ).atLeast(1, ws).literal( "or " );
+            var opLAnd = new BiteRule( opLogicalAndNode ).atLeast(1, ws).literal( "and " );
+            var opLOr = new BiteRule( opLogicalOrNode ).atLeast(1, ws).literal( "or " );
             
             // Expressions
-            var getOpsOrFuncInvocation = new Rule<IParseContext>().anyOf(opGetAtIndex, opGetAtKey, opRange, opRangeFrom, opRangeTo, funcOp);
-            var operand = new Rule<IParseContext>();
-            var operation = new Rule<IParseContext>().anyOf(opAdd, opDiv, opMod, opMul, opPow, opSub, opEq, opLAnd, opLOr, opGt, opSt).noneOrMany( ws ).one( operand );
-            var exprLoop = new Rule<IParseContext>().one( operand ).noneOrMany( operation );
-            var exprGroup = new Rule<IParseContext>().one( grpBegin ).noneOrMany( ws ).one( exprLoop ).noneOrMany( ws ).one( grpEnd );
-            var unaryble = new Rule<IParseContext>().maybe( opInverse ).anyOf(variable, exprGroup);
+            var getOpsOrFuncInvocation = new BiteRule().anyOf(opGetAtIndex, opGetAtKey, opRange, opRangeFrom, opRangeTo, funcOp);
+            var operand = new BiteRule();
+            var operation = new BiteRule().anyOf(opAdd, opDiv, opMod, opMul, opPow, opSub, opEq, opLAnd, opLOr, opGt, opSt).noneOrMany( ws ).one( operand );
+            var exprLoop = new BiteRule().one( operand ).noneOrMany( operation );
+            var exprGroup = new BiteRule().one( grpBegin ).noneOrMany( ws ).one( exprLoop ).noneOrMany( ws ).one( grpEnd );
+            var unaryble = new BiteRule().maybe( opInverse ).anyOf(variable, exprGroup);
             operand.anyOf(bool, numbr, list, str, func, struct, unaryble).noneOrMany( getOpsOrFuncInvocation );
             expr.one( exprLoop );
             
             // Print statement
-            var printStmt = new Rule<IParseContext>( printStmtNode ).literal( "print" ).atLeast(1, ws).one( expr );
+            var printStmt = new BiteRule( printStmtNode ).literal( "print" ).atLeast(1, ws).one( expr );
 
             // Assigment statement
-            var assignmentStmt = new Rule<IParseContext>( assignmentStmtNode ).one( getVar ).noneOrMany( ws ).literal( "=" ).noneOrMany( ws ).one( expr );
+            var assignmentStmt = new BiteRule( assignmentStmtNode ).one( getVar ).noneOrMany( ws ).literal( "=" ).noneOrMany( ws ).one( expr );
 
             // If statement
-            var elseStmt = new Rule<IParseContext>().noneOrMany( ws ).literal( "else" ).noneOrMany( ws ).one( eol ).one( branch );
-            var elseIfStmt = new Rule<IParseContext>( conditionalNode ).noneOrMany( ws ).literal( "else if" ).atLeast(1, ws).one( expr ).noneOrMany( ws ).one( eol ).one( branch );
-            var ifStmt = new Rule<IParseContext>( conditionalNode ).literal( "if" ).atLeast(1, ws).one( expr ).noneOrMany( ws ).one( eol ).one( branch );
-            var ifStmtRoot = new Rule<IParseContext>( ifStmtNode ).one( ifStmt ).noneOrMany( elseIfStmt ).maybe( elseStmt ).one( end );
+            var elseStmt = new BiteRule().noneOrMany( ws ).literal( "else" ).noneOrMany( ws ).one( eol ).one( branch );
+            var elseIfStmt = new BiteRule( conditionalNode ).noneOrMany( ws ).literal( "else if" ).atLeast(1, ws).one( expr ).noneOrMany( ws ).one( eol ).one( branch );
+            var ifStmt = new BiteRule( conditionalNode ).literal( "if" ).atLeast(1, ws).one( expr ).noneOrMany( ws ).one( eol ).one( branch );
+            var ifStmtRoot = new BiteRule( ifStmtNode ).one( ifStmt ).noneOrMany( elseIfStmt ).maybe( elseStmt ).one( end );
 
             // While statement
-			var whileStmt = new Rule<IParseContext>( whileStmtNode ).literal( "while" ).atLeast(1, ws).one( expr ).noneOrMany( ws ).one( eol ).one( branch ).one( end );
+			var whileStmt = new BiteRule( whileStmtNode ).literal( "while" ).atLeast(1, ws).one( expr ).noneOrMany( ws ).one( eol ).one( branch ).one( end );
 
             // Function invocement
             funcCallStmt.one( getVar ).literal( "(" ).maybe( funcArguments ).literal( ")" );
             
             // Return statement
-            var returnStmt = new Rule<IParseContext>( returnStmtNode ).literal( "return" ).atLeast(1, ws).one( expr );
+            var returnStmt = new BiteRule( returnStmtNode ).literal( "return" ).atLeast(1, ws).one( expr );
 
             // Any statement (implementation)
             stmt.noneOrMany( ws ).anyOf(emptyLine, comment, assignmentStmt, funcCallStmt, ifStmtRoot, printStmt, returnStmt, whileStmt).noneOrMany( ws ).maybe( eol );
 
             // Root
-            this._rootRule = new Rule<IParseContext>().atLeast(1, stmt);
+            this._rootRule = new BiteRule().atLeast(1, stmt);
         }
     }
 } 

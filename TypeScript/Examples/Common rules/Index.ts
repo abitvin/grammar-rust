@@ -2,7 +2,9 @@
 
 namespace Abitvin
 {
-    class ScanOnlyRule extends Rule<string> {}
+    interface IEmpty {}
+    
+    class ScanOnlyRule extends Rule<string, IEmpty> {}
     
     export class Index
     {

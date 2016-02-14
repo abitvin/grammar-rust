@@ -19,6 +19,8 @@ TypeScript/Rule.ts
     - Line counting.
 * Add rule counts in trail to allow (easy) parsing, for example Python syntax that uses whitespace to delimit program blocks.
 * Create unit tests
+* Use algebraic types for checking errors. This will go better in TypeScript 1.8
+* Do we really need the setBranchFn()? 
 
 TypeScript/Examples
 -------------------

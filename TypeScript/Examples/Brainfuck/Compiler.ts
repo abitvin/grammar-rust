@@ -2,25 +2,29 @@
 
 namespace Abitvin.Brainfuck
 {
+    interface IEmpty {}
+    
+    class BfRule extends Rule<Token, IEmpty> {};
+    
     export class Compiler
     {
-        private _root: Rule<Token>;
+        private _root: BfRule;
 
         constructor()
         {
-            const decByte = new Rule<Token>(() => [Token.DecrementByte]).literal("-");
-            const decPointer = new Rule<Token>(() => [Token.DecrementPointer]).literal("<");
-            const incByte = new Rule<Token>(() => [Token.IncrementByte]).literal("+");
-            const incPointer = new Rule<Token>(() => [Token.IncrementPointer]).literal(">");
-            const inputByte = new Rule<Token>( () => [Token.InputByte] ).literal(",");
-            const printByte = new Rule<Token>(() => [Token.PrintByte]).literal(".");
-            const startWhile = new Rule<Token>(() => [Token.StartWhile]).literal("[");
-            const endWhile = new Rule<Token>(() => [Token.EndWhile]).literal("]");
-            const ignore = new Rule<Token>().allExcept("-", "+", "<", ">", ".", ",", "[", "]");
+            const decByte = new BfRule(() => [Token.DecrementByte]).literal("-");
+            const decPointer = new BfRule(() => [Token.DecrementPointer]).literal("<");
+            const incByte = new BfRule(() => [Token.IncrementByte]).literal("+");
+            const incPointer = new BfRule(() => [Token.IncrementPointer]).literal(">");
+            const inputByte = new BfRule( () => [Token.InputByte] ).literal(",");
+            const printByte = new BfRule(() => [Token.PrintByte]).literal(".");
+            const startWhile = new BfRule(() => [Token.StartWhile]).literal("[");
+            const endWhile = new BfRule(() => [Token.EndWhile]).literal("]");
+            const ignore = new BfRule().allExcept("-", "+", "<", ">", ".", ",", "[", "]");
 
-            const whileLoop = new Rule<Token>();
-            const instruction = new Rule<Token>().anyOf(decByte, decPointer, incByte, incPointer, inputByte, printByte, whileLoop, ignore);
-            const branch = new Rule<Token>().noneOrMany(instruction);
+            const whileLoop = new BfRule();
+            const instruction = new BfRule().anyOf(decByte, decPointer, incByte, incPointer, inputByte, printByte, whileLoop, ignore);
+            const branch = new BfRule().noneOrMany(instruction);
             whileLoop.one(startWhile).one(branch).one(endWhile);
 
             this._root = branch;

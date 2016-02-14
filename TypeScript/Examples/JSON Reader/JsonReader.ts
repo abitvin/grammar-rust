@@ -2,15 +2,17 @@
 
 namespace Abitvin
 {
+    interface IEmpty {}
+    
     interface IScanContext
     {
         prop?: string;
         value?: any;
     }
     
-    class JsonRule extends Rule<IScanContext> 
+    class JsonRule extends Rule<IScanContext, IEmpty> 
     {
-        private _ws = new Rule<IScanContext>().anyOf(" ", "\t");
+        private _ws = new Rule<IScanContext, IEmpty>().anyOf(" ", "\t");
         
         public ws(): this
         {
