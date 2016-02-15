@@ -1,11 +1,12 @@
 ﻿/// <reference path="References.ts"/>
 
-namespace Abitvin.Pages
+namespace Abitvin.Calculator
 {
     export class Index
     {
         constructor()
         {
+            /*
             const tfExprEl = <HTMLInputElement>document.getElementById("tf-expr");
             const answerEl = <HTMLDivElement>document.getElementById("answer");
 
@@ -18,6 +19,51 @@ namespace Abitvin.Pages
             };
 
             tfExprEl.focus();
+            */
+            
+            
+            
+            let buffer: string = "";
+            const screen = new Screen();
+            
+            window.addEventListener("keypress", e =>
+            {
+                switch (e.which)
+                {
+                    case 8: 
+                        screen.backspace();
+                        e.preventDefault(); 
+                        break;
+                        
+                    case 13: 
+                    {
+                        try
+                        {
+                            screen.writeAnswer(Expression.evaluate(buffer));
+                            buffer = "";
+                        }
+                        catch (e)
+                        {
+                            screen.writeAnswer(Number.NaN);
+                            buffer = "";
+                        }
+                        
+                        break;
+                    }
+                    
+                    default:
+                    {
+                        const char: string = String.fromCharCode(e.which);
+                    
+                        if (screen.write(char))
+                            buffer += char;    
+                    }
+                }
+                    
+                
+            });
+            
+            
         }
     }
 }

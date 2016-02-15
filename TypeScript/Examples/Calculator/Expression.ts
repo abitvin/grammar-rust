@@ -1,7 +1,9 @@
 /// <reference path="References.ts"/>
 
-namespace Abitvin
+namespace Abitvin.Calculator
 {
+    interface IEmpty {}
+    
     interface IScanContext 
     {
         instruction: Instruction;
@@ -30,10 +32,12 @@ namespace Abitvin
         Value
     }
     
+    class ExprRule extends Rule<IScanContext, IEmpty> {}
+    
     export class Expression
     {
         private static _initialized: boolean = false;
-        private static _rootRule: Rule<IScanContext>;
+        private static _rootRule: ExprRule;
         
         public static evaluate(expression: string): number
         {
@@ -151,42 +155,42 @@ namespace Abitvin
             
             
             // Common
-            const zero = new Rule<IScanContext>().literal("0");
-			const nonZeroDigit = new Rule<IScanContext>().between("1", "9");
-			const digit = new Rule<IScanContext>().between("0", "9");
-            const ws = new Rule<IScanContext>().anyOf([" ", "\t"]);
+            const zero = new ExprRule().literal("0");
+			const nonZeroDigit = new ExprRule().between("1", "9");
+			const digit = new ExprRule().between("0", "9");
+            const ws = new ExprRule().anyOf(" ", "\t");
 
             // Number
-            const signedInteger = new Rule<IScanContext>().maybe("-").one(nonZeroDigit).noneOrMany(digit);
-			const integer = new Rule<IScanContext>().anyOf([zero, signedInteger]);
-            const decimalFraction = new Rule<IScanContext>().literal(".").atLeastOne(digit);
-			const numbr = new Rule<IScanContext>((b, lexeme) => [{ instruction: Instruction.Value, value: parseFloat(lexeme) }]).one(integer).maybe(decimalFraction);
+            const signedInteger = new ExprRule().maybe("-").one(nonZeroDigit).noneOrMany(digit);
+			const integer = new ExprRule().anyOf(zero, signedInteger);
+            const decimalFraction = new ExprRule().literal(".").atLeast(1, digit);
+			const numbr = new ExprRule((b, lexeme) => [{ instruction: Instruction.Value, value: parseFloat(lexeme) }]).one(integer).maybe(decimalFraction);
             
             // Expression group
-            const grpBegin = new Rule<IScanContext>((b, l) => [{ instruction: Instruction.GroupBegin }]).literal("(");
-            const grpEnd = new Rule<IScanContext>((b, l) => [{ instruction: Instruction.GroupEnd }]).literal(")");
+            const grpBegin = new ExprRule((b, l) => [{ instruction: Instruction.GroupBegin }]).literal("(");
+            const grpEnd = new ExprRule((b, l) => [{ instruction: Instruction.GroupEnd }]).literal(")");
 
             // Operations
-            const opAdd = new Rule<IScanContext>((b, l) => [{ instruction: Instruction.Add, precedence: 5 }]).noneOrMany(ws).literal("+");
-            const opDiv = new Rule<IScanContext>((b, l) => [{ instruction: Instruction.Divide, precedence: 6 }]).noneOrMany(ws).literal("/");
-            const opMod = new Rule<IScanContext>((b, l) => [{ instruction: Instruction.Module, precedence: 6 }]).noneOrMany(ws).literal("%");
-            const opMul = new Rule<IScanContext>((b, l) => [{ instruction: Instruction.Multiply, precedence: 6 }]).noneOrMany(ws).literal("*");
-            const opPow = new Rule<IScanContext>((b, l) => [{ instruction: Instruction.Power, precedence: 7, rightAssociativity: true }]).noneOrMany(ws).literal("^");
-            const opSub = new Rule<IScanContext>((b, l) => [{ instruction: Instruction.Substract, precedence: 5 }]).noneOrMany(ws).literal("-");
+            const opAdd = new ExprRule((b, l) => [{ instruction: Instruction.Add, precedence: 5 }]).noneOrMany(ws).literal("+");
+            const opDiv = new ExprRule((b, l) => [{ instruction: Instruction.Divide, precedence: 6 }]).noneOrMany(ws).literal("/");
+            const opMod = new ExprRule((b, l) => [{ instruction: Instruction.Module, precedence: 6 }]).noneOrMany(ws).literal("%");
+            const opMul = new ExprRule((b, l) => [{ instruction: Instruction.Multiply, precedence: 6 }]).noneOrMany(ws).literal("*");
+            const opPow = new ExprRule((b, l) => [{ instruction: Instruction.Power, precedence: 7, rightAssociativity: true }]).noneOrMany(ws).literal("^");
+            const opSub = new ExprRule((b, l) => [{ instruction: Instruction.Substract, precedence: 5 }]).noneOrMany(ws).literal("-");
 
             // Unary operations
-            const opInverse = new Rule<IScanContext>((b, l) => [{ instruction: Instruction.Inverse, precedence: 8 }]).literal("-");
+            const opInverse = new ExprRule((b, l) => [{ instruction: Instruction.Inverse, precedence: 8 }]).literal("-");
             
             // Expression
-            const operand = new Rule<IScanContext>();
-            const operation = new Rule<IScanContext>().anyOf([opAdd, opDiv, opMod, opMul, opPow, opSub]).noneOrMany(ws).one(operand);
-            const exprPart = new Rule<IScanContext>().one(operand).noneOrMany(operation);
-            const exprGroup = new Rule<IScanContext>().one(grpBegin).noneOrMany(ws).one(exprPart).noneOrMany(ws).one(grpEnd);
-            const unaryble = new Rule<IScanContext>().maybe(opInverse).anyOf([exprGroup]);
-            operand.anyOf([numbr, unaryble]);
+            const operand = new ExprRule();
+            const operation = new ExprRule().anyOf(opAdd, opDiv, opMod, opMul, opPow, opSub).noneOrMany(ws).one(operand);
+            const exprPart = new ExprRule().one(operand).noneOrMany(operation);
+            const exprGroup = new ExprRule().one(grpBegin).noneOrMany(ws).one(exprPart).noneOrMany(ws).one(grpEnd);
+            const unaryble = new ExprRule().maybe(opInverse).one(exprGroup);
+            operand.anyOf(numbr, unaryble);
             
             // Root
-            this._rootRule = new Rule<IScanContext>(executeFn).noneOrMany(ws).one(exprPart).noneOrMany(ws);
+            this._rootRule = new ExprRule(executeFn).noneOrMany(ws).one(exprPart).noneOrMany(ws);
         }
     }
 }
