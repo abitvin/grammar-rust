@@ -32,7 +32,12 @@ namespace Abitvin.Brainfuck
 
         public compile(code: string): Token[]
         {
-            return this._root.scan(code);
+            const result: RuleResult<Token, IEmpty> = this._root.scan(code);
+            
+            if (!result.isSuccess)
+                throw result.errors;
+                
+            return result.branches;
         }
     }
 }

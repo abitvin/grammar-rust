@@ -1,19 +1,41 @@
 namespace Abitvin
 {
+    export interface IRuleError<TMeta>
+    {
+        index: number;
+        msg: string;
+        trail: TMeta[]
+    }
+    
+    export class RuleResult<TBranch, TMeta>
+    {
+        constructor(
+            public branches: TBranch[],
+            public errors: IRuleError<TMeta>[],
+            public isSuccess: boolean
+        ) {}
+        
+        public static failed<TBranch, TMeta>(errors: IRuleError<TMeta>[]): RuleResult<TBranch, TMeta>
+        {
+            return new RuleResult<TBranch, TMeta>(null, errors, false);
+        }
+        
+        public static success<TBranch, TMeta>(branches: TBranch[]): RuleResult<TBranch, TMeta>
+        {
+            return new RuleResult<TBranch, TMeta>(branches, null, true);
+        }
+    }
+    
 	interface IScanContext<TBranch, TMeta>
 	{
         branches: TBranch[];
         code: string;
-        errors: { 
-            errorMsg: string, 
-            index: number, 
-            metaTrail: TMeta[]
-        }[];
+        errors: IRuleError<TMeta>[];
         hasEof: boolean,
         index: number;
         lexeme: string;
         metaPushed: number;
-        metaTrail: TMeta[];
+        trail: TMeta[];
 	}
     
     export type BranchFn<TBranch> = (branches: TBranch[], lexeme: string) => TBranch[];
@@ -30,7 +52,7 @@ namespace Abitvin
             this._meta = meta;
 		}
         
-        public static get version(): string { return "0.3.0"; }
+        public static get version(): string { return "0.4.0"; }
         public get meta(): TMeta { return this._meta; }
         
         public allExcept(...list: string[]): this
@@ -167,7 +189,7 @@ namespace Abitvin
 			return this;
 		}
 
-		public scan(code: string): TBranch[]
+		public scan(code: string): RuleResult<TBranch, TMeta>
 		{
             const ctx: IScanContext<TBranch, TMeta> = {
                 branches: [],
@@ -177,34 +199,21 @@ namespace Abitvin
                 index: 0, 
                 lexeme: "",
                 metaPushed: 0,
-                metaTrail: []
+                trail: []
             };
 
 			if (!this.run(ctx))
-            {
-				//this.showCode(ctx.code, ctx.error.index);
-				//throw new Error(`Error on position ${ctx.errorIndex}: ${ctx.errorMessage}`);
-                throw ctx.errors;
-            }
+				return RuleResult.failed<TBranch, TMeta>(ctx.errors);
             
             if (ctx.hasEof)
                 ctx.index--;
             
             if (ctx.index !== ctx.code.length)
-            {
-				//this.showCode(ctx.code, ctx.index);
-                //throw new Error(`Error: Root rule scan stopped on position ${ctx.index}. No rules matching after this position.`);
-                throw ctx.errors;
-            }
+                return RuleResult.failed<TBranch, TMeta>(ctx.errors);
 			
-			return ctx.branches;
+			return RuleResult.success<TBranch, TMeta>(ctx.branches);
 		}
 
-        public setBranchFn(fn: (branches: TBranch[], lexeme: string) => TBranch[])
-        {
-            this._branchFn = fn;
-        }
-        
         private branch(ctx: IScanContext<TBranch, TMeta>, isRootOfRule: boolean): IScanContext<TBranch, TMeta>
 		{
             const newCtx: IScanContext<TBranch, TMeta> = {
@@ -215,13 +224,13 @@ namespace Abitvin
                 index: ctx.index,
 				lexeme: "",
                 metaPushed: isRootOfRule ? 0 : ctx.metaPushed,
-                metaTrail: ctx.metaTrail.slice(0)
+                trail: ctx.trail.slice(0)
 			};
             
             if (isRootOfRule && this._meta)
             {
                 newCtx.metaPushed++;
-                newCtx.metaTrail.push(this._meta);
+                newCtx.trail.push(this._meta);
             }
             
             return newCtx;
@@ -249,14 +258,14 @@ namespace Abitvin
 		{
             if (isRootOfRule)
                 while (source.metaPushed-- > 0)
-                    source.metaTrail.pop();
+                    source.trail.pop();
             
 			target.errors = source.errors;
             target.hasEof = source.hasEof;
             target.index = source.index;
 			target.lexeme += source.lexeme;
             target.metaPushed = 0;
-            target.metaTrail = source.metaTrail;
+            target.trail = source.trail;
             
             if (isRootOfRule && this._branchFn !== null)
                 this.pushList(target.branches, this._branchFn(source.branches, source.lexeme));
@@ -424,9 +433,9 @@ namespace Abitvin
             }
                 
             errors.push({
-                errorMsg: errorMsg,
+                msg: errorMsg,
                 index: newCtx.index,
-                metaTrail: newCtx.metaTrail.slice(0)
+                trail: newCtx.trail.slice(0)
             });
             
             // Always false so we can create a tail call by invocation. 

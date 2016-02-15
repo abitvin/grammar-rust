@@ -14,13 +14,10 @@ TypeScript general
 TypeScript/Rule.ts
 ------------------
 * Tell in the documentation why do you need to do anyOf([float, signedInt]) and not anyOf([signedInt, float]).
-* Return a failed parsing object instead of an exception when scanning.
-    - Return the most matched rule trail, for example to give detailed syntax errors or auto-completion.
-    - Line counting.
+* Error with line count.
 * Add rule counts in trail to allow (easy) parsing, for example Python syntax that uses whitespace to delimit program blocks.
 * Create unit tests
-* Use algebraic types for checking errors. This will go better in TypeScript 1.8
-* Do we really need the setBranchFn()? 
+* Use algebraic types for checking errors. This will go better in TypeScript 1.8 
 
 TypeScript/Examples
 -------------------

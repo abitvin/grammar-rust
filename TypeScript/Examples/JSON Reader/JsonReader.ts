@@ -109,12 +109,12 @@ namespace Abitvin
             this._root = value;
         }
         
-        public static read(input: string): any
+        public static read(input: string): RuleResult<IScanContext, IEmpty>
         {
             if (!this._initialized)
                 this.initialize();
             
-            return this._root.scan(input)[0].value;
+            return this._root.scan(input);
         }
     }
 }
