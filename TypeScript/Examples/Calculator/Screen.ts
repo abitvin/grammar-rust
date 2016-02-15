@@ -56,7 +56,7 @@ namespace Abitvin.Calculator
             {
                 let r: number = Math.round(Math.random() * 17)
                 
-                for (var char in this._fontMap)
+                for (let char in this._fontMap)
                     if (--r === 0)
                         return char;
             }

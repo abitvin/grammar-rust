@@ -81,7 +81,7 @@ print (foo(2) + foo(2)[false or true])[..2]
             var interperter = new Abitvin.ByteScript.Interpreter(program);
 
             var step = function()
-        {
+            {
                 if (interperter.step())
                     setTimeout(step, 0);
             };
@@ -93,8 +93,10 @@ print (foo(2) + foo(2)[false or true])[..2]
         var code = document.getElementById("code");
         code.focus();
 
-        code.onkeydown = function (e) {
-            if (e.which === 9) {
+        code.onkeydown = function (e)
+        {
+            if (e.which === 9)
+            {
                 e.preventDefault();
                 var s = this.selectionStart;
                 this.value = this.value.substring(0, this.selectionStart) + "\t" + this.value.substring(this.selectionEnd);
@@ -105,7 +107,8 @@ print (foo(2) + foo(2)[false or true])[..2]
                 run();
         };
 
-        btnRun.onclick = function () {
+        btnRun.onclick = function () 
+        {
             run();
         };
 

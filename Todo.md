@@ -9,7 +9,7 @@ Ideas
 
 TypeScript general
 ------------------
-* Use `const` and `let` instead of `var` when we can.
+* Replace Build.ts with Visual Studio Code task. 
 
 TypeScript/Rule.ts
 ------------------
