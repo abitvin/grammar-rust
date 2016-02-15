@@ -6,23 +6,23 @@
         private _start: IAstNode;
         private _end: IAstNode;
 
-        constructor( lhs: IAstNode, start: IAstNode, end: IAstNode )
+        constructor(lhs: IAstNode, start: IAstNode, end: IAstNode)
         {
             this._lhs = lhs;
             this._start = start;
             this._end = end;
         }
 
-        public exit( interperter: Interpreter ): IVariable
+        public exit(interperter: Interpreter): IVariable
         {
-            return interperter.popVariable().range( interperter.popVariable(), interperter.popVariable() );
+            return interperter.popVariable().range(interperter.popVariable(), interperter.popVariable());
         }
 
-        public getChild( index: number ): IAstNode
+        public getChild(index: number): IAstNode
         {
-            if( index === 0 ) return this._end;
-            if( index === 1 ) return this._start;
-            if( index === 2 ) return this._lhs;
+            if (index === 0) return this._end;
+            if (index === 1) return this._start;
+            if (index === 2) return this._lhs;
             return null;
         }
 

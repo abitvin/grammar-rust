@@ -2,9 +2,9 @@
 {
     export class String extends BaseLiteral<string> implements IAstNode
     {
-        public exit( interperter: Interpreter ): IVariable
+        public exit(interperter: Interpreter): IVariable
         {
-            return new Type.String( this._value );
+            return new Type.String(this._value);
         }
     }
 } 

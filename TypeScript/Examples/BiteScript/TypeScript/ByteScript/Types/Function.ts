@@ -4,7 +4,7 @@ namespace Abitvin.ByteScript.Type
 	{
         private _function: IFunction;
 
-		constructor( fn: IFunction )
+		constructor(fn: IFunction)
 		{
 			super();
 			

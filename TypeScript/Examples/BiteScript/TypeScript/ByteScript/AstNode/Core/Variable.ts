@@ -4,14 +4,14 @@
     {
         private _id: string;
         
-        constructor( id: string )
+        constructor(id: string)
         {
             this._id = id;
         }
 
-        public exit( interperter: Interpreter ): IVariable
+        public exit(interperter: Interpreter): IVariable
         {
-            return interperter.getVariable( this._id );
+            return interperter.getVariable(this._id);
         }
 
         public getChild(): IAstNode

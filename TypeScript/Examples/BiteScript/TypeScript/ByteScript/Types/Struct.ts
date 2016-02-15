@@ -10,17 +10,17 @@ namespace Abitvin.ByteScript.Type
 			super();
 		}
 
-        public assignAtKey( key: string, v: IVariable ): void
+        public assignAtKey(key: string, v: IVariable): void
         {
             this._items[key] = v;
         }
 
-        public atKey( key: string ): IVariable
+        public atKey(key: string): IVariable
         {
-            var v: IVariable = this._items[key];
+            const v: IVariable = this._items[key];
 
-            if( !v )
-                throw new Error( "Runtime error. Variable with key '" + key + "' not found." );
+            if(!v)
+                throw new Error("Runtime error. Variable with key '" + key + "' not found.");
 
             return v;
         }

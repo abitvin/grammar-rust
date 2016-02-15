@@ -5,19 +5,19 @@
         private _expr: IAstNode;
         private _id: string;
 
-        constructor( id: string, expr: IAstNode )
+        constructor(id: string, expr: IAstNode)
         {
             this._expr = expr;
             this._id = id;
         }
 
-        public exit( interperter: Interpreter ): IVariable
+        public exit(interperter: Interpreter): IVariable
         {
-            interperter.setVariable( this._id, interperter.popVariable() );
+            interperter.setVariable(this._id, interperter.popVariable());
             return null;
         }
 
-        public getChild( index: number ): IAstNode
+        public getChild(index: number): IAstNode
         {
             return index === 0 ? this._expr : null;
         }

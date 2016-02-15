@@ -62,20 +62,20 @@ namespace Abitvin.ByteScript
         private static _rootRule: BiteRule;
         private static _variables: { [id: string]: IVariable };
 
-        public static compile( code: string ): IAstNode
+        public static compile(code: string): IAstNode
         {
-            if( !Compiler._initialized )
+            if (!Compiler._initialized)
                 Compiler.initialize();
 
             try
             {
-                var branch = new AstNode.Branch( Compiler._rootRule.scan( code ).map( n => n.astNode ) );
-                var mainDef = new AstNode.Function({ parameters: [], branch: branch });
-                var assign = new AstNode.AssignmentAtScope( "main", mainDef );
-                var getVar = new AstNode.GetVariableAtScope( "main" );
-                var mainCall = new AstNode.FunctionCall( "main", getVar, [] );
+                const branch = new AstNode.Branch(Compiler._rootRule.scan(code).branches.map(n => n.astNode));
+                const mainDef = new AstNode.Function({ parameters: [], branch: branch });
+                const assign = new AstNode.AssignmentAtScope("main", mainDef);
+                const getVar = new AstNode.GetVariableAtScope("main");
+                const mainCall = new AstNode.FunctionCall("main", getVar, []);
                 
-                return new AstNode.Branch([ assign, mainCall ]);
+                return new AstNode.Branch([assign, mainCall]);
             }
             catch (e)
             {
@@ -85,24 +85,24 @@ namespace Abitvin.ByteScript
 
         private static initialize(): void
         {
-            var toRpn = (nodes: IParseContext[], ctx: IToRpnContext): void => 
+            const toRpn = (nodes: IParseContext[], ctx: IToRpnContext): void => 
             {
-                var opStack: IParseContext[] = [];
-                var lastOp: IParseContext = null;
-                var exitLoop: boolean = false;
+                const opStack: IParseContext[] = [];
+                let lastOp: IParseContext = null;
+                let exitLoop: boolean = false;
 
-                while( !exitLoop && ctx.index < nodes.length )
+                while(!exitLoop && ctx.index < nodes.length)
                 {
-                    var n: IParseContext = nodes[ctx.index];
+                    const n: IParseContext = nodes[ctx.index];
 
-                    switch( n.kind )
+                    switch (n.kind)
                     {
                         case Kind.Expression:
                         case Kind.Function:
                         case Kind.Identifier:
                         case Kind.Literal:
                         {
-                            ctx.rpn.push( n );
+                            ctx.rpn.push(n);
                             ctx.index++;
                             break;
                         }
@@ -110,7 +110,7 @@ namespace Abitvin.ByteScript
                         case Kind.GroupBegin:
                         {
                             ctx.index++;
-                            toRpn( nodes, ctx );
+                            toRpn(nodes, ctx);
                             break;
                         }
 
@@ -123,25 +123,25 @@ namespace Abitvin.ByteScript
 
                         default:
                         {
-                            if( opStack.length === 0 )
+                            if (opStack.length === 0)
                             {
                                 lastOp = n;
-                                opStack.push( n );
+                                opStack.push(n);
                             }
                             else
                             {
-                                if( n.precedence < lastOp.precedence )
+                                if (n.precedence < lastOp.precedence)
                                 {
-                                    while( opStack.length > 0 )
-                                        ctx.rpn.push( opStack.pop() );
+                                    while (opStack.length > 0)
+                                        ctx.rpn.push(opStack.pop());
                                 }
-                                else if( n.precedence === lastOp.precedence && !n.rightAssociativity )
+                                else if (n.precedence === lastOp.precedence && !n.rightAssociativity)
                                 {
-                                    ctx.rpn.push( opStack.pop() );
+                                    ctx.rpn.push(opStack.pop());
                                 }
                     
                                 lastOp = n;
-                                opStack.push( n );
+                                opStack.push(n);
                             }
 
                             ctx.index++;
@@ -149,373 +149,373 @@ namespace Abitvin.ByteScript
                     }
                 };
 
-                while( opStack.length > 0 )
-                    ctx.rpn.push( opStack.pop() );
+                while (opStack.length > 0)
+                    ctx.rpn.push(opStack.pop());
             };
 
-            var buildAst = (nodes: IParseContext[], lexeme: string): IParseContext[] => 
+            const buildAst = (nodes: IParseContext[], lexeme: string): IParseContext[] => 
             {
-                var ctx: IToRpnContext = { index: 0, rpn: [] };
-                toRpn( nodes, ctx );
+                const ctx: IToRpnContext = { index: 0, rpn: [] };
+                toRpn(nodes, ctx);
 
-                var id: string;
-                var stack: IParseContext[] = [];
+                let id: string;
+                const stack: IParseContext[] = [];
 
-                ctx.rpn.forEach( n =>
+                ctx.rpn.forEach(n =>
                 {
-                    if( n.kind === Kind.Expression || n.kind === Kind.Function || n.kind === Kind.Identifier || n.kind === Kind.Literal )
+                    if (n.kind === Kind.Expression || n.kind === Kind.Function || n.kind === Kind.Identifier || n.kind === Kind.Literal)
                     {
-                        stack.push( n );
+                        stack.push(n);
                     }
                     else
                     {
                         // TODO: Should we change this to a switch statement?
-                        if( n.kind === Kind.GetAtIndex )
+                        if (n.kind === Kind.GetAtIndex)
                         {
-                            var index: IAstNode = stack.pop().astNode;
-                            var v: IAstNode = stack.pop().astNode;
+                            const index: IAstNode = stack.pop().astNode;
+                            const v: IAstNode = stack.pop().astNode;
 
                             stack.push({ 
-                                astNode: new AstNode.GetVariableAtIndex( v, index ), 
+                                astNode: new AstNode.GetVariableAtIndex(v, index), 
                                 backupAstNode: v,
                                 backupAstNode2: index,
                                 kind: Kind.GetAtIndex
                             });
                         }
-                        else if( n.kind === Kind.GetAtKey )
+                        else if (n.kind === Kind.GetAtKey)
                         {
                             id = stack.pop().id;
-                            var node = stack.pop().astNode;
+                            const node = stack.pop().astNode;
 
                             stack.push({ 
-                                astNode: new AstNode.GetVariableAtKey( node, id ), 
+                                astNode: new AstNode.GetVariableAtKey(node, id), 
                                 backupAstNode: node,
                                 backupId: id,
                                 kind: Kind.GetAtKey
                             });
                         }
-                        else if( n.kind === Kind.GetAtScope )
+                        else if (n.kind === Kind.GetAtScope)
                         {
                             id = stack.pop().id;
 
                             stack.push({ 
-                                astNode: new AstNode.GetVariableAtScope( id ), 
+                                astNode: new AstNode.GetVariableAtScope(id), 
                                 backupId: id, 
                                 kind: Kind.GetAtScope
                             });
                         }
-                        else if( n.kind === Kind.Inverse )
+                        else if (n.kind === Kind.Inverse)
                         {
-                            stack.push({ astNode:  new AstNode.Inverse( stack.pop().astNode ) });
+                            stack.push({ astNode:  new AstNode.Inverse(stack.pop().astNode) });
                         }
-                        else if( n.kind === Kind.InvokeFunction )
+                        else if (n.kind === Kind.InvokeFunction)
                         {
-                            var args: IAstNode[] = [];
+                            const args: IAstNode[] = [];
 
-                            while( n.numArguments-- > 0 )
-                                args.push( stack.pop().astNode );
+                            while (n.numArguments-- > 0)
+                                args.push(stack.pop().astNode);
 
                             // TODO: Sometimes it's not anonymous, when for example it's not directly returned.
-                            stack.push({ astNode: new AstNode.FunctionCall( "<anonymous>", stack.pop().astNode, args ) });
+                            stack.push({ astNode: new AstNode.FunctionCall("<anonymous>", stack.pop().astNode, args) });
                         }
-                        else if( n.kind === Kind.Range )
+                        else if (n.kind === Kind.Range)
                         {
-                            var end: IAstNode = stack.pop().astNode;
-                            var start: IAstNode = stack.pop().astNode;
-                            var lhs: IAstNode = stack.pop().astNode;
+                            const end: IAstNode = stack.pop().astNode;
+                            const start: IAstNode = stack.pop().astNode;
+                            const lhs: IAstNode = stack.pop().astNode;
 
-                            stack.push({ astNode: new AstNode.Range( lhs, start, end ) });
+                            stack.push({ astNode: new AstNode.Range(lhs, start, end) });
                         }
                         else
                         {
-                            var right: IAstNode = stack.pop().astNode;
-                            var left: IAstNode = stack.pop().astNode;
+                            const right: IAstNode = stack.pop().astNode;
+                            const left: IAstNode = stack.pop().astNode;
                         
-                            switch( n.kind )
+                            switch(n.kind)
                             {
-                                case Kind.Add: stack.push({ astNode: new AstNode.Addition( left, right ) }); break;
-                                case Kind.Divide: stack.push({ astNode: new AstNode.Divide( left, right ) }); break;
-                                case Kind.Equals: stack.push({ astNode: new AstNode.Equals( left, right ) }); break;
-                                case Kind.GreaterThen: stack.push({ astNode: new AstNode.GreaterThen( left, right ) }); break;
-                                case Kind.LogicalAnd: stack.push({ astNode: new AstNode.LogicalAnd( left, right ) }); break;
-                                case Kind.LogicalOr: stack.push({ astNode: new AstNode.LogicalOr( left, right ) }); break;
-                                case Kind.Module: stack.push({ astNode: new AstNode.Modules( left, right ) }); break;
-                                case Kind.Multiply: stack.push({ astNode: new AstNode.Multiply( left, right ) }); break;
-                                case Kind.Power: stack.push({ astNode: new AstNode.Power( left, right ) }); break;
-                                case Kind.RangeFrom: stack.push({ astNode: new AstNode.RangeFrom( left, right ) }); break;
-                                case Kind.RangeTo: stack.push({ astNode: new AstNode.RangeTo( left, right ) }); break;
-                                case Kind.SmallerThen: stack.push({ astNode: new AstNode.SmallerThen( left, right ) }); break;
-                                case Kind.Substract: stack.push({ astNode: new AstNode.Substract( left, right ) }); break;
+                                case Kind.Add: stack.push({ astNode: new AstNode.Addition(left, right) }); break;
+                                case Kind.Divide: stack.push({ astNode: new AstNode.Divide(left, right) }); break;
+                                case Kind.Equals: stack.push({ astNode: new AstNode.Equals(left, right) }); break;
+                                case Kind.GreaterThen: stack.push({ astNode: new AstNode.GreaterThen(left, right) }); break;
+                                case Kind.LogicalAnd: stack.push({ astNode: new AstNode.LogicalAnd(left, right) }); break;
+                                case Kind.LogicalOr: stack.push({ astNode: new AstNode.LogicalOr(left, right) }); break;
+                                case Kind.Module: stack.push({ astNode: new AstNode.Modules(left, right) }); break;
+                                case Kind.Multiply: stack.push({ astNode: new AstNode.Multiply(left, right) }); break;
+                                case Kind.Power: stack.push({ astNode: new AstNode.Power(left, right) }); break;
+                                case Kind.RangeFrom: stack.push({ astNode: new AstNode.RangeFrom(left, right) }); break;
+                                case Kind.RangeTo: stack.push({ astNode: new AstNode.RangeTo(left, right) }); break;
+                                case Kind.SmallerThen: stack.push({ astNode: new AstNode.SmallerThen(left, right) }); break;
+                                case Kind.Substract: stack.push({ astNode: new AstNode.Substract(left, right) }); break;
                             }
                         }
                     }
                 });
 
-                var last: IParseContext = stack.pop();
+                const last: IParseContext = stack.pop();
                 last.kind = Kind.Expression;
                 last.lexeme = lexeme;
                 return [last];
             };
 
-            var assignmentStmtNode = ( nodes: IParseContext[], l: string ): IParseContext[] =>
+            const assignmentStmtNode = (nodes: IParseContext[], l: string): IParseContext[] =>
             {
-                var ctx: IToRpnContext = { index: 0, rpn: [] };
-                toRpn( nodes, ctx );
+                const ctx: IToRpnContext = { index: 0, rpn: [] };
+                toRpn(nodes, ctx);
 
-                var lhs: IParseContext = nodes[0];
+                const lhs: IParseContext = nodes[0];
 
-                switch( lhs.astNode.constructor )
+                switch(lhs.astNode.constructor)
                 {
-                    case AstNode.GetVariableAtKey: return [{ astNode: new AstNode.AssignmentAtKey( lhs.backupAstNode, lhs.backupId, nodes[1].astNode ) }];
-                    case AstNode.GetVariableAtIndex: return [{ astNode: new AstNode.AssignmentAtIndex( lhs.backupAstNode, lhs.backupAstNode2, nodes[1].astNode ) }];
-                    case AstNode.GetVariableAtScope: return [{ astNode: new AstNode.AssignmentAtScope( lhs.backupId, nodes[1].astNode ) }];
+                    case AstNode.GetVariableAtKey: return [{ astNode: new AstNode.AssignmentAtKey(lhs.backupAstNode, lhs.backupId, nodes[1].astNode) }];
+                    case AstNode.GetVariableAtIndex: return [{ astNode: new AstNode.AssignmentAtIndex(lhs.backupAstNode, lhs.backupAstNode2, nodes[1].astNode) }];
+                    case AstNode.GetVariableAtScope: return [{ astNode: new AstNode.AssignmentAtScope(lhs.backupId, nodes[1].astNode) }];
                 }
 
-                throw new Error( "Compiler error at assignment." );
+                throw new Error("Compiler error at assignment.");
             };
             
-            var booleanNode = ( n: IParseContext[], lexeme: string ): IParseContext[] =>
-				[{ astNode: new AstNode.Boolean( lexeme === "true" ), kind: Kind.Literal }];
+            const booleanNode = (n: IParseContext[], lexeme: string): IParseContext[] =>
+				[{ astNode: new AstNode.Boolean(lexeme === "true"), kind: Kind.Literal }];
 
-            var branchNode = ( nodes: IParseContext[], l: string ): IParseContext[] =>
-				[{ astNode: new AstNode.Branch( nodes.map( n => n.astNode ) ) }];
+            const branchNode = (nodes: IParseContext[], l: string): IParseContext[] =>
+				[{ astNode: new AstNode.Branch(nodes.map(n => n.astNode)) }];
 
-            var commentNode = ( n: IParseContext[], l: string ): IParseContext[] =>
+            const commentNode = (n: IParseContext[], l: string): IParseContext[] =>
 				[];
 
-            var conditionalNode = ( nodes: IParseContext[], l: string ): IParseContext[] =>
-				[{ astNode: new AstNode.Conditional( nodes[0].astNode, nodes[1].astNode ) }];
+            const conditionalNode = (nodes: IParseContext[], l: string): IParseContext[] =>
+				[{ astNode: new AstNode.Conditional(nodes[0].astNode, nodes[1].astNode) }];
 
-            var funcCallNode = ( nodes: IParseContext[], l: string ): IParseContext[] =>
-				[{ astNode: new AstNode.FunctionCall( nodes[0].lexeme, nodes[0].astNode, nodes.splice( 1 ).map( n => n.astNode ) ), kind: Kind.Function }];
+            const funcCallNode = (nodes: IParseContext[], l: string): IParseContext[] =>
+				[{ astNode: new AstNode.FunctionCall(nodes[0].lexeme, nodes[0].astNode, nodes.splice(1).map(n => n.astNode)), kind: Kind.Function }];
 
-            var funcNode = ( nodes: IParseContext[], l: string ): IParseContext[] =>
+            const funcNode = (nodes: IParseContext[], l: string): IParseContext[] =>
 				 [{ astNode: new AstNode.Function({ parameters: nodes[0].parameters, branch: nodes[1].astNode }), kind: Kind.Literal }];
 
-            var grpBeginNode = ( n: IParseContext[], l: string ): IParseContext[] =>
+            const grpBeginNode = (n: IParseContext[], l: string): IParseContext[] =>
 				[{ kind: Kind.GroupBegin }];
 
-            var grpEndNode = ( n: IParseContext[], l: string ): IParseContext[] =>
+            const grpEndNode = (n: IParseContext[], l: string): IParseContext[] =>
 				[{ kind: Kind.GroupEnd }];
 
-            var idNode = ( n: IParseContext[], lexeme: string ): IParseContext[] =>
+            const idNode = (n: IParseContext[], lexeme: string): IParseContext[] =>
 				[{ id: lexeme }];
 
-            var ifStmtNode = ( nodes: IParseContext[], l: string ): IParseContext[] =>
-				[{ astNode: new AstNode.If( nodes.map( n => n.astNode ) ) }];
+            const ifStmtNode = (nodes: IParseContext[], l: string): IParseContext[] =>
+				[{ astNode: new AstNode.If(nodes.map(n => n.astNode)) }];
 
-            var listNode = ( nodes: IParseContext[], l: string ): IParseContext[] =>
-				[{ astNode: new AstNode.List( nodes.map( n => n.astNode ) ), kind: Kind.Literal }];
+            const listNode = (nodes: IParseContext[], l: string): IParseContext[] =>
+				[{ astNode: new AstNode.List(nodes.map(n => n.astNode)), kind: Kind.Literal }];
 
-            var numberNode = ( n: IParseContext[], lexeme: string ): IParseContext[] =>
-				[{ astNode: new AstNode.Number( parseFloat( lexeme ) ), kind: Kind.Literal }];
+            const numberNode = (n: IParseContext[], lexeme: string): IParseContext[] =>
+				[{ astNode: new AstNode.Number(parseFloat(lexeme)), kind: Kind.Literal }];
 
-            var parametersNode = ( nodes: IParseContext[], l: string ): IParseContext[] =>
-				[{ parameters: nodes.map( n => n.id ) }];
+            const parametersNode = (nodes: IParseContext[], l: string): IParseContext[] =>
+				[{ parameters: nodes.map(n => n.id) }];
 
-            var printStmtNode = ( nodes: IParseContext[], l: string ): IParseContext[] =>
-				[{ astNode: new AstNode.Print( nodes[0].astNode ) }];
+            const printStmtNode = (nodes: IParseContext[], l: string): IParseContext[] =>
+				[{ astNode: new AstNode.Print(nodes[0].astNode) }];
 
-            var returnStmtNode = ( nodes: IParseContext[], l: string ): IParseContext[] =>
-				[{ astNode: new AstNode.Return( nodes[0].astNode ) }];
+            const returnStmtNode = (nodes: IParseContext[], l: string): IParseContext[] =>
+				[{ astNode: new AstNode.Return(nodes[0].astNode) }];
 
-            var stringNode = ( n: IParseContext[], lexeme: string ): IParseContext[] =>
-				[{ astNode: new AstNode.String( lexeme ), kind: Kind.Literal }];
+            const stringNode = (n: IParseContext[], lexeme: string): IParseContext[] =>
+				[{ astNode: new AstNode.String(lexeme), kind: Kind.Literal }];
 
             // TODO: Initialize variable to the structure.
-            var structNode = ( n: IParseContext[], l: string ): IParseContext[] =>
-				[{ astNode: new AstNode.Struct( false ), kind: Kind.Literal }];
+            const structNode = (n: IParseContext[], l: string): IParseContext[] =>
+				[{ astNode: new AstNode.Struct(false), kind: Kind.Literal }];
 
-            var variableNode = ( n: IParseContext[], lexeme: string ): IParseContext[] =>
-				[{ astNode: new AstNode.Variable( lexeme ), kind: Kind.Identifier }];
+            const variableNode = (n: IParseContext[], lexeme: string): IParseContext[] =>
+				[{ astNode: new AstNode.Variable(lexeme), kind: Kind.Identifier }];
 
-            var whileStmtNode = ( nodes: IParseContext[], l: string ): IParseContext[] =>
-				[{ astNode: new AstNode.While( nodes[0].astNode, nodes[1].astNode ) }];
+            const whileStmtNode = (nodes: IParseContext[], l: string): IParseContext[] =>
+				[{ astNode: new AstNode.While(nodes[0].astNode, nodes[1].astNode) }];
 
             // Operators order by precedence
             // I use the URL below as a reference but the precedence is reversed.
             // http://en.cppreference.com/w/cpp/language/operator_precedence
 
-            var opLogicalOrNode = (): IParseContext[] =>
+            const opLogicalOrNode = (): IParseContext[] =>
 				[{ kind: Kind.LogicalOr, precedence: 1 }];
 
-            var opLogicalAndNode = (): IParseContext[] =>
+            const opLogicalAndNode = (): IParseContext[] =>
 				[{ kind: Kind.LogicalAnd, precedence: 2 }];
 
-            var opEqualsNode = (): IParseContext[] =>
+            const opEqualsNode = (): IParseContext[] =>
 				[{ kind: Kind.Equals, precedence: 3 }];
 
-            var opGreaterThenNode = (): IParseContext[] =>
+            const opGreaterThenNode = (): IParseContext[] =>
 				[{ kind: Kind.GreaterThen, precedence: 4 }];
 
-            var opSmallerThenNode = (): IParseContext[] =>
+            const opSmallerThenNode = (): IParseContext[] =>
 				[{ kind: Kind.SmallerThen, precedence: 4 }];
 
-            var opAddNode = (): IParseContext[] =>
+            const opAddNode = (): IParseContext[] =>
 				[{ kind: Kind.Add, precedence: 5 }];
 
-            var opSubNode = (): IParseContext[] =>
+            const opSubNode = (): IParseContext[] =>
 				[{ kind: Kind.Substract, precedence: 5 }];
 
-            var opDivNode = (): IParseContext[] =>
+            const opDivNode = (): IParseContext[] =>
 				[{ kind: Kind.Divide, precedence: 6 }];
 
-            var opModNode = (): IParseContext[] =>
+            const opModNode = (): IParseContext[] =>
 				[{ kind: Kind.Module, precedence: 6 }];
 
-            var opMulNode = (): IParseContext[] =>
+            const opMulNode = (): IParseContext[] =>
 				[{ kind: Kind.Multiply, precedence: 6 }];
             
-            var opPowNode = (): IParseContext[] =>
+            const opPowNode = (): IParseContext[] =>
 				[{ kind: Kind.Power, precedence: 7, rightAssociativity: true }];
 
-            var opInverseNode = (): IParseContext[] =>
+            const opInverseNode = (): IParseContext[] =>
 				[{ kind: Kind.Inverse, precedence: 8 }];
 
-            var opGetAtIndexNode = ( nodes: IParseContext[] ): IParseContext[] =>
+            const opGetAtIndexNode = (nodes: IParseContext[]): IParseContext[] =>
 				[{ kind: Kind.GetAtIndex, precedence: 9 }, nodes[0]];
             
-            var opGetAtKeyNode = ( nodes: IParseContext[] ): IParseContext[] =>
+            const opGetAtKeyNode = (nodes: IParseContext[]): IParseContext[] =>
 				[{ kind: Kind.GetAtKey, precedence: 9 }, { kind: Kind.Identifier, id: nodes[0].id }];
             
-            var opGetAtScopeNode = ( nodes: IParseContext[] ): IParseContext[] =>
+            const opGetAtScopeNode = (nodes: IParseContext[]): IParseContext[] =>
 				[{ kind: Kind.GetAtScope, precedence: 9 }, { kind: Kind.Identifier, id: nodes[0].id }];
             
-            var opInvokeFuncNode = ( nodes: IParseContext[] ): IParseContext[] =>
+            const opInvokeFuncNode = (nodes: IParseContext[]): IParseContext[] =>
 				(nodes.unshift({ kind: Kind.InvokeFunction, numArguments: nodes.length, precedence: 9 }), nodes);
             
-            var opRangeNode = ( nodes: IParseContext[] ): IParseContext[] =>
+            const opRangeNode = (nodes: IParseContext[]): IParseContext[] =>
 				[{ kind: Kind.Range, precedence: 9 }, nodes[0], nodes[1]];
             
-            var opRangeFromNode = ( nodes: IParseContext[] ): IParseContext[] =>
+            const opRangeFromNode = (nodes: IParseContext[]): IParseContext[] =>
 				[{ kind: Kind.RangeFrom, precedence: 9 }, nodes[0]];
 
-            var opRangeToNode = ( nodes: IParseContext[] ): IParseContext[] =>
+            const opRangeToNode = (nodes: IParseContext[]): IParseContext[] =>
 				[{ kind: Kind.RangeTo, precedence: 9 }, nodes[0]];
             
             // Predefines
-            var expr = new BiteRule( buildAst );
-            var stmt = new BiteRule();
-            var funcCallStmt = new BiteRule( funcCallNode );
+            const expr = new BiteRule(buildAst);
+            const stmt = new BiteRule();
+            const funcCallStmt = new BiteRule(funcCallNode);
 
             // Common
-            var zero = new BiteRule().literal( "0" );
-			var nonZeroDigit = new BiteRule().between( "1", "9" );
-			var digit = new BiteRule().between( "0", "9" );
-            var az = new BiteRule().between( "a", "z" );
-            var ws = new BiteRule().anyOf(" ", "\t");
-            var eol = new BiteRule().anyOf("\r\n", "\n", "\r");
-            var emptyLine = new BiteRule().noneOrMany( ws ).one( eol );
-            var branch = new BiteRule( branchNode ).noneOrMany( stmt );
-            var end = new BiteRule().noneOrMany( ws ).literal( "end" );
+            const zero = new BiteRule().literal("0");
+			const nonZeroDigit = new BiteRule().between("1", "9");
+			const digit = new BiteRule().between("0", "9");
+            const az = new BiteRule().between("a", "z");
+            const ws = new BiteRule().anyOf(" ", "\t");
+            const eol = new BiteRule().anyOf("\r\n", "\n", "\r");
+            const emptyLine = new BiteRule().noneOrMany(ws).one(eol);
+            const branch = new BiteRule(branchNode).noneOrMany(stmt);
+            const end = new BiteRule().noneOrMany(ws).literal("end");
 
             // Comment
-            var commentChar = new BiteRule().allExcept("\n", "\r");
-            var comment = new BiteRule( commentNode ).literal( "//" ).noneOrMany( commentChar );
+            const commentChar = new BiteRule().allExcept("\n", "\r");
+            const comment = new BiteRule(commentNode).literal("//").noneOrMany(commentChar);
 
 			// Identifier, variable and types
-			var bool = new BiteRule( booleanNode ).anyOf("false", "true");
-            var id = new BiteRule( idNode ).atLeast(1, az);
-			var signedInteger = new BiteRule().maybe( "-" ).one( nonZeroDigit ).noneOrMany( digit );
-			var variable = new BiteRule( variableNode ).atLeast(1, az);
-            var integer = new BiteRule().anyOf(zero, signedInteger);
-            var decimalFraction = new BiteRule().literal( "." ).atLeast(1, digit);
-			var numbr = new BiteRule( numberNode ).one( integer ).maybe( decimalFraction );
+			const bool = new BiteRule(booleanNode).anyOf("false", "true");
+            const id = new BiteRule(idNode).atLeast(1, az);
+			const signedInteger = new BiteRule().maybe("-").one(nonZeroDigit).noneOrMany(digit);
+			const variable = new BiteRule(variableNode).atLeast(1, az);
+            const integer = new BiteRule().anyOf(zero, signedInteger);
+            const decimalFraction = new BiteRule().literal(".").atLeast(1, digit);
+			const numbr = new BiteRule(numberNode).one(integer).maybe(decimalFraction);
             
-            var strEscape = new BiteRule().alter("\\\"", "\"");
-            var strAllExcept = new BiteRule().allExcept("\"");
-            var strChar = new BiteRule().anyOf(strEscape, strAllExcept);
-            var strValue = new BiteRule( stringNode ).noneOrMany( strChar );
-            var str = new BiteRule().literal( "\"" ).one( strValue ).literal( "\"" );
+            const strEscape = new BiteRule().alter("\\\"", "\"");
+            const strAllExcept = new BiteRule().allExcept("\"");
+            const strChar = new BiteRule().anyOf(strEscape, strAllExcept);
+            const strValue = new BiteRule(stringNode).noneOrMany(strChar);
+            const str = new BiteRule().literal("\"").one(strValue).literal("\"");
 
-            var listLoop = new BiteRule().noneOrMany( ws ).literal( "," ).noneOrMany( ws ).one( expr );
-            var listStart = new BiteRule().noneOrMany( ws ).one( expr ).noneOrMany( listLoop ).noneOrMany( ws );
-            var list = new BiteRule( listNode ).literal( "[" ).maybe( listStart ).literal( "]" );
+            const listLoop = new BiteRule().noneOrMany(ws).literal(",").noneOrMany(ws).one(expr);
+            const listStart = new BiteRule().noneOrMany(ws).one(expr).noneOrMany(listLoop).noneOrMany(ws);
+            const list = new BiteRule(listNode).literal("[").maybe(listStart).literal("]");
 
-            var struct = new BiteRule( structNode ).literal( "{}" );
+            const struct = new BiteRule(structNode).literal("{}");
 
-            var funcArgumentsLoop = new BiteRule().noneOrMany( ws ).literal( "," ).noneOrMany( ws ).one( expr );
-            var funcArguments = new BiteRule().noneOrMany( ws ).one( expr ).noneOrMany( funcArgumentsLoop ).noneOrMany( ws );
-            var funcOp = new BiteRule( opInvokeFuncNode ).literal( "(" ).maybe( funcArguments ).literal( ")" );
+            const funcArgumentsLoop = new BiteRule().noneOrMany(ws).literal(",").noneOrMany(ws).one(expr);
+            const funcArguments = new BiteRule().noneOrMany(ws).one(expr).noneOrMany(funcArgumentsLoop).noneOrMany(ws);
+            const funcOp = new BiteRule(opInvokeFuncNode).literal("(").maybe(funcArguments).literal(")");
 
-            var funcParametersLoop = new BiteRule().atLeast(1, ws).one( id );
-            var funcParametersStart = new BiteRule().noneOrMany( ws ).one( id ).noneOrMany( funcParametersLoop ).noneOrMany( ws );
-            var funcParameters = new BiteRule( parametersNode ).maybe( funcParametersStart );
-            var func = new BiteRule( funcNode ).literal( "fn" ).noneOrMany( ws ).literal( "(" ).one( funcParameters ).literal( ")" ).one( eol ).one( branch ).one( end );
+            const funcParametersLoop = new BiteRule().atLeast(1, ws).one(id);
+            const funcParametersStart = new BiteRule().noneOrMany(ws).one(id).noneOrMany(funcParametersLoop).noneOrMany(ws);
+            const funcParameters = new BiteRule(parametersNode).maybe(funcParametersStart);
+            const func = new BiteRule(funcNode).literal("fn").noneOrMany(ws).literal("(").one(funcParameters).literal(")").one(eol).one(branch).one(end);
 
             // Get variable.
-			var atIndex = new BiteRule().literal( "[" ).noneOrMany( ws ).one( expr ).noneOrMany( ws ).literal( "]" );
-            var atKey = new BiteRule().literal( "." ).one( id );
-            var atScope = new BiteRule().one( id );
+			const atIndex = new BiteRule().literal("[").noneOrMany(ws).one(expr).noneOrMany(ws).literal("]");
+            const atKey = new BiteRule().literal(".").one(id);
+            const atScope = new BiteRule().one(id);
 
-            var opGetAtIndex = new BiteRule( opGetAtIndexNode ).one( atIndex );
-            var opGetAtKey = new BiteRule( opGetAtKeyNode ).one( atKey );
-            var opGetAtScope = new BiteRule( opGetAtScopeNode ).one( atScope );
-            var getAtIndexOrKey = new BiteRule().anyOf(opGetAtIndex, opGetAtKey);
-            var getVar = new BiteRule( buildAst ).one( opGetAtScope ).noneOrMany( getAtIndexOrKey );
+            const opGetAtIndex = new BiteRule(opGetAtIndexNode).one(atIndex);
+            const opGetAtKey = new BiteRule(opGetAtKeyNode).one(atKey);
+            const opGetAtScope = new BiteRule(opGetAtScopeNode).one(atScope);
+            const getAtIndexOrKey = new BiteRule().anyOf(opGetAtIndex, opGetAtKey);
+            const getVar = new BiteRule(buildAst).one(opGetAtScope).noneOrMany(getAtIndexOrKey);
             
             // Expression group
-            var grpBegin = new BiteRule( grpBeginNode ).literal( "(" );
-            var grpEnd = new BiteRule( grpEndNode ).literal( ")" );
+            const grpBegin = new BiteRule(grpBeginNode).literal("(");
+            const grpEnd = new BiteRule(grpEndNode).literal(")");
 
             // Mathematical operators
-            var opAdd = new BiteRule( opAddNode ).noneOrMany( ws ).literal( "+" );
-            var opDiv = new BiteRule( opDivNode ).noneOrMany( ws ).literal( "/" );
-            var opMod = new BiteRule( opModNode ).noneOrMany( ws ).literal( "%" );
-            var opMul = new BiteRule( opMulNode ).noneOrMany( ws ).literal( "*" );
-            var opPow = new BiteRule( opPowNode ).noneOrMany( ws ).literal( "^" );
-            var opSub = new BiteRule( opSubNode ).noneOrMany( ws ).literal( "-" );
+            const opAdd = new BiteRule(opAddNode).noneOrMany(ws).literal("+");
+            const opDiv = new BiteRule(opDivNode).noneOrMany(ws).literal("/");
+            const opMod = new BiteRule(opModNode).noneOrMany(ws).literal("%");
+            const opMul = new BiteRule(opMulNode).noneOrMany(ws).literal("*");
+            const opPow = new BiteRule(opPowNode).noneOrMany(ws).literal("^");
+            const opSub = new BiteRule(opSubNode).noneOrMany(ws).literal("-");
 
             // Unary operations
-            var opInverse = new BiteRule( opInverseNode ).literal( "-" );
+            const opInverse = new BiteRule(opInverseNode).literal("-");
             
             // Range operations
-            var opRange = new BiteRule( opRangeNode ).literal( "[" ).noneOrMany( ws ).one( expr ).noneOrMany( ws ).literal( ".." ).noneOrMany( ws ).one( expr ).noneOrMany( ws ).literal( "]" );
-            var opRangeFrom = new BiteRule( opRangeFromNode ).literal( "[" ).one( expr ).noneOrMany( ws ).literal( ".." ).noneOrMany( ws ).literal( "]" );
-            var opRangeTo = new BiteRule( opRangeToNode ).literal( "[" ).noneOrMany( ws ).literal( ".." ).one( expr ).literal( "]" );
+            const opRange = new BiteRule(opRangeNode).literal("[").noneOrMany(ws).one(expr).noneOrMany(ws).literal("..").noneOrMany(ws).one(expr).noneOrMany(ws).literal("]");
+            const opRangeFrom = new BiteRule(opRangeFromNode).literal("[").one(expr).noneOrMany(ws).literal("..").noneOrMany(ws).literal("]");
+            const opRangeTo = new BiteRule(opRangeToNode).literal("[").noneOrMany(ws).literal("..").one(expr).literal("]");
 
             // Relational operators
-            var opEq = new BiteRule( opEqualsNode ).noneOrMany( ws ).literal( "==" );
-            var opGt = new BiteRule( opGreaterThenNode ).noneOrMany( ws ).literal( ">" );
-            var opSt = new BiteRule( opSmallerThenNode ).noneOrMany( ws ).literal( "<" );
+            const opEq = new BiteRule(opEqualsNode).noneOrMany(ws).literal("==");
+            const opGt = new BiteRule(opGreaterThenNode).noneOrMany(ws).literal(">");
+            const opSt = new BiteRule(opSmallerThenNode).noneOrMany(ws).literal("<");
 
             // Logical operators
-            var opLAnd = new BiteRule( opLogicalAndNode ).atLeast(1, ws).literal( "and " );
-            var opLOr = new BiteRule( opLogicalOrNode ).atLeast(1, ws).literal( "or " );
+            const opLAnd = new BiteRule(opLogicalAndNode).atLeast(1, ws).literal("and ");
+            const opLOr = new BiteRule(opLogicalOrNode).atLeast(1, ws).literal("or ");
             
             // Expressions
-            var getOpsOrFuncInvocation = new BiteRule().anyOf(opGetAtIndex, opGetAtKey, opRange, opRangeFrom, opRangeTo, funcOp);
-            var operand = new BiteRule();
-            var operation = new BiteRule().anyOf(opAdd, opDiv, opMod, opMul, opPow, opSub, opEq, opLAnd, opLOr, opGt, opSt).noneOrMany( ws ).one( operand );
-            var exprLoop = new BiteRule().one( operand ).noneOrMany( operation );
-            var exprGroup = new BiteRule().one( grpBegin ).noneOrMany( ws ).one( exprLoop ).noneOrMany( ws ).one( grpEnd );
-            var unaryble = new BiteRule().maybe( opInverse ).anyOf(variable, exprGroup);
-            operand.anyOf(bool, numbr, list, str, func, struct, unaryble).noneOrMany( getOpsOrFuncInvocation );
-            expr.one( exprLoop );
+            const getOpsOrFuncInvocation = new BiteRule().anyOf(opGetAtIndex, opGetAtKey, opRange, opRangeFrom, opRangeTo, funcOp);
+            const operand = new BiteRule();
+            const operation = new BiteRule().anyOf(opAdd, opDiv, opMod, opMul, opPow, opSub, opEq, opLAnd, opLOr, opGt, opSt).noneOrMany(ws).one(operand);
+            const exprLoop = new BiteRule().one(operand).noneOrMany(operation);
+            const exprGroup = new BiteRule().one(grpBegin).noneOrMany(ws).one(exprLoop).noneOrMany(ws).one(grpEnd);
+            const unaryble = new BiteRule().maybe(opInverse).anyOf(variable, exprGroup);
+            operand.anyOf(bool, numbr, list, str, func, struct, unaryble).noneOrMany(getOpsOrFuncInvocation);
+            expr.one(exprLoop);
             
             // Print statement
-            var printStmt = new BiteRule( printStmtNode ).literal( "print" ).atLeast(1, ws).one( expr );
+            const printStmt = new BiteRule(printStmtNode).literal("print").atLeast(1, ws).one(expr);
 
             // Assigment statement
-            var assignmentStmt = new BiteRule( assignmentStmtNode ).one( getVar ).noneOrMany( ws ).literal( "=" ).noneOrMany( ws ).one( expr );
+            const assignmentStmt = new BiteRule(assignmentStmtNode).one(getVar).noneOrMany(ws).literal("=").noneOrMany(ws).one(expr);
 
             // If statement
-            var elseStmt = new BiteRule().noneOrMany( ws ).literal( "else" ).noneOrMany( ws ).one( eol ).one( branch );
-            var elseIfStmt = new BiteRule( conditionalNode ).noneOrMany( ws ).literal( "else if" ).atLeast(1, ws).one( expr ).noneOrMany( ws ).one( eol ).one( branch );
-            var ifStmt = new BiteRule( conditionalNode ).literal( "if" ).atLeast(1, ws).one( expr ).noneOrMany( ws ).one( eol ).one( branch );
-            var ifStmtRoot = new BiteRule( ifStmtNode ).one( ifStmt ).noneOrMany( elseIfStmt ).maybe( elseStmt ).one( end );
+            const elseStmt = new BiteRule().noneOrMany(ws).literal("else").noneOrMany(ws).one(eol).one(branch);
+            const elseIfStmt = new BiteRule(conditionalNode).noneOrMany(ws).literal("else if").atLeast(1, ws).one(expr).noneOrMany(ws).one(eol).one(branch);
+            const ifStmt = new BiteRule(conditionalNode).literal("if").atLeast(1, ws).one(expr).noneOrMany(ws).one(eol).one(branch);
+            const ifStmtRoot = new BiteRule(ifStmtNode).one(ifStmt).noneOrMany(elseIfStmt).maybe(elseStmt).one(end);
 
             // While statement
-			var whileStmt = new BiteRule( whileStmtNode ).literal( "while" ).atLeast(1, ws).one( expr ).noneOrMany( ws ).one( eol ).one( branch ).one( end );
+			const whileStmt = new BiteRule(whileStmtNode).literal("while").atLeast(1, ws).one(expr).noneOrMany(ws).one(eol).one(branch).one(end);
 
             // Function invocement
-            funcCallStmt.one( getVar ).literal( "(" ).maybe( funcArguments ).literal( ")" );
+            funcCallStmt.one(getVar).literal("(").maybe(funcArguments).literal(")");
             
             // Return statement
-            var returnStmt = new BiteRule( returnStmtNode ).literal( "return" ).atLeast(1, ws).one( expr );
+            const returnStmt = new BiteRule(returnStmtNode).literal("return").atLeast(1, ws).one(expr);
 
             // Any statement (implementation)
-            stmt.noneOrMany( ws ).anyOf(emptyLine, comment, assignmentStmt, funcCallStmt, ifStmtRoot, printStmt, returnStmt, whileStmt).noneOrMany( ws ).maybe( eol );
+            stmt.noneOrMany(ws).anyOf(emptyLine, comment, assignmentStmt, funcCallStmt, ifStmtRoot, printStmt, returnStmt, whileStmt).noneOrMany(ws).maybe(eol);
 
             // Root
             this._rootRule = new BiteRule().atLeast(1, stmt);

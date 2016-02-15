@@ -4,95 +4,95 @@ namespace Abitvin.ByteScript.Type
 	{
         private _value: string;
 
-        constructor( value: string )
+        constructor(value: string)
         {
             this._value = value;
             super();
         }
 
-        public add( rhs: IVariable ): IVariable
+        public add(rhs: IVariable): IVariable
         {
-            switch( rhs.constructor )
+            switch(rhs.constructor)
             {
                 case Boolean: 
                 case Number: 
                 case String: 
-                    return new String( this._value + rhs.toString() );
+                    return new String(this._value + rhs.toString());
             }
 
-            return super.add( rhs );
+            return super.add(rhs);
         }
 
-        public assign( v: IVariable ): void
+        public assign(v: IVariable): void
         {
             this._value = v.toString();
         }
 
-        public atIndex( rhs: IVariable ): IVariable
+        public atIndex(rhs: IVariable): IVariable
         {
-            switch( rhs.constructor )
+            switch(rhs.constructor)
             {
                 case Boolean: 
                 case Number: 
-                    var index: number = rhs.toNumber();
+                    let index: number = rhs.toNumber();
 
-                    if( index < 0 || index >= this._value.length )
-                        throw new Error( "Runtime out-of-bounds error." );
+                    if (index < 0 || index >= this._value.length)
+                        throw new Error("Runtime out-of-bounds error.");
 
-                    return new String( this._value[index] );
+                    return new String(this._value[index]);
             }
 
-            return super.atIndex( rhs );
+            return super.atIndex(rhs);
         }
 
-        public multiply( rhs: IVariable ): IVariable
+        public multiply(rhs: IVariable): IVariable
         {
-            switch( rhs.constructor )
+            switch(rhs.constructor)
             {
                 case Boolean: 
                 case Number: 
                 {
-                    var count: number = rhs.toNumber();
-                    var value: string = "";
+                    let count: number = rhs.toNumber();
+                    let value: string = "";
 
-                    while( count-- > 0 )
+                    while(count-- > 0)
                         value += this._value;
 
-                    return new String( value );
+                    return new String(value);
                 }
             }
 
-            return super.multiply( rhs );
+            return super.multiply(rhs);
         }
 
-        public range( start: IVariable, end: IVariable ): IVariable
+        public range(start: IVariable, end: IVariable): IVariable
         {
-            var startIndex: number = start.toNumber();
-            var endIndex: number = end.toNumber();
+            const startIndex: number = start.toNumber();
+            const endIndex: number = end.toNumber();
 
-            this.checkBounds( startIndex, endIndex );
+            this.checkBounds(startIndex, endIndex);
 
-            return new String( this._value.substring( startIndex, endIndex + 1 ) );
+            return new String(this._value.substring(startIndex, endIndex + 1));
         }
 
-        public rangeFromExpr( start: IVariable ): IVariable
+        public rangeFromExpr(start: IVariable): IVariable
         {
-            var startIndex: number = start.toNumber();
-            var endIndex: number = this._value.length - 1;
+            const startIndex: number = start.toNumber();
+            const endIndex: number = this._value.length - 1;
 
-            this.checkBounds( startIndex, endIndex );
+            this.checkBounds(startIndex, endIndex);
 
-            return new String( this._value.substring( startIndex, endIndex + 1 ) );
+            return new String(this._value.substring(startIndex, endIndex + 1));
         }
 
-        public rangeToExpr( end: IVariable ): IVariable
+        public rangeToExpr(end: IVariable): IVariable
         {
-            var startIndex: number = 0;
-            var endIndex: number = end.toNumber();
+            const startIndex: number = 0;
+            const endIndex: number = end.toNumber();
 
-            this.checkBounds( startIndex, endIndex );
+            this.checkBounds(startIndex, endIndex);
 
-            return new String( this._value.substring( startIndex, endIndex + 1 ) );
+            return new String(this._value.substring(startIndex, endIndex + 1));
         }
 
         public toString(): string
@@ -102,16 +102,16 @@ namespace Abitvin.ByteScript.Type
 
         // Helpers.
 
-        private checkBounds( start: number, end: number ): void
+        private checkBounds(start: number, end: number): void
         {
-            if( start < 0 || start >= this._value.length )
-                throw new Error( "Runtime out-of-bounds start index at " + start + " error." );
+            if (start < 0 || start >= this._value.length)
+                throw new Error("Runtime out-of-bounds start index at " + start + " error.");
 
-            if( end < 0 || end >= this._value.length )
-                    throw new Error( "Runtime out-of-bounds end index at " + end + " error." );
+            if (end < 0 || end >= this._value.length)
+                    throw new Error("Runtime out-of-bounds end index at " + end + " error.");
 
-            if( end < start )
-                    throw new Error( "Runtime error. End index of " + end + " smaller then start index of " + start + "." );
+            if (end < start)
+                    throw new Error("Runtime error. End index of " + end + " smaller then start index of " + start + ".");
         }
 	}
 }

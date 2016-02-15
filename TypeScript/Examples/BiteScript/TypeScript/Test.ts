@@ -14,11 +14,11 @@ namespace Abitvin
 
     function interperter(): void
     {
-        var code: string = document.getElementById( "code" ).textContent;
-        var program: ByteScript.IAstNode = ByteScript.Compiler.compile( code );
-        var interpreter = new ByteScript.Interpreter( program );
+        const code: string = document.getElementById( "code" ).textContent;
+        const program: ByteScript.IAstNode = ByteScript.Compiler.compile( code );
+        const interpreter = new ByteScript.Interpreter( program );
 
-        var step = () =>
+        const step = () =>
         {
             if( interpreter.step() )
                 setTimeout( step, 0 );
@@ -31,30 +31,35 @@ namespace Abitvin
     {
         console.log( "Running: errors" );
 
-        var code = "var asd = 14";
+        const code = "var asd = 14";
 
-        var alpha = new Rule<boolean, IEmpty>().between( "a", "z" );
-        var digit = new Rule<boolean, IEmpty>().between( "0", "9" );
-        var id = new Rule<boolean, IEmpty>().atLeast(1, alpha);
-        var integer = new Rule<boolean, IEmpty>().atLeast(1, digit);
-        var ws = new Rule<boolean, IEmpty>().anyOf([ " ", "\t" ]);
+        const alpha = new Rule<boolean, IEmpty>().between( "a", "z" );
+        const digit = new Rule<boolean, IEmpty>().between( "0", "9" );
+        const id = new Rule<boolean, IEmpty>().atLeast(1, alpha);
+        const integer = new Rule<boolean, IEmpty>().atLeast(1, digit);
+        const ws = new Rule<boolean, IEmpty>().anyOf([ " ", "\t" ]);
         
-        var varStmt = new Rule<boolean, IEmpty>().literal( "var" ).atLeast(2, ws).one( id ).noneOrMany( ws ).literal( "=" ).noneOrMany( ws ).one( integer );
+        const varStmt = new Rule<boolean, IEmpty>().literal( "var" ).atLeast(2, ws).one( id ).noneOrMany( ws ).literal( "=" ).noneOrMany( ws ).one( integer );
 
         varStmt.scan( code );
     }
 
     function noCode(): void
     {
-        var code: string = "";
+        const code: string = "";
 
-        var alpha = new Rule<Kind, IEmpty>( () => [Kind.Alpha] ).between( "a", "z" );
-        var digit = new Rule<Kind, IEmpty>( () => [Kind.Digit] ).between( "0", "9" );
-        var noCode = new Rule<Kind, IEmpty>( () => [Kind.NoCode] ).literal( "" );
+        const alpha = new Rule<Kind, IEmpty>(() => [Kind.Alpha] ).between("a", "z");
+        const digit = new Rule<Kind, IEmpty>(() => [Kind.Digit] ).between("0", "9");
+        const noCode = new Rule<Kind, IEmpty>(() => [Kind.NoCode] ).literal("");
 
-        var root = new Rule<Kind, IEmpty>().anyOf([ alpha, digit, noCode ]);
-
-        root.scan( code ).forEach( kind => console.log( Kind[kind] ) );
+        const root = new Rule<Kind, IEmpty>().anyOf(alpha, digit, noCode);
+        
+        const result = root.scan(code);
+        
+        if (result.isSuccess) 
+            result.branches.forEach( kind => console.log( Kind[kind] ) );
+        else
+            console.log("Error", result.errors);
     }
     
     // errors();

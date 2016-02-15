@@ -7,7 +7,7 @@ namespace Abitvin.ByteScript
         private _current: IInterperterScope;
         private _varStack: IVariable[] = [];
 
-        constructor( program: IAstNode )
+        constructor(program: IAstNode)
         {
             this._current = {
                 index: 0,
@@ -22,7 +22,7 @@ namespace Abitvin.ByteScript
             //this.step();
         }
        
-        public defineVariable( id: string, v: IVariable ): void
+        public defineVariable(id: string, v: IVariable): void
         {
             this._current.variables[id] = v;
         }
@@ -32,82 +32,82 @@ namespace Abitvin.ByteScript
             return this._current.return.value;
         }
 
-        public getVariable( id: string ): IVariable
+        public getVariable(id: string): IVariable
         {
-            var v: IVariable = this.findVariable( id );
+            const v: IVariable = this.findVariable(id);
 
-            if( v === null )
-                throw new Error( "Undefined variable with id '" + id + "'" );
+            if (v === null)
+                throw new Error("Undefined variable with id '" + id + "'");
 
             return v;
         }
 
         public popVariable(): IVariable
         {
-            var popped: IVariable = this._varStack.pop();
+            const popped: IVariable = this._varStack.pop();
 
-			if( !popped )
+			if (!popped)
 				throw new Error("Runtime error. Popped to many.");
 
-            console.log( "Popped", popped.toString() );
+            console.log("Popped", popped.toString());
 			return popped;
         }
 
-        public pushVariable( v: IVariable ): void
+        public pushVariable(v: IVariable): void
         {
-            this._varStack.push( v );
-            console.log( "Pushed", v.toString() );
+            this._varStack.push(v);
+            console.log("Pushed", v.toString());
         }
 
-        public setReturn( v: IVariable ): void
+        public setReturn(v: IVariable): void
         {
             this._current.return.value = v;
         }
 
-        public setVariable( id: string, assignment: IVariable ): void
+        public setVariable(id: string, assignment: IVariable): void
         {
-            var v: IVariable = this.findVariable( id );
+            const v: IVariable = this.findVariable(id);
 
-            if( v )
-                v.assign( assignment );
+            if (v)
+                v.assign(assignment);
             else
-                this.defineVariable( id, assignment );
+                this.defineVariable(id, assignment);
         }
 
         public step(): boolean
         {
-            var node: IAstNode;
-            var exitNode: boolean = this._current.return.value.constructor !== Type.Null;
+            let node: IAstNode;
+            let exitNode: boolean = this._current.return.value.constructor !== Type.Null;
 
-            if( !exitNode )
+            if (!exitNode)
             {
-				node = this._current.node.getChild( this._current.index, this );
+				node = this._current.node.getChild(this._current.index, this);
                 exitNode = node === null;
             }
 
-            if( exitNode )
+            if (exitNode)
             {
-                var v: IVariable = this._current.node.exit( this );
+                const v: IVariable = this._current.node.exit(this);
                 
-                console.log( "Exit(" + this._current.stackLength + ") `" + this._current.node.constructor["name"] + "`" );
+                console.log("Exit(" + this._current.stackLength + ") `" + this._current.node.constructor["name"] + "`");
 
-                while( this._varStack.length > this._current.stackLength )
+                while (this._varStack.length > this._current.stackLength)
                 {
-                    console.log( "Clean up pop after return" );
+                    console.log("Clean up pop after return");
                     this.popVariable();
                 }
                     
-                if( v !== null )
+                if (v !== null)
                 {
-					this.pushVariable( v );
-                    console.log( "=> " + v.toString() );
+					this.pushVariable(v);
+                    console.log("=> " + v.toString());
                 }
 
                 this._current = this._current.parent;
 
-                if( this._current === null )
+                if (this._current === null)
                 {
-                    console.log( "Stack", this._varStack.map( v => v.toString() ) );
+                    console.log("Stack", this._varStack.map(v => v.toString()));
                     return false;
                 }
 
@@ -115,7 +115,7 @@ namespace Abitvin.ByteScript
             }
             else
             {
-                var pushScope: IInterperterScope = {
+                const pushScope: IInterperterScope = {
 					index: 0,
                     node: node,
                     parent: this._current,
@@ -124,9 +124,9 @@ namespace Abitvin.ByteScript
                     variables: null,
                 };
 
-                console.log( "Enter(" + pushScope.stackLength + ") `" + node.constructor["name"] + "`" );
+                console.log("Enter(" + pushScope.stackLength + ") `" + node.constructor["name"] + "`");
 
-                if( node.isDefinitionScope() )
+                if (node.isDefinitionScope())
                 {
                     pushScope.return = { value: new Type.Null() };
                     pushScope.variables = {};
@@ -140,17 +140,17 @@ namespace Abitvin.ByteScript
                 this._current = pushScope;
             }
 
-            console.log( "Stack", this._varStack.map( v => v.toString() ) );
+            console.log("Stack", this._varStack.map(v => v.toString()));
             return true;
         }
 
-		private findVariable( id: string ): IVariable
+		private findVariable(id: string): IVariable
         {
-            var scope: IInterperterScope = this._current;
+            let scope: IInterperterScope = this._current;
 
-			while( scope )
+			while (scope)
             {
-                if( scope.variables && scope.variables[id] )
+                if (scope.variables && scope.variables[id])
                     return scope.variables[id];
 
                 scope = scope.parent;

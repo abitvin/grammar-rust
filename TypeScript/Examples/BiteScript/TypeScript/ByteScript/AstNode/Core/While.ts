@@ -6,20 +6,20 @@
         private _compare: IAstNode;
         private _index: number;
         
-        constructor( compare: IAstNode, branch: IAstNode )
+        constructor(compare: IAstNode, branch: IAstNode)
         {
             this._branch = branch;
             this._compare = compare;
         }
 
-        public exit( interperter: Interpreter ): IVariable
+        public exit(interperter: Interpreter): IVariable
         {
             return null;
         }
 
-        public getChild( index: number, interperter: Interpreter ): IAstNode
+        public getChild(index: number, interperter: Interpreter): IAstNode
         {
-			if( index % 2 === 0 )
+			if (index % 2 === 0)
                 return this._compare;
 
             return interperter.popVariable().toBoolean() ? this._branch : null;

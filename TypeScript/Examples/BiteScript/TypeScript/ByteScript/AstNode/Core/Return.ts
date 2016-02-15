@@ -4,18 +4,18 @@
     {
         private _expr: IAstNode;
 
-        constructor( expr: IAstNode )
+        constructor(expr: IAstNode)
         {
             this._expr = expr;
         }
 
-        public exit( interperter: Interpreter ): IVariable
+        public exit(interperter: Interpreter): IVariable
         {
-            interperter.setReturn( interperter.popVariable() );
+            interperter.setReturn(interperter.popVariable());
             return null;
         }
 
-        public getChild( index: number ): IAstNode
+        public getChild(index: number): IAstNode
         {
             return index === 0 ? this._expr : null;
         }

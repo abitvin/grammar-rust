@@ -5,18 +5,18 @@
         private _key: string;
         private _var: IAstNode;
 
-        constructor( v: IAstNode, key: string )
+        constructor(v: IAstNode, key: string)
         {
             this._key = key;
             this._var = v;
         }
 
-        public exit( interperter: Interpreter ): IVariable
+        public exit(interperter: Interpreter): IVariable
         {
-            return interperter.popVariable().atKey( this._key );
+            return interperter.popVariable().atKey(this._key);
         }
 
-        public getChild( index: number ): IAstNode
+        public getChild(index: number): IAstNode
         {
             return index === 0 ? this._var : null;
         }

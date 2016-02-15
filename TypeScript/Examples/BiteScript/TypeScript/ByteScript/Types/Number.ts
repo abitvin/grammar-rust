@@ -4,15 +4,15 @@ namespace Abitvin.ByteScript.Type
 	{
 		private _value: number;
 
-		constructor( value: number )
+		constructor(value: number)
 		{
 			super();
 			this._value = value;
 		}
 
-        public assign( v: IVariable ): void
+        public assign(v: IVariable): void
         {
-            switch( v.constructor )
+            switch(v.constructor)
 			{
 				case Boolean: 
 				case Number:
@@ -20,136 +20,136 @@ namespace Abitvin.ByteScript.Type
                     return;
 			}
 
-			return super.assign( v );
+			return super.assign(v);
         }
 
 		// Math operations.
 
-		public add( rhs: IVariable ): IVariable
+		public add(rhs: IVariable): IVariable
 		{
-			switch( rhs.constructor )
+			switch(rhs.constructor)
 			{
 				case Boolean:
 				case Number:
-					return new Number( this._value + rhs.toNumber() );
+					return new Number(this._value + rhs.toNumber());
 			}
 
-			return super.add( rhs );
+			return super.add(rhs);
 		}
 
-		public divide( rhs: IVariable ): IVariable
+		public divide(rhs: IVariable): IVariable
 		{
-			switch( rhs.constructor )
+			switch(rhs.constructor)
 			{
 				case Boolean:
 				case Number:
-					return new Number( this._value / rhs.toNumber() );
+					return new Number(this._value / rhs.toNumber());
 			}
 
-			return super.divide( rhs );
+			return super.divide(rhs);
 		}
 
-        public equals( rhs: IVariable ): IVariable
+        public equals(rhs: IVariable): IVariable
 		{
-			switch( rhs.constructor )
+			switch(rhs.constructor)
 			{
 				case Boolean: 
 				case Number:
-					return new Boolean( this._value === rhs.toNumber() );
+					return new Boolean(this._value === rhs.toNumber());
 			}
 
-			return super.equals( rhs );
+			return super.equals(rhs);
 		}
 
 		public inverse(): IVariable
 		{
-			return new Number( -this._value );
+			return new Number(-this._value);
 		}
 
-		public modulate( rhs: IVariable ): IVariable
+		public modulate(rhs: IVariable): IVariable
 		{
-			switch( rhs.constructor )
+			switch(rhs.constructor)
 			{
 				case Boolean:
 				case Number:
-					return new Number( this._value % rhs.toNumber() );
+					return new Number(this._value % rhs.toNumber());
 			}
 
-			return super.modulate( rhs );
+			return super.modulate(rhs);
 		}
 
-		public multiply( rhs: IVariable ): IVariable
+		public multiply(rhs: IVariable): IVariable
 		{
-			switch( rhs.constructor )
+			switch(rhs.constructor)
 			{
 				case Boolean:
 				case Number:
-					return new Number( this._value * rhs.toNumber() );
+					return new Number(this._value * rhs.toNumber());
 			}
 
-			return super.multiply( rhs );
+			return super.multiply(rhs);
 		}
 
-		public power( rhs: IVariable ): IVariable
+		public power(rhs: IVariable): IVariable
 		{
-			switch( rhs.constructor )
+			switch(rhs.constructor)
 			{
 				case Boolean:
 				case Number:
-					return new Number( Math.pow( this._value, rhs.toNumber() ) );
+					return new Number(Math.pow(this._value, rhs.toNumber()));
 			}
 
-			return super.power( rhs );
+			return super.power(rhs);
 		}
 
-		public substract( rhs: IVariable ): IVariable
+		public substract(rhs: IVariable): IVariable
 		{
-			switch( rhs.constructor )
+			switch(rhs.constructor)
 			{
 				case Boolean:
 				case Number:
-					return new Number( this._value - rhs.toNumber() );
+					return new Number(this._value - rhs.toNumber());
 			}
 
-			return super.substract( rhs );
+			return super.substract(rhs);
 		}
 		
 		// Relational operators.
 
-		public logicalAnd( rhs: IVariable ): IVariable
+		public logicalAnd(rhs: IVariable): IVariable
 		{
-			switch( rhs.constructor )
+			switch(rhs.constructor)
 			{
 				case Boolean: 
 				case Number:
-					return new Boolean( this.toBoolean() && rhs.toBoolean() );
+					return new Boolean(this.toBoolean() && rhs.toBoolean());
 			}
 
-			return super.logicalAnd( rhs );
+			return super.logicalAnd(rhs);
 		}
 
-		public logicalOr( rhs: IVariable ): IVariable
+		public logicalOr(rhs: IVariable): IVariable
 		{
-			switch( rhs.constructor )
+			switch(rhs.constructor)
 			{
 				case Boolean: 
 				case Number:
-					return new Boolean( this.toBoolean() || rhs.toBoolean() );
+					return new Boolean(this.toBoolean() || rhs.toBoolean());
 			}
 
-			return super.logicalOr( rhs );
+			return super.logicalOr(rhs);
 		}
 
-        public smallerThen( rhs: IVariable ): IVariable
+        public smallerThen(rhs: IVariable): IVariable
 		{
-			switch( rhs.constructor )
+			switch(rhs.constructor)
 			{
 				case Boolean: 
 				case Number:
-					return new Boolean( this._value < rhs.toNumber() );
+					return new Boolean(this._value < rhs.toNumber());
 			}
 
-			return super.smallerThen( rhs );
+			return super.smallerThen(rhs);
 		}
 
 		// To primative converters.

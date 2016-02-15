@@ -4,15 +4,15 @@ namespace Abitvin.ByteScript.Type
 	{
 		private _value: boolean;
 
-		constructor( value: boolean )
+		constructor(value: boolean)
 		{
 			super();
 			this._value = value;
 		}
 
-        public assign( v: IVariable ): void
+        public assign(v: IVariable): void
         {
-            switch( v.constructor )
+            switch(v.constructor)
 			{
 				case Boolean: 
 				case Number:
@@ -20,23 +20,23 @@ namespace Abitvin.ByteScript.Type
                     return;
 			}
 
-			return super.assign( v );
+			return super.assign(v);
         }
 		
-		public add( rhs: IVariable ): IVariable
+		public add(rhs: IVariable): IVariable
 		{
-			switch( rhs.constructor )
+			switch(rhs.constructor)
 			{
-				case Boolean: return new Number( this.toNumber() + rhs.toNumber() );
-				case Number: return new Number( this.toNumber() + rhs.toNumber() );
+				case Boolean: return new Number(this.toNumber() + rhs.toNumber());
+				case Number: return new Number(this.toNumber() + rhs.toNumber());
 			}
 
-			return super.add( rhs );
+			return super.add(rhs);
 		}
 
-        public logicalOr( rhs: IVariable ): IVariable
+        public logicalOr(rhs: IVariable): IVariable
         {
-            return new Boolean( this._value || rhs.toBoolean() );
+            return new Boolean(this._value || rhs.toBoolean());
         }
 
 		public toBoolean(): boolean
