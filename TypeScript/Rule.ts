@@ -30,6 +30,7 @@ namespace Abitvin
 	{
         branches: TBranch[];
         code: string;
+        cycleTest: boolean;
         errors: IRuleError<TMeta>[];
         hasEof: boolean,
         index: number;
@@ -52,7 +53,7 @@ namespace Abitvin
             this._meta = meta;
 		}
         
-        public static get version(): string { return "0.4.0"; }
+        public static get version(): string { return "0.4.1"; }
         public get meta(): TMeta { return this._meta; }
         
         public allExcept(...list: string[]): this
@@ -194,6 +195,7 @@ namespace Abitvin
             const ctx: IScanContext<TBranch, TMeta> = {
                 branches: [],
                 code: code,
+                cycleTest: false,
                 hasEof: false,
 				errors: [],
                 index: 0, 
@@ -219,6 +221,7 @@ namespace Abitvin
             const newCtx: IScanContext<TBranch, TMeta> = {
 				branches: [],
                 code: ctx.code,
+                cycleTest: false,
                 hasEof: ctx.hasEof,
 				errors: ctx.errors,
                 index: ctx.index,
@@ -260,6 +263,14 @@ namespace Abitvin
                 while (source.metaPushed-- > 0)
                     source.trail.pop();
             
+            // Cycle detection test.
+            if (target.cycleTest === true && target.index === source.index)
+            {
+                target.cycleTest = false;
+                return false;
+            }
+            
+            target.cycleTest = target.index === source.index;
 			target.errors = source.errors;
             target.hasEof = source.hasEof;
             target.index = source.index;

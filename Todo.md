@@ -13,7 +13,6 @@ TypeScript general
 
 TypeScript/Rule.ts
 ------------------
-* Issue: Infinity loop when having noneOrMany within a noneOrMany. 
 * Tell in the documentation why do you need to do anyOf([float, signedInt]) and not anyOf([signedInt, float]).
 * Error with line count.
 * Add rule counts in trail to allow (easy) parsing, for example Python syntax that uses whitespace to delimit program blocks.
