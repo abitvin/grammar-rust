@@ -20,7 +20,7 @@ namespace Abitvin.Brainfuck
             const printByte = new BfRule(() => [Token.PrintByte]).literal(".");
             const startWhile = new BfRule(() => [Token.StartWhile]).literal("[");
             const endWhile = new BfRule(() => [Token.EndWhile]).literal("]");
-            const ignore = new BfRule().allExcept("-", "+", "<", ">", ".", ",", "[", "]");
+            const ignore = new BfRule().all();
 
             const whileLoop = new BfRule();
             const instruction = new BfRule().anyOf(decByte, decPointer, incByte, incPointer, inputByte, printByte, whileLoop, ignore);

@@ -11,7 +11,7 @@
 
         public exit(interperter: Interpreter): IVariable
         {
-            var items: IVariable[] = [];
+            const items: IVariable[] = [];
             this._items.forEach(() => items.unshift(interperter.popVariable()));
             return new Type.List(items);
         }

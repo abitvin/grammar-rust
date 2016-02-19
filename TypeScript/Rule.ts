@@ -53,8 +53,14 @@ namespace Abitvin
             this._meta = meta;
 		}
         
-        public static get version(): string { return "0.4.1"; }
+        public static get version(): string { return "0.4.2"; }
         public get meta(): TMeta { return this._meta; }
+        
+        public all(): this
+        {
+            this._parts.push(this.scanAllLeaf.bind(this, []));
+			return this;
+        }
         
         public allExcept(...list: string[]): this
         public allExcept(list: string[]): this
@@ -67,7 +73,7 @@ namespace Abitvin
                     throw new Error("An 'all except' list item can only be a single character.")
             });
             
-            this._parts.push(this.scanAllExceptLeaf.bind(this, list));
+            this._parts.push(this.scanAllLeaf.bind(this, list));
 			return this;
 		}
 
@@ -308,14 +314,14 @@ namespace Abitvin
             return this.merge(ctx, newCtx, true);
 		}
         
-        private scanAllExceptLeaf(list: string[], ctx: IScanContext<TBranch, TMeta>): boolean
+        private scanAllLeaf(exclude: string[], ctx: IScanContext<TBranch, TMeta>): boolean
 		{
             const char: string = ctx.code[ctx.index];
 
             if (char == null)
                 return this.updateError(ctx, "End of code while checking for not allowed character.");
 
-            if (list.indexOf(char) !== -1)
+            if (exclude.indexOf(char) !== -1)
                 return this.updateError( ctx, `Character '${char}' is not allowed here.`);
 
             ctx.lexeme += char;

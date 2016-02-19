@@ -4,7 +4,7 @@ Todo
 Ideas
 -----
 * Parse BNF grammer?
-* Make colorfier; maybe for another repository.
+* Make colorfier; maybe for another repository. (Working on it...)
 * Make examples for parsing different language formatting styles, for example: Python using spaces/tabs, JavaScript using {}, etc. 
 
 TypeScript general
@@ -14,10 +14,12 @@ TypeScript general
 TypeScript/Rule.ts
 ------------------
 * Tell in the documentation why do you need to do anyOf([float, signedInt]) and not anyOf([signedInt, float]).
-* Error with line count.
+* Error with line count. 
 * Add rule counts in trail to allow (easy) parsing, for example Python syntax that uses whitespace to delimit program blocks.
 * Create unit tests
-* Use algebraic types for checking errors. This will go better in TypeScript 1.8 
+* Use algebraic types for checking errors. This will go better in TypeScript 1.8
+* Allow reading from different streams, for example an array of numbers or booleans.
+* Implement Rule parsing language which I worked on before.
 
 TypeScript/Examples
 -------------------
