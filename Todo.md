@@ -20,6 +20,7 @@ TypeScript/Rule.ts
 * Use algebraic types for checking errors. This will go better in TypeScript 1.8
 * Allow reading from different streams, for example an array of numbers or booleans.
 * Implement Rule parsing language which I worked on before.
+* Maybe still implement `fallback(branchFn)` method? Which is not a scanning method but acts like a safety net for bundling all characters not passing the scanning rules. 
 
 TypeScript/Examples
 -------------------
