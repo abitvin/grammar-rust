@@ -45,7 +45,7 @@ namespace Abitvin.Calculator
                 Expression.initialize();
 
             try {
-                return Expression._rootRule.scan(expression)[0].value;
+                return Expression._rootRule.scan(expression).branches[0].value;
             }
             catch (e) {
                 throw e;

@@ -4,5 +4,6 @@
 /// <reference path="Examples/Common rules/Index.ts"/>
 /// <reference path="Examples/INI Reader/References.ts"/>
 /// <reference path="Examples/JSON Reader/References.ts"/>
+/// <reference path="Tests/CycleDetection.ts"/>
 /// <reference path="Tests/Suggestions.ts"/>
 /// <reference path="Rule.ts"/>

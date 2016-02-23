@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Cycle detection</title>
+    <style>
+        
+        textarea {
+            height: 400px;
+            width: 400px;
+        }
+        
+    </style>
+</head>
+<body>
+    <h1>Cycle detection</h1>
+    <textarea id="test-code"></textarea>
+    <script src="../Rule.js"></script>
+    <script src="CycleDetection.js"></script>
+    <script>
+        
+        var inputEl = document.getElementById("test-code");
+        inputEl.oninput = () => console.log((new Abitvin.Tests.CycleDetection).test(inputEl.value));
+        inputEl.focus();
+        
+    </script>
+</body>
+</html>

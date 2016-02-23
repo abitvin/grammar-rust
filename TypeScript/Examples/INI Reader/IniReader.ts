@@ -94,7 +94,7 @@ namespace Abitvin
             if (!this._initialized)
                 this.initialize();
             
-            return this._root.scan(input)[0].ini;
+            return this._root.scan(input).branches[0].ini;
         }
     }
 }

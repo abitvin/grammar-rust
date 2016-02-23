@@ -30,7 +30,6 @@ namespace Abitvin
 	{
         branches: TBranch[];
         code: string;
-        cycleTest: boolean;
         errors: IRuleError<TMeta>[];
         hasEof: boolean,
         index: number;
@@ -45,7 +44,7 @@ namespace Abitvin
 	{
         private _branchFn: BranchFn<TBranch>;
 		private _meta: TMeta;
-        private _parts: {(ctx): boolean}[] = [];
+        private _parts: {(ctx): number}[] = [];
         
 		constructor(branchFn: BranchFn<TBranch> = null, meta: TMeta = null)
         {
@@ -53,7 +52,7 @@ namespace Abitvin
             this._meta = meta;
 		}
         
-        public static get version(): string { return "0.4.2"; }
+        public static get version(): string { return "0.4.3"; }
         public get meta(): TMeta { return this._meta; }
         
         public all(): this
@@ -201,7 +200,6 @@ namespace Abitvin
             const ctx: IScanContext<TBranch, TMeta> = {
                 branches: [],
                 code: code,
-                cycleTest: false,
                 hasEof: false,
 				errors: [],
                 index: 0, 
@@ -210,7 +208,7 @@ namespace Abitvin
                 trail: []
             };
 
-			if (!this.run(ctx))
+			if (this.run(ctx) === -1)
 				return RuleResult.failed<TBranch, TMeta>(ctx.errors);
             
             if (ctx.hasEof)
@@ -227,7 +225,6 @@ namespace Abitvin
             const newCtx: IScanContext<TBranch, TMeta> = {
 				branches: [],
                 code: ctx.code,
-                cycleTest: false,
                 hasEof: ctx.hasEof,
 				errors: ctx.errors,
                 index: ctx.index,
@@ -263,20 +260,14 @@ namespace Abitvin
             return v == null ? false : v.constructor === String;
         }
         
-        private merge(target: IScanContext<TBranch, TMeta>, source: IScanContext<TBranch, TMeta>, isRootOfRule: boolean = false): boolean
+        private merge(target: IScanContext<TBranch, TMeta>, source: IScanContext<TBranch, TMeta>, isRootOfRule: boolean = false): number
 		{
             if (isRootOfRule)
                 while (source.metaPushed-- > 0)
                     source.trail.pop();
             
-            // Cycle detection test.
-            if (target.cycleTest === true && target.index === source.index)
-            {
-                target.cycleTest = false;
-                return false;
-            }
+            const step: number = source.index - target.index;
             
-            target.cycleTest = target.index === source.index;
 			target.errors = source.errors;
             target.hasEof = source.hasEof;
             target.index = source.index;
@@ -289,8 +280,7 @@ namespace Abitvin
             else
                 this.pushList(target.branches, source.branches);
                 
-			// Always true so we can create a tail call by invocation. 
-            return true;
+			return step;
 		}
 
 		private pushList<T>(a: T[], b: T[]): void
@@ -298,23 +288,19 @@ namespace Abitvin
 			b.forEach((i: T) => a.push(i));
 		}
         
-        private run(ctx: IScanContext<TBranch, TMeta>): boolean
+        private run(ctx: IScanContext<TBranch, TMeta>): number
 		{
 			const l: number = this._parts.length;
             const newCtx: IScanContext<TBranch, TMeta> = this.branch(ctx, true);
-
+            
             for (let i: number = 0 ; i < l; i++)
-            {
-                if (this._parts[i](newCtx))
-                    continue;
-                
-                return false;
-            }
-			
+                if (this._parts[i](newCtx) === -1)
+                    return -1;
+            
             return this.merge(ctx, newCtx, true);
 		}
         
-        private scanAllLeaf(exclude: string[], ctx: IScanContext<TBranch, TMeta>): boolean
+        private scanAllLeaf(exclude: string[], ctx: IScanContext<TBranch, TMeta>): number
 		{
             const char: string = ctx.code[ctx.index];
 
@@ -326,10 +312,10 @@ namespace Abitvin
 
             ctx.lexeme += char;
             ctx.index++;
-            return true;
+            return 1;
 		}
 
-		private scanAlterLeaf(list: string[], ctx: IScanContext<TBranch, TMeta>): boolean
+		private scanAlterLeaf(list: string[], ctx: IScanContext<TBranch, TMeta>): number
 		{
             for (let i = 0; i < list.length; i += 2)
             {
@@ -340,30 +326,30 @@ namespace Abitvin
                 {
                     ctx.lexeme += list[i+1];
                     ctx.index += len;
-                    return true;
+                    return len;
                 }
             }
             
             return this.updateError(ctx, "Alter characters not found on this position.");
 		}
 
-		private scanAnyOf(rules: Rule<TBranch, TMeta>[], ctx: IScanContext<TBranch, TMeta>): boolean
+		private scanAnyOf(rules: Rule<TBranch, TMeta>[], ctx: IScanContext<TBranch, TMeta>): number
 		{
             const c: number = rules.length;
 
-            for(let i: number = 0; i < c; i++)
+            for (let i: number = 0; i < c; i++)
             {
                 const rule: Rule<TBranch, TMeta> = rules[i];
                 const newCtx: IScanContext<TBranch, TMeta> = this.branch(ctx, false);
                 
-                if (rule.run(newCtx))
+                if (rule.run(newCtx) !== -1)
                     return this.merge(ctx, newCtx);
             }
 
-            return false;
+            return -1;
 		}
 
-		private scanCharRangeLeaf(codeA: number, codeB: number, ctx: IScanContext<TBranch, TMeta>): boolean
+		private scanCharRangeLeaf(codeA: number, codeB: number, ctx: IScanContext<TBranch, TMeta>): number
 		{
             const char: string = ctx.code[ctx.index];
             
@@ -377,21 +363,22 @@ namespace Abitvin
                 
             ctx.lexeme += char;
             ctx.index++;
-            return true;
+            return 1;
 		}
         
-        private scanEofLeaf(ctx: IScanContext<TBranch, TMeta>): boolean
+        private scanEofLeaf(ctx: IScanContext<TBranch, TMeta>): number
         {
             if (ctx.index === ctx.code.length)
             {
                 ctx.hasEof = true;
                 ctx.index++;
-                return true;
+                return 1;
             }
+            
             return this.updateError(ctx, "No EOF on this position.");
         }
         
-        private scanLiteralLeaf(find: string, ctx: IScanContext<TBranch, TMeta>): boolean
+        private scanLiteralLeaf(find: string, ctx: IScanContext<TBranch, TMeta>): number
 		{
             let i: number = 0;
             const len: number = find.length;
@@ -412,22 +399,23 @@ namespace Abitvin
             }
 
             ctx.lexeme += find;
-            return true;
+            return len;
 		}
 
-		private scanRuleRange(min: number, max: number, rule: Rule<TBranch, TMeta>, ctx: IScanContext<TBranch, TMeta>): boolean
+		private scanRuleRange(min: number, max: number, rule: Rule<TBranch, TMeta>, ctx: IScanContext<TBranch, TMeta>): number
 		{
-            let count: number = 0;
             const newCtx: IScanContext<TBranch, TMeta> = this.branch(ctx, false);
+            let count: number = 0;
+            let progress: number;
             
-            while (rule.run(newCtx))
-                if (++count === max)
+            while ((progress = rule.run(newCtx)) !== -1)
+                if (++count === max || progress === 0)
                     break;
-
+            
             if (count >= min && count <= max)
                 return this.merge(ctx, newCtx);
             
-            return false;
+            return -1;
         }
         
 		private showCode(text: string, position: number): void
@@ -435,14 +423,14 @@ namespace Abitvin
             console.error(text.substr(position, 40));
         }
         
-        private updateError(newCtx: IScanContext<TBranch, TMeta>, errorMsg: string): boolean
+        private updateError(newCtx: IScanContext<TBranch, TMeta>, errorMsg: string): number
 		{
             const errors = newCtx.errors;
             
             if (errors.length !== 0)
             {
                 if (newCtx.index < errors[0].index)
-                    return;
+                    return -1;
                     
                 // Clear the errors array without destroying reference.
                 if (newCtx.index > errors[0].index)
@@ -455,8 +443,7 @@ namespace Abitvin
                 trail: newCtx.trail.slice(0)
             });
             
-            // Always false so we can create a tail call by invocation. 
-            return false;
+            return -1;
 		}
 	}
 }

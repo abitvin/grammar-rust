@@ -93,7 +93,7 @@ namespace Abitvin
         private scan(rule: ScanOnlyRule, text: string): string
         {
             try {
-                return rule.scan(text)[0]; 
+                return rule.scan(text).branches[0]; 
             }
             catch(e) {
                 return null;
