@@ -17,10 +17,11 @@ TypeScript/Rule.ts
 * Error with line count. 
 * Add rule counts in trail to allow (easy) parsing, for example Python syntax that uses whitespace to delimit program blocks.
 * Create unit tests
-* Use algebraic types for checking errors. This will go better in TypeScript 1.8
+* Use algebraic types for checking errors. This will go better in TypeScript 1.8; And 1.8 is out now!
 * Allow reading from different streams, for example an array of numbers or booleans.
 * Implement Rule parsing language which I worked on before.
 * Maybe still implement `fallback(branchFn)` method? Which is not a scanning method but acts like a safety net for bundling all characters not passing the scanning rules. 
+* Test the cyclic detection with different tests, I think it's buggy.
 
 TypeScript/Examples
 -------------------
