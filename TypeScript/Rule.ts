@@ -52,7 +52,7 @@ namespace Abitvin
             this._meta = meta;
 		}
         
-        public static get version(): string { return "0.4.4"; }
+        public static get version(): string { return "0.4.5"; }
         public get meta(): TMeta { return this._meta; }
         
         public all(): this
@@ -67,10 +67,14 @@ namespace Abitvin
 		{
             const list: string[] = this.getVariadicArray<string>(arguments);
             
-            list.forEach(item => {
-                if (item.length !== 1)
-                    throw new Error("An 'all except' list item can only be a single character.")
-            });
+            if (list.length === 0)
+                throw new Error("No arguments given for `allExcept`.");
+            
+            if (list.some(i => i == null))
+                throw new Error("An argument in `allExcept` cannot be null or undefined.");
+            
+            if (list.some(i => i.length !== 1))
+                throw new Error("An 'allExcept' item can only be a single character.")
             
             this._parts.push(this.scanAllLeaf.bind(this, list));
 			return this;
@@ -82,6 +86,12 @@ namespace Abitvin
 		{
             const list: string[] = this.getVariadicArray<string>(arguments); 
             
+            if (list.length === 0)
+                throw new Error("No arguments given for `allExcept`.");
+            
+            if (list.some(i => !this.isString(i) || i.length === 0))
+                throw new Error("An argument in `allExcept` can only be a string with minimal one character.");
+            
             if (list.length % 2 === 1)
                 throw new Error("Alter list must be a factor of 2.");
 
@@ -89,26 +99,42 @@ namespace Abitvin
 			return this;
 		}
 
-		public atLeast(num: number, rule: Rule<TBranch, TMeta>): this
-		public atLeast(num: number, text: string): this
-		public atLeast(num: number, arg2: any): this
+		public atLeast(count: number, rule: Rule<TBranch, TMeta>): this
+		public atLeast(count: number, text: string): this
+		public atLeast(count: number, arg2: any): this
 		{
+            if (!this.isInteger(count))
+                throw new Error("First argument is not an integer.");
+                
+            if (count < 0)
+                throw new Error("Count cannot be negative.");
+                
             if (this.isString(arg2))
-                this._parts.push(this.scanRuleRange.bind(this, num, Number.POSITIVE_INFINITY, new Rule<TBranch, TMeta>().literal(arg2)));
-			else
-				this._parts.push(this.scanRuleRange.bind(this, num, Number.POSITIVE_INFINITY, arg2));
+                this._parts.push(this.scanRuleRange.bind(this, count, Number.POSITIVE_INFINITY, new Rule<TBranch, TMeta>().literal(arg2)));
+			else if (this.isRule(arg2))
+				this._parts.push(this.scanRuleRange.bind(this, count, Number.POSITIVE_INFINITY, arg2));
+            else
+                throw new Error("Second argument is not a rule or a string.");
 
 			return this;
 		}
         
-        public atMost(num: number, rule: Rule<TBranch, TMeta>): this
-		public atMost(num: number, text: string): this
-		public atMost(num: number, arg2: any): this
+        public atMost(count: number, rule: Rule<TBranch, TMeta>): this
+		public atMost(count: number, text: string): this
+		public atMost(count: number, arg2: any): this
 		{
+            if (!this.isInteger(count))
+                throw new Error("First argument is not an integer.");
+            
+            if (count < 0)
+                throw new Error("Count cannot be negative.");
+                
             if (this.isString(arg2))
-                this._parts.push(this.scanRuleRange.bind(this, 0, num, new Rule<TBranch, TMeta>().literal(arg2)));
-			else
-				this._parts.push(this.scanRuleRange.bind(this, 0, num, arg2));
+                this._parts.push(this.scanRuleRange.bind(this, 0, count, new Rule<TBranch, TMeta>().literal(arg2)));
+			else if (this.isRule(arg2))
+				this._parts.push(this.scanRuleRange.bind(this, 0, count, arg2));
+            else
+                throw new Error("Second argument is not a rule or a string.");
 
 			return this;
 		}
@@ -121,10 +147,24 @@ namespace Abitvin
 		{
             const items: (Rule<TBranch, TMeta>|string)[] = this.getVariadicArray<Rule<TBranch, TMeta>|string>(arguments);
             
-			if (this.isString(items[0]))
+            if (this.isString(items[0]))
+            {
+                if (items.some(i => !this.isString(i)))
+                    throw new Error("Not all the items in `anyOf` are a string.");
+                
                 this._parts.push(this.scanAnyOf.bind(this, (<string[]>items).map(l => new Rule<TBranch, TMeta>().literal(l))));
+            }
+			else if (this.isRule(items[0]))
+            {
+                if (items.some(i => !this.isRule(i)))
+                    throw new Error("Not all the items in `anyOf` are a rule.");
+                    
+                this._parts.push(this.scanAnyOf.bind(this, items));
+            }
 			else
-				this._parts.push(this.scanAnyOf.bind(this, items));
+            {
+                throw new Error("The items in `anyOf` can only be a string or a rule.");
+            }	
 
 			return this;
 		}
@@ -134,9 +174,29 @@ namespace Abitvin
         public between(arg1: any, arg2: any, arg3: any): this
 		{
             if (this.isString(arg1))
+            {
+                if (arg1.length !== 1)
+                    throw new Error("First argument can only be a one character string.");
+                
+                if (!this.isString(arg2) || arg2.length !== 1)
+                    throw new Error("Second argument can only be a one character string.");
+                
                 this._parts.push(this.scanCharRangeLeaf.bind(this, arg1.charCodeAt(0), arg2.charCodeAt(0)));
-            else
+            }
+            else if(this.isInteger(arg1))
+            {
+                if (!this.isInteger(arg2))
+                    throw new Error("Second argument is not an integer.");
+                    
+                if (!this.isRule(arg3))
+                    throw new Error("Third argument is not a rule.");
+                    
                 this._parts.push(this.scanRuleRange.bind(this, arg1, arg2, arg3));
+            }
+            else
+            {
+                throw new Error("First argument is not an integer or a one character string.");
+            }
                 
 			return this;
 		}
@@ -147,50 +207,68 @@ namespace Abitvin
             return this;
         }
         
-        public exact(num: number, rule: Rule<TBranch, TMeta>): this
-		public exact(num: number, text: string): this
-		public exact(num: number, arg2: any): this
+        public exact(count: number, rule: Rule<TBranch, TMeta>): this
+		public exact(count: number, text: string): this
+		public exact(count: number, arg2: any): this
 		{
+            if (!this.isInteger(count))
+                throw new Error("First argument is not an integer.");
+                
+            if (count < 0)
+                throw new Error("Count cannot be negative.");
+            
             if (this.isString(arg2))
-                this._parts.push(this.scanRuleRange.bind(this, num, num, new Rule<TBranch, TMeta>().literal(arg2)));
-			else
-				this._parts.push(this.scanRuleRange.bind(this, num, num, arg2));
-
+                this._parts.push(this.scanRuleRange.bind(this, count, count, new Rule<TBranch, TMeta>().literal(arg2)));
+			else if(this.isRule(arg2))
+				this._parts.push(this.scanRuleRange.bind(this, count, count, arg2));
+            else
+                throw new Error("Second argument is not a string or a rule.");
+            
 			return this;
 		}
 
 		public maybe(rule: Rule<TBranch, TMeta>): this
 		public maybe(text: string): this
-		public maybe(item: any): this
+		public maybe(arg1: any): this
 		{
-			if (this.isString(item))
-                this._parts.push(this.scanRuleRange.bind(this, 0, 1, new Rule<TBranch, TMeta>().literal(item)));
-			else
-				this._parts.push(this.scanRuleRange.bind(this, 0, 1, item));
+			if (this.isString(arg1))
+                this._parts.push(this.scanRuleRange.bind(this, 0, 1, new Rule<TBranch, TMeta>().literal(arg1)));
+			else if(this.isRule(arg1))
+				this._parts.push(this.scanRuleRange.bind(this, 0, 1, arg1));
+            else
+                throw new Error("Argument is not a string or a rule.");
 
 			return this;
 		}
 
 		public literal(text: string): this
 		{
+            if (!this.isString(text) || text.length < 1)
+                throw new Error("Literal text must be a string of at least 1 character.");
+            
 			this._parts.push(this.scanLiteralLeaf.bind(this, text));
 			return this;
 		}
         
         public noneOrMany(rule: Rule<TBranch, TMeta>): this
 		public noneOrMany(text: string): this
-		public noneOrMany(item: any): this
+		public noneOrMany(arg1: any): this
 		{
-            if (this.isString(item))
-			    this._parts.push(this.scanRuleRange.bind(this, 0, Number.POSITIVE_INFINITY, new Rule<TBranch, TMeta>().literal(item)));
+            if (this.isString(arg1))
+			    this._parts.push(this.scanRuleRange.bind(this, 0, Number.POSITIVE_INFINITY, new Rule<TBranch, TMeta>().literal(arg1)));
+            else if(this.isRule(arg1))
+			    this._parts.push(this.scanRuleRange.bind(this, 0, Number.POSITIVE_INFINITY, arg1));
             else
-			    this._parts.push(this.scanRuleRange.bind(this, 0, Number.POSITIVE_INFINITY, item));
-
+                throw new Error("Argument is not a string or a rule.");
+                
 			return this;
 		}	
 
 		public one(rule: Rule<TBranch, TMeta>): this
 		{
+            if(!this.isRule(rule))
+                throw new Error("Argument is not a rule.");
+            
 			this._parts.push(this.scanRuleRange.bind(this, 1, 1, rule));
 			return this;
 		}
@@ -253,6 +331,21 @@ namespace Abitvin
                 arr.push(args[i]);
                 
             return arr;
+        }
+        
+        private isInteger(v: any): v is Number
+        {
+            return this.isNumber(v) ? v % 1 === 0 : false;
+        }
+        
+        private isNumber(v: any): v is Number
+        {
+            return v == null ? false : v.constructor === Number;
+        }
+        
+        private isRule(v: any): v is Rule<TBranch, TMeta>
+        {
+            return v instanceof Rule;
         }
         
         private isString(v: any): v is string
