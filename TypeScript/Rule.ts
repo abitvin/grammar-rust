@@ -52,7 +52,7 @@ namespace Abitvin
             this._meta = meta;
 		}
         
-        public static get version(): string { return "0.4.3"; }
+        public static get version(): string { return "0.4.4"; }
         public get meta(): TMeta { return this._meta; }
         
         public all(): this
@@ -409,8 +409,13 @@ namespace Abitvin
             let progress: number;
             
             while ((progress = rule.run(newCtx)) !== -1)
-                if (++count === max || progress === 0)
+            {
+                if (progress === 0)
+                    return 0;
+                
+                if (++count === max)
                     break;
+            }
             
             if (count >= min && count <= max)
                 return this.merge(ctx, newCtx);

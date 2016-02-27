@@ -3,11 +3,11 @@
 namespace Abitvin.Tests
 {
     interface IEmpty {}
-    interface ITest {}
+    //interface ITest {}
     
     let unique: number = 0;
     
-    class CdRule extends Rule<ITest, IEmpty>
+    class CdRule extends Rule<string, IEmpty>
     {
         private _id: number;
         
@@ -24,13 +24,11 @@ namespace Abitvin.Tests
         
         constructor()
         {
-            const dash = new CdRule().literal("-");
-            const star = new CdRule().literal("*");
+            const dash = new CdRule(() => ["-"]).literal("-");
+            const star = new CdRule(() => ["*"]).literal("*");
             const eof = new CdRule().eof();
             
-            //const beginOfStmt = new CdRule().noneOrMany(star);
             const beginOfStmt = new CdRule().noneOrMany(dash);
-            //const endOfStmt = new CdRule().noneOrMany(dash).maybe(eof);
             const endOfStmt = new CdRule().noneOrMany(dash);
             
             const fooStmt1 = new CdRule().one(beginOfStmt).literal("foo").one(endOfStmt);
@@ -49,33 +47,46 @@ namespace Abitvin.Tests
                 if (!rootRule2.scan(code).isSuccess) 
                     console.error(`Test "${code}" failed`);
             
-            //if (!rootRule1.scan("foofoo").isSuccess) console.error("Test failed");
-            //if (!rootRule1.scan("foo-foo").isSuccess) console.error("Test failed");
-            //if (!rootRule1.scan("foo-foo-").isSuccess) console.error("Test failed");
-            //if (!rootRule2.scan("foofoo").isSuccess) console.error("Test failed");
-            //if (!rootRule2.scan("foo-foo").isSuccess) console.error("Test failed");
-            //if (!rootRule2.scan("foo-foo-").isSuccess) console.error("Test failed");
-            
             for (const code of ["foo", "*foo", "**foo", "foo--", "*foo-"])
                 if (!fooStmt3.scan(code).isSuccess) 
                     console.error(`Test "${code}" failed`);
             
+            const dashes = new CdRule((b) => [`#${b.join()}#`]).noneOrMany(dash);
+            const someDashes = new CdRule((b) => [`[${b.join()}]`]).between(2, 4, dashes);
             
-            //this._rootRule = rootRule3;
-            //this._rootRule = fooStmt3;
+            if (!someDashes.scan("").isSuccess) 
+                console.error(`Test "" failed`);
             
+            for (const code of ["-", "--", "---", "----", "-----"])
+                if (someDashes.scan(code).isSuccess) 
+                    console.error(`Test "${code}" failed`);
+                    
+
+            const someDashes2 = new CdRule((b) => [`{${b.join()}}`]).noneOrMany(dashes);
             
-            const a = new CdRule().noneOrMany(star);
-            const b = new CdRule().noneOrMany(a);
+            if (!someDashes2.scan("").isSuccess) 
+                console.error(`Test "" failed`);
             
-            this._rootRule = b;
+            for (const code of ["-", "--", "---"])
+                if (someDashes2.scan(code).isSuccess) 
+                    console.error(`Test "${code}" failed`);
+                    
+            const someDashes3 = new CdRule((b) => [`{${b.join()}}`]).noneOrMany(someDashes2);
+            
+            if (!someDashes3.scan("").isSuccess) 
+                console.error(`Test "" failed`);
+            
+            for (const code of ["-", "--", "---"])
+                if (someDashes3.scan(code).isSuccess) 
+                    console.error(`Test "${code}" failed`);
+                    
+            this._rootRule = someDashes3;
         }
         
-        public test(code: string): RuleResult<ITest, IEmpty>
+        public test(code: string): RuleResult<string, IEmpty>
         {
             //return this._rootRule.scan(code);
             //return this._rootRule.scan("foo");
-            
             return this._rootRule.scan(code);
         }
     }
