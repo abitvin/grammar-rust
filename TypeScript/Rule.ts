@@ -52,8 +52,10 @@ namespace Abitvin
             this._meta = meta;
 		}
         
-        public static get version(): string { return "0.4.5"; }
+        public static get version(): string { return "0.4.6"; }
+        public set branchFn(value: BranchFn<TBranch>) { this._branchFn = value; }
         public get meta(): TMeta { return this._meta; }
+        public set meta(value: TMeta) { this._meta = value; }
         
         public all(): this
         {
