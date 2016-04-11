@@ -35,7 +35,7 @@ namespace Abitvin
     export class RulExp<TBranch, TMeta> 
     {
         private _grammer: R<TBranch, TMeta>;
-        private _rules: {[name: string]: IRule<TBranch, TMeta>};
+        private _rulexps: {[name: string]: IRule<TBranch, TMeta>};
         
         constructor()
         {
@@ -58,7 +58,7 @@ namespace Abitvin
             const ruleFn = (b, l) =>
             {
                 const id = l.slice(1,-1);
-                const r = this._rules[id];
+                const r = this._rulexps[id];
                 
                 if (r == null)
                     throw new Error(`Rule "${id}" not found.`);
@@ -90,14 +90,14 @@ namespace Abitvin
             statement.anyOf(literal, rule);
             
             this._grammer = new R<TBranch, TMeta>().noneOrMany(statement);
-            this._rules = {};
+            this._rulexps = {};
         }
         
         public add(id: string, expr: string, branchFn: BranchFn<TBranch> = null, meta: TMeta = null): void
         {
-            const r: IRule<TBranch, TMeta> = this._rules[id];
+            const rulexp: IRule<TBranch, TMeta> = this._rulexps[id];
             
-            if (r != null && r.isDefined)
+            if (rulexp != null && rulexp.isDefined)
                 throw new Error(`The rule "${id}" already used.`);
             
             const result = this._grammer.scan(expr); 
@@ -106,44 +106,31 @@ namespace Abitvin
             if (!result.isSuccess)
                 throw new Error("Error compiling rule expression.");
             
-            if (r == null)
+            if (rulexp == null)
             {
-                let rule = null;
+                const compiled = result.branches[0];
                 
-                if (result.branches.length === 1)
-                {
-                    rule = result.branches[0];
-                }
-                else if (result.branches.length > 1)
-                {
-                    rule = new Rule<TBranch, TMeta>();
-                    
-                    for (const rr of result.branches)
-                        rule.one(rr);
-                }
-                else
-                {
-                    throw new Error("Application error.");
-                }
-            
-                rule.branchFn = branchFn;
-                rule.meta = meta;
+                for (let i: number = 1; i < result.branches.length; i++)
+                    compiled.one(result.branches[i]);
                 
-                this._rules[id] = {
+                compiled.branchFn = branchFn;
+                compiled.meta = meta;
+                
+                this._rulexps[id] = {
                     id: id,
                     isDefined: true,
-                    rule: rule
+                    rule: compiled
                 };
             }
             else
             {
-                r.isDefined = true;
+                rulexp.isDefined = true;
                 
-                for (const rr of result.branches)
-                    r.rule.one(rr);
+                for (const r of result.branches)
+                    rulexp.rule.one(r);
                     
-                r.rule.branchFn = branchFn;
-                r.rule.meta = meta;
+                rulexp.rule.branchFn = branchFn;
+                rulexp.rule.meta = meta;
             }
         }
         
@@ -151,10 +138,10 @@ namespace Abitvin
         {
             for (const id of ids)
             {
-                if (this._rules[id] != null)
+                if (this._rulexps[id] != null)
                     throw new Error(`The rule "${id}" already used.`);
                 
-                this._rules[id] = {
+                this._rulexps[id] = {
                     id: id,
                     isDefined: false,
                     rule: new Rule<TBranch, TMeta>()
@@ -164,7 +151,7 @@ namespace Abitvin
         
         public scan(rootId: string, code: string): RuleResult<TBranch, TMeta>
         {
-            const root: IRule<TBranch, TMeta> = this._rules[rootId];
+            const root: IRule<TBranch, TMeta> = this._rulexps[rootId];
             
             if (root == null)
                 throw new Error(`Rule with id "${rootId}" not found.`);
