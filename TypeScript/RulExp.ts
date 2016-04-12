@@ -23,9 +23,9 @@ namespace Abitvin
     {
         NoRangeType,
         AtLeast,
-        //AtMost,
-        //Between,
-        //Exact,
+        AtMost,
+        Between,
+        Exact,
         //NoneOrMany
     }
     
@@ -105,6 +105,24 @@ namespace Abitvin
                             break;
                         }
                         
+                        case RangeType.AtMost:
+                        {
+                            rule = new Rule<TBranch, TMeta>().atMost(b[1].arg1, rule);
+                            break;
+                        }
+                        
+                        case RangeType.Between:
+                        {
+                            rule = new Rule<TBranch, TMeta>().between(b[1].arg1, b[1].arg2, rule);
+                            break;
+                        }
+                        
+                        case RangeType.Exact:
+                        {
+                            rule = new Rule<TBranch, TMeta>().exact(b[1].arg1, rule);
+                            break;
+                        }
+                        
                         default:
                             throw new Error("Not implemented.");
                     }
@@ -153,6 +171,24 @@ namespace Abitvin
                         break;
                     }
                     
+                    case RangeType.AtMost:
+                    {
+                        rule = new Rule<TBranch, TMeta>().atMost(b[1].arg1, r.rule);
+                        break;
+                    }
+                    
+                    case RangeType.Between:
+                    {
+                        rule = new Rule<TBranch, TMeta>().between(b[1].arg1, b[1].arg2, r.rule);
+                        break;
+                    }
+                    
+                    case RangeType.Exact:
+                    {
+                        rule = new Rule<TBranch, TMeta>().exact(b[1].arg1, r.rule);
+                        break;
+                    }
+                    
                     default:
                         throw new Error("Not implemented.");
                 }
@@ -190,9 +226,39 @@ namespace Abitvin
             
             const atLeastOne = new R<TBranch, TMeta>(atLeastOneFn).literal("+");
             
-            //const atMost = new R().one(rule).literal("{,").atLeast(1, digit).literal("}");
-            //const atLeast = new R().one(rule).literal("{").atLeast(1, digit).literal(",}");
-            //const between = new R().one(rule).literal("{").atLeast(1, digit).literal(",").atLeast(1, digit).literal("}");
+            // At most
+            const atMostFn = (b, l) => [{
+                arg1: b[0].arg1,
+                arg2: null,
+                arg3: null,
+                rangeType: RangeType.AtMost,
+                rule: null
+            }];
+            
+            const atMost = new R<TBranch, TMeta>(atMostFn).literal("{,").one(integer).literal("}");
+            
+            // Between
+            const betweenFn = (b, l) => [{
+                arg1: b[0].arg1,
+                arg2: b[1].arg1,
+                arg3: null,
+                rangeType: RangeType.Between,
+                rule: null
+            }];
+            
+            const between = new R<TBranch, TMeta>(betweenFn).literal("{").one(integer).literal(",").one(integer).literal("}");
+            
+            // Exact
+            const exactFn = (b, l) => [{
+                arg1: b[0].arg1,
+                arg2: null,
+                arg3: null,
+                rangeType: RangeType.Exact,
+                rule: null
+            }];
+            
+            const exact = new R<TBranch, TMeta>(exactFn).literal("{").one(integer).literal("}");
+            
             //const maybe = new R().one(rule).literal("?");
             //const noneOrMany = new R().one(rule).literal("*");
             
@@ -201,7 +267,7 @@ namespace Abitvin
             //const more = new R<TBranch, TMeta>().literal("|").anyOf(statement);
             //const anyOf = new R<TBranch, TMeta>(anyOfFn).literal("(").anyOf(statement).noneOrMany(more).literal(")");
             
-            ranges.anyOf(atLeast, atLeastOne);
+            ranges.anyOf(atLeast, atLeastOne, atMost, between, exact);
             
             //const statement = new R().anyOf(all, allExcept, eof, atMost, atLeast, between, maybe, noneOrMany);
             //statement.anyOf(anyOf, atLeastOne, literal, rule);
@@ -291,7 +357,7 @@ namespace Abitvin
     grammer.add("foo", "foo", () => [777]);
     grammer.add("bar", "bar", () => [888]);
     //grammer.add("bla", "<foo>+");
-    grammer.add("bla", "<foo>{2,}<bar>{2,}");
+    grammer.add("bla", "<foo>{2}<bar>{2}");
     
     //console.log(grammer.scan("one", "one"));
     //console.log(grammer.scan("two", "two"));
