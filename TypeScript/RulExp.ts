@@ -62,12 +62,23 @@ namespace Abitvin
             const char = new R<TBranch, TMeta>().between("a", "z");
             const CHAR = new R<TBranch, TMeta>().between("A", "Z");
             const Char = new R<TBranch, TMeta>().anyOf(char, CHAR);
-            //const digit = new R().between("0", "9");
+            const digit = new R<TBranch, TMeta>().between("0", "9");
             //const anyChar = new R().all();
             
             //const all = new R(() => [new Rule().all()]).literal(".");
             //const allExcept = new R().literal("^").one(anyChar);
             //const eof = new R().literal("EOF");
+            
+            // Integer
+            const integerFn = (b, l) => [{
+                arg1: parseInt(l), 
+                arg2: null,
+                arg3: null, 
+                rangeType: RangeType.NoRangeType, 
+                rule: null 
+            }];
+            
+            const integer = new R<TBranch, TMeta>(integerFn).atLeast(1, digit);
             
             // Literal
             const literalTextFn = (b, l) => [{
@@ -157,6 +168,17 @@ namespace Abitvin
              
             const rule = new R<TBranch, TMeta>(ruleFn).literal("<").one(ruleName).literal(">").maybe(ranges);
             
+            // At least
+            const atLeastFn = (b, l) => [{
+                arg1: b[0].arg1,
+                arg2: null,
+                arg3: null,
+                rangeType: RangeType.AtLeast,
+                rule: null
+            }];
+            
+            const atLeast = new R<TBranch, TMeta>(atLeastFn).literal("{").one(integer).literal(",}");
+            
             // At least one
             const atLeastOneFn = (b, l) => [{
                 arg1: 1,
@@ -179,7 +201,7 @@ namespace Abitvin
             //const more = new R<TBranch, TMeta>().literal("|").anyOf(statement);
             //const anyOf = new R<TBranch, TMeta>(anyOfFn).literal("(").anyOf(statement).noneOrMany(more).literal(")");
             
-            ranges.anyOf(atLeastOne);
+            ranges.anyOf(atLeast, atLeastOne);
             
             //const statement = new R().anyOf(all, allExcept, eof, atMost, atLeast, between, maybe, noneOrMany);
             //statement.anyOf(anyOf, atLeastOne, literal, rule);
@@ -269,7 +291,7 @@ namespace Abitvin
     grammer.add("foo", "foo", () => [777]);
     grammer.add("bar", "bar", () => [888]);
     //grammer.add("bla", "<foo>+");
-    grammer.add("bla", "<foo>+<bar>+");
+    grammer.add("bla", "<foo>{2,}<bar>{2,}");
     
     //console.log(grammer.scan("one", "one"));
     //console.log(grammer.scan("two", "two"));
