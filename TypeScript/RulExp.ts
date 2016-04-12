@@ -25,8 +25,7 @@ namespace Abitvin
         AtLeast,
         AtMost,
         Between,
-        Exact,
-        //NoneOrMany
+        Exact
     }
     
     interface IParseContext<TB, TM>
@@ -259,15 +258,34 @@ namespace Abitvin
             
             const exact = new R<TBranch, TMeta>(exactFn).literal("{").one(integer).literal("}");
             
-            //const maybe = new R().one(rule).literal("?");
-            //const noneOrMany = new R().one(rule).literal("*");
+            // Maybe
+            const maybeFn = (b, l) => [{
+                arg1: 0,
+                arg2: 1,
+                arg3: null,
+                rangeType: RangeType.Between,
+                rule: null
+            }];
+            
+            const maybe = new R<TBranch, TMeta>(maybeFn).literal("?");
+            
+            // None or many
+            const noneOrManyFn = (b, l) => [{
+                arg1: 0,
+                arg2: null,
+                arg3: null,
+                rangeType: RangeType.AtLeast,
+                rule: null
+            }];
+            
+            const noneOrMany = new R<TBranch, TMeta>(noneOrManyFn).literal("*");
             
             // Any of
             //const anyOfFn = (b, l) => [new Rule<TBranch, TMeta>().anyOf(b)];
             //const more = new R<TBranch, TMeta>().literal("|").anyOf(statement);
             //const anyOf = new R<TBranch, TMeta>(anyOfFn).literal("(").anyOf(statement).noneOrMany(more).literal(")");
             
-            ranges.anyOf(atLeast, atLeastOne, atMost, between, exact);
+            ranges.anyOf(atLeast, atLeastOne, atMost, between, exact, maybe, noneOrMany);
             
             //const statement = new R().anyOf(all, allExcept, eof, atMost, atLeast, between, maybe, noneOrMany);
             //statement.anyOf(anyOf, atLeastOne, literal, rule);
@@ -354,10 +372,10 @@ namespace Abitvin
     //grammer.add("two", "two", () => [2]);
     //grammer.add("three", "three", () => [3]);
     //grammer.add("bla", "");
-    grammer.add("foo", "foo", () => [777]);
+    grammer.add("foo", "foo", () => [999]);
     grammer.add("bar", "bar", () => [888]);
     //grammer.add("bla", "<foo>+");
-    grammer.add("bla", "<foo>{2}<bar>{2}");
+    grammer.add("bla", "<foo>?<foo>?<foo>?<bar>*");
     
     //console.log(grammer.scan("one", "one"));
     //console.log(grammer.scan("two", "two"));
