@@ -88,7 +88,10 @@ namespace Abitvin
                 rule: null 
             }];
             
-            const literalText = new R<TBranch, TMeta>(literalTextFn).atLeast(1, Char);
+            const literalControlChars = new R<TBranch, TMeta>().alter("\\<", "<", "\\{", "{", "\\(", "(", "\\+", "+", "\\?", "?", "\\*", "*");
+            const literalAllExcept = new R<TBranch, TMeta>().allExcept("<", "{", "(", "+", "?", "*");
+            const literalChar = new R<TBranch, TMeta>().anyOf(literalControlChars, literalAllExcept);
+            const literalText = new R<TBranch, TMeta>(literalTextFn).atLeast(1, literalChar);
             
             const literalFn = (b, l) =>
             {
@@ -364,34 +367,116 @@ namespace Abitvin
     
     
     const grammer = new RulExp<number, IEmpty>();
-    //grammer.declare("one", "two", "three");
+    
+    //grammer.declare("digit", "two", "three");
     //grammer.add("bla", "<one>two<two>three<three>three");
     //grammer.add("tosti", "<bla><bla>");
-    //grammer.add("anynumber", "(<one>+|<two>+|<three>+)");
+    
+    //grammer.add("digit", "x+");
+    //grammer.add("multiplication", "<digit> (* <multiplication>)?");
+    //grammer.add("addition", "<multiplication> (+ <addition)?")
+    
+    //grammer.scan("addition", "3 + 3 * 5");
+    
+    
+    //grammer.add("anynumber", "one{0,}<two>{2,10}<three>*");
     //grammer.add("one", "one", () => [1]);
     //grammer.add("two", "two", () => [2]);
     //grammer.add("three", "three", () => [3]);
     //grammer.add("bla", "");
-    grammer.add("foo", "foo", () => [999]);
-    grammer.add("bar", "bar", () => [888]);
+    //grammer.add("foo", "foo", () => [999]);
+    //grammer.add("bar", "bar", () => [888]);
     //grammer.add("bla", "<foo>+");
-    grammer.add("bla", "<foo>?<foo>?<foo>?<bar>*");
+    //grammer.add("bla", "<foo>?<foo>?<foo>?<bar>*");
+    //grammer.add("bla", "foo?foo?foo?bar*", () => [9999]);
+    //grammer.add("bla", "\\*\\<test>+", () => [7777]);
     
+    
+    //const literalControlChars = new R<TBranch, TMeta>().alter("\\<", "<", "\\{", "{", "\\(", "(", "\\+", "+", "\\?", "?", "\\*", "*");
+    //const literalAllExcept = new R<TBranch, TMeta>().allExcept("<", "{", "(", "+", "?", "*");
+    
+    grammer.add("q", "\\+\\*", () => [8888]);
+    grammer.add("banana", "<q>+");
+    console.log(grammer.scan("banana", ""));
+    console.log(grammer.scan("banana", "+*+*"));
+    console.log(grammer.scan("banana", "+*+*+*+*+*+*+*"));
+            
+    
+        
     //console.log(grammer.scan("one", "one"));
     //console.log(grammer.scan("two", "two"));
     //console.log(grammer.scan("three", "three"));
-    //console.log(grammer.scan("anynumber", "one"));
+    //console.log(grammer.scan("anynumber", "onetwothreethreethree"));
     //console.log(grammer.scan("anynumber", "twotwo"));
-    console.log(grammer.scan("bla", "foobarbarbar"));
-    console.log(grammer.scan("bla", "foofoobarbar"));
-    console.log(grammer.scan("bla", "foofoofoobar"));
+    //console.log(grammer.scan("bla", "foobarbarbar"));
+    //console.log(grammer.scan("bla", "foofoobarbar"));
+    //console.log(grammer.scan("bla", "foofoofoobar"));
     //console.log(grammer.scan("tosti", "onetwotwothreethreethreeonetwotwothreethreethree"));
+    //console.log(grammer.scan("bla", "*<test>*<test>*<test>"));
     
-    const one  = new Rule<number, IEmpty>(() => [1]).literal("one");
-    const two  = new Rule<number, IEmpty>(() => [2]).literal("two");
-    const three  = new Rule<number, IEmpty>(() => [3]).literal("three");
-    const anyNumber = new Rule<number, IEmpty>().anyOf(one, two, three);
-    const root = new Rule<number, IEmpty>().one(anyNumber);
+    //const one  = new Rule<number, IEmpty>(() => [1]).literal("one");
+    //const two  = new Rule<number, IEmpty>(() => [2]).literal("two");
+    //const three  = new Rule<number, IEmpty>(() => [3]).literal("three");
+    //const anyNumber = new Rule<number, IEmpty>().anyOf(one, two, three);
+    //const root = new Rule<number, IEmpty>().one(anyNumber);
+    
+    
+    
+    
+    
+    /* TODO Implement this in QBaksteen
+    
+    interface IParseContextB
+    {      
+        num: number;
+    }
+    
+    const mul = new Rule<IParseContextB, IEmpty>((b, l) =>
+    {
+        if (b.length === 1)
+            return b;
+        else
+            return [{ num: b[0].num * b[1].num }];
+    });
+    
+    const add = new Rule<IParseContextB, IEmpty>((b, l) =>
+    {
+        if (b.length === 1)
+            return b;
+        else
+            return [{ num: b[0].num + b[1].num }];
+    });
+    
+    const expr = new Rule<IParseContextB, IEmpty>((b, l) =>
+    {
+        return b;
+    });
+    
+    const digit = new Rule<IParseContextB, IEmpty>().between("0", "9");
+    const num = new Rule<IParseContextB, IEmpty>((b, l) => [{ num: parseInt(l) }]).atLeast(1, digit);
+    const brackets = new Rule<IParseContextB, IEmpty>().literal("(").one(expr).literal(")");
+    
+    const mulRight = new Rule<IParseContextB, IEmpty>().literal("*").one(mul);
+    mul.anyOf(num, brackets).maybe(mulRight);
+    
+    const addRight = new Rule<IParseContextB, IEmpty>().literal("+").one(add);
+    add.one(mul).maybe(addRight);
+    
+    expr.anyOf(add, brackets);
+    
+    
+    
+    
+    console.log(expr.scan("2*(3*4*5)")); // 120
+    console.log(expr.scan("2*(3+4)*5")); // 70
+    console.log(expr.scan("((2+3*4+5))")); // 19
+    */
+    
+    //grammer.add("digit", "x+");
+    //grammer.add("multiplication", "<digit> (* <multiplication>)?");
+    //grammer.add("addition", "<multiplication> (+ <addition)?")
+    
+    
     
     
     //console.log(root.scan("three"));
