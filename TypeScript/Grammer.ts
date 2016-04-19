@@ -4,12 +4,11 @@ namespace Abitvin
 {
     // allExcept:   ^char
     // alter:       [x,y]
-    // between:     [a-z]
         
     
     const enum RangeType
     {
-        NoRangeType,
+        NoRangeType = 0,
         AtLeast,
         AtMost,
         Between,
@@ -50,11 +49,6 @@ namespace Abitvin
             const CHAR = new R<TBranch, TMeta>().between("A", "Z");
             const Char = new R<TBranch, TMeta>().anyOf(char, CHAR);
             const digit = new R<TBranch, TMeta>().between("0", "9");
-            //const anyChar = new R().all();
-            
-            //const all = new R(() => [new Rule().all()]).literal(".");
-            //const allExcept = new R().literal("^").one(anyChar);
-            //const eof = new R().literal("EOF");
             
             // Integer
             const integerFn = (b, l) => [{
@@ -76,8 +70,8 @@ namespace Abitvin
                 rule: null 
             }];
             
-            const literalControlChars = new R<TBranch, TMeta>().alter("\\<", "<", "\\>", ">", "\\{", "{", "\\}", "}", "\\(", "(", "\\)", ")", "\\+", "+", "\\?", "?", "\\*", "*", "\\|", "|", "\\.", ".", "\\$", "$");
-            const literalAllExcept = new R<TBranch, TMeta>().allExcept("<", ">", "{", "}", "(", ")", "+", "?", "*", "|", ".", "$");
+            const literalControlChars = new R<TBranch, TMeta>().alter("\\<", "<", "\\>", ">", "\\{", "{", "\\}", "}", "\\(", "(", "\\)", ")", "\\[", "[", "\\]", "]", "\\+", "+", "\\?", "?", "\\*", "*", "\\|", "|", "\\.", ".", "\\$", "$");
+            const literalAllExcept = new R<TBranch, TMeta>().allExcept("<", ">", "{", "}", "(", ")", "[", "]", "+", "?", "*", "|", ".", "$");
             const literalChar = new R<TBranch, TMeta>().anyOf(literalControlChars, literalAllExcept);
             const literalText = new R<TBranch, TMeta>(literalTextFn).atLeast(1, literalChar);
             
@@ -217,17 +211,53 @@ namespace Abitvin
              
             const anyChar = new R<TBranch, TMeta>(allFn).literal(".").maybe(ranges);
             
-            // EOF
-            const eofFn = (b, l) =>
+            // Match character range
+            const charRangeFn = (b, l) => l.split("-").map(c => ({
+                arg1: null,
+                arg2: null,
+                arg3: c,
+                rangeType: RangeType.NoRangeType,
+                rule: null
+            }));
+            
+            const charRangesFn = (b, l) =>
             {
+                const rule = new Rule<TBranch, TMeta>();
+                
+                if (b.length > 2)
+                {
+                    const ranges: Rule<TBranch, TMeta>[] = [];
+                    
+                    for (let i: number = 0; i < b.length; i += 2)
+                        ranges.push(new Rule<TBranch, TMeta>().between(b[i].arg3, b[i + 1].arg3));
+                    
+                    rule.anyOf(ranges);
+                }
+                else
+                {
+                    rule.between(b[0].arg3, b[1].arg3);
+                }
+                
                 return [{ 
                     arg1: null,
                     arg2: null,
                     arg3: null,
                     rangeType: RangeType.NoRangeType,
-                    rule: new Rule<TBranch, TMeta>().eof()
+                    rule: rule 
                 }];
             };
+            
+            const charRange = new R<TBranch, TMeta>(charRangeFn).one(literalChar).literal("-").one(literalChar);
+            const charRanges = new R<TBranch, TMeta>(charRangesFn).literal("[").atLeast(1, charRange).literal("]");
+            
+            // EOF
+            const eofFn = (b, l) => [{ 
+                arg1: null,
+                arg2: null,
+                arg3: null,
+                rangeType: RangeType.NoRangeType,
+                rule: new Rule<TBranch, TMeta>().eof()
+            }];
             
             const eof = new R<TBranch, TMeta>(eofFn).literal("$");
             
@@ -435,13 +465,13 @@ namespace Abitvin
             
             // Ranges and statements definitions
             ranges.anyOf(atLeast, atLeastOne, atMost, between, exact, maybe, noneOrMany);
-            statement.anyOf(literal, eof, anyChar, rule, anyOf /* TODO allExcept, between */);
+            statement.anyOf(literal, eof, charRanges, anyChar, rule, anyOf /* TODO allExcept, between */);
             
             this._grammer = new R<TBranch, TMeta>().noneOrMany(statement);
             this._rulexps = {};
         }
         
-        public static get version(): string { return "0.1.2"; }
+        public static get version(): string { return "0.1.3"; }
         
         public add(id: string, expr: string, branchFn: BranchFn<TBranch> = null, meta: TMeta = null): void
         {
@@ -512,10 +542,35 @@ namespace Abitvin
     
     
     const grammer = new Grammer<number, IEmpty>();
+    grammer.add("ad", "[a-bc-d]", () => [1]);
+    grammer.add("eh", "[e-h]", () => [2]);
+    grammer.add("il", "[i-l]", () => [3]);
+    grammer.add("root", "(<ad>|<eh>|<il>)+");
     
-    //grammer.declare("digit", "two", "three");
-    //grammer.add("bla", "<one>two<two>three<three>three");
-    //grammer.add("tosti", "<bla><bla>");
+    console.log(grammer.scan("root", "dabcihg"));
+    
+    /*
+    
+    alter this into that, ...
+    ???
+    
+    between this and that, ...
+    [x-y]
+    
+    all except this, that and this
+    ???
+    
+    any of
+    (asdasd|asdasd|asdasdasd)
+    
+    
+    */
+    
+    
+    
+    
+    /* TODO Implement this in QBaksteen
+    
     
     //grammer.add("digit", "x+");
     //grammer.add("multiplication", "<digit> (* <multiplication>)?");
@@ -523,82 +578,7 @@ namespace Abitvin
     
     //grammer.scan("addition", "3 + 3 * 5");
     
-    //grammer.add("anynumber", "one{0,}<two>{2,10}<three>*");
-    //grammer.add("one", "one", () => [1]);
-    //grammer.add("two", "two", () => [2]);
-    //grammer.add("three", "three", () => [3]);
-    //grammer.add("foo", "foo", () => [999]);
-    //grammer.add("bar", "bar", () => [888]);
-    //grammer.add("bla", "<foo>+");
-    //grammer.add("bla", "<foo>?<foo>?<foo>?<bar>*");
-    //grammer.add("bla", "foo?foo?foo?bar*", () => [9999]);
-    //grammer.add("bla", "\\*\\<test>+", () => [7777]);
-    //grammer.add("bla", "(<one>|<two>|<three>){,4}");
-    //grammer.add("bla", "(one|two|three)+", () => [8888]);
-    //grammer.add("bla", "(<one>|two|three){,4}");
-    //grammer.add("bla", "(\\n,\n){,4}");
-    //grammer.add("bla", "(|<one>,two,three){,4}");
-    //grammer.add("bla", "(anyOf <one>,two,three)");
-    //grammer.add("bla", "(alter \\n,\n)");
-    //grammer.add("bla", "(all except \\n,\n)");
-    //console.log(grammer.scan("bla", "oneone"));
-    //console.log(grammer.scan("bla", "onetwothree"));
-    //console.log(grammer.scan("bla", "threetwoonetwothree"));
-    //console.log(grammer.scan("bla", "four"));
-    grammer.add("bla", ".*$", () => [5555]);
-    console.log(grammer.scan("bla", "A"));
-    console.log(grammer.scan("bla", "B"));
-    console.log(grammer.scan("bla", "CC"));
     
-    grammer.add("foo", "..*$", () => [6666]);
-    console.log(grammer.scan("foo", "A"));
-    console.log(grammer.scan("foo", "B"));
-    console.log(grammer.scan("foo", "CC"));
-    
-    grammer.add("faa", ".{0,10}$", () => [7777]);
-    console.log(grammer.scan("faa", ""));
-    console.log(grammer.scan("faa", "B"));
-    console.log(grammer.scan("faa", "BB"));
-    
-    grammer.add("blo", ".?.{0,}$", () => [8888]);
-    console.log(grammer.scan("blo", ""));
-    console.log(grammer.scan("blo", "B"));
-    console.log(grammer.scan("blo", "CC"));
-    
-    
-    //const literalControlChars = new R<TBranch, TMeta>().alter("\\<", "<", "\\{", "{", "\\(", "(", "\\+", "+", "\\?", "?", "\\*", "*");
-    //const literalAllExcept = new R<TBranch, TMeta>().allExcept("<", "{", "(", "+", "?", "*");
-    
-    //grammer.add("q", "\\+\\*", () => [8888]);
-    //grammer.add("banana", "<q>+");
-    //console.log(grammer.scan("banana", ""));
-    //console.log(grammer.scan("banana", "+*+*"));
-    //console.log(grammer.scan("banana", "+*+*+*+*+*+*+*"));
-            
-    
-        
-    //console.log(grammer.scan("one", "one"));
-    //console.log(grammer.scan("two", "two"));
-    //console.log(grammer.scan("three", "three"));
-    //console.log(grammer.scan("anynumber", "onetwothreethreethree"));
-    //console.log(grammer.scan("anynumber", "twotwo"));
-    //console.log(grammer.scan("bla", "foobarbarbar"));
-    //console.log(grammer.scan("bla", "foofoobarbar"));
-    //console.log(grammer.scan("bla", "foofoofoobar"));
-    //console.log(grammer.scan("tosti", "onetwotwothreethreethreeonetwotwothreethreethree"));
-    //console.log(grammer.scan("bla", "*<test>*<test>*<test>"));
-    
-    //const one  = new Rule<number, IEmpty>(() => [1]).literal("one");
-    //const two  = new Rule<number, IEmpty>(() => [2]).literal("two");
-    //const three  = new Rule<number, IEmpty>(() => [3]).literal("three");
-    //const anyNumber = new Rule<number, IEmpty>().anyOf(one, two, three);
-    //const root = new Rule<number, IEmpty>().one(anyNumber);
-    
-    
-    
-    
-    
-    /* TODO Implement this in QBaksteen
     
     interface IParseContextB
     {      
