@@ -5,19 +5,9 @@ namespace Abitvin
     // all:         .
     // allExcept:   ^char
     // alter:       [x,y]
-    // atLeast:     <rule>{n,}
-    // atLeastOne:  <rule>+
-    // atMost:      <rule>{,m}
-    // anyOf:       (literal|<rule>|<rule>)
-    // between:     <rule>{n,m}
     // between:     [a-z]
     // eof:         EOF
-    // exact:       <rule>{n}
-    // maybe:       <rule>?
-    // literal:     text
-    // noneOrMany:  <rule>*
-    // one:         <rule>
-    
+        
     
     const enum RangeType
     {
@@ -88,8 +78,8 @@ namespace Abitvin
                 rule: null 
             }];
             
-            const literalControlChars = new R<TBranch, TMeta>().alter("\\<", "<", "\\>", ">", "\\{", "{", "\\}", "}", "\\(", "(", "\\)", ")", "\\+", "+", "\\?", "?", "\\*", "*", "\\|", "|");
-            const literalAllExcept = new R<TBranch, TMeta>().allExcept("<", ">", "{", "}", "(", ")", "+", "?", "*", "|");
+            const literalControlChars = new R<TBranch, TMeta>().alter("\\<", "<", "\\>", ">", "\\{", "{", "\\}", "}", "\\(", "(", "\\)", ")", "\\+", "+", "\\?", "?", "\\*", "*", "\\|", "|", "\\.", ".");
+            const literalAllExcept = new R<TBranch, TMeta>().allExcept("<", ">", "{", "}", "(", ")", "+", "?", "*", "|", ".");
             const literalChar = new R<TBranch, TMeta>().anyOf(literalControlChars, literalAllExcept);
             const literalText = new R<TBranch, TMeta>(literalTextFn).atLeast(1, literalChar);
             
@@ -181,6 +171,53 @@ namespace Abitvin
             };
             
             const literal = new R<TBranch, TMeta>(literalFn).one(literalText).maybe(ranges);
+            
+            // All
+            const allFn = (b, l) =>
+            {
+                let rule = new Rule<TBranch, TMeta>().all();
+                
+                if (b.length > 0) 
+                switch(b[0].rangeType)
+                {
+                    case RangeType.AtLeast:
+                    {
+                        rule = new Rule<TBranch, TMeta>().atLeast(b[0].arg1, rule);
+                        break;
+                    }
+                    
+                    case RangeType.AtMost:
+                    {
+                        rule = new Rule<TBranch, TMeta>().atMost(b[0].arg1, rule);
+                        break;
+                    }
+                    
+                    case RangeType.Between:
+                    {
+                        rule = new Rule<TBranch, TMeta>().between(b[0].arg1, b[0].arg2, rule);
+                        break;
+                    }
+                    
+                    case RangeType.Exact:
+                    {
+                        rule = new Rule<TBranch, TMeta>().exact(b[0].arg1, rule);
+                        break;
+                    }
+                    
+                    default:
+                        throw new Error("Not implemented.");
+                }
+                    
+                return [{ 
+                    arg1: null,
+                    arg2: null,
+                    arg3: null,
+                    rangeType: RangeType.NoRangeType,
+                    rule: rule 
+                }];
+            };
+             
+            const anyChar = new R<TBranch, TMeta>(allFn).literal(".").maybe(ranges);
             
             // One rule
             const ruleNameFn = (b, l) => [{
@@ -387,13 +424,13 @@ namespace Abitvin
             // Ranges and statements definitions
             ranges.anyOf(atLeast, atLeastOne, atMost, between, exact, maybe, noneOrMany);
             //const statement = new R().anyOf(all, allExcept, eof, atMost, atLeast, between, maybe, noneOrMany);
-            statement.anyOf(literal, rule, anyOf);
+            statement.anyOf(literal, anyChar, rule, anyOf);
             
             this._grammer = new R<TBranch, TMeta>().noneOrMany(statement);
             this._rulexps = {};
         }
         
-        public static get version(): string { return "0.1.0"; }
+        public static get version(): string { return "0.1.1"; }
         
         public add(id: string, expr: string, branchFn: BranchFn<TBranch> = null, meta: TMeta = null): void
         {
@@ -476,16 +513,16 @@ namespace Abitvin
     //grammer.scan("addition", "3 + 3 * 5");
     
     //grammer.add("anynumber", "one{0,}<two>{2,10}<three>*");
-    grammer.add("one", "one", () => [1]);
-    grammer.add("two", "two", () => [2]);
-    grammer.add("three", "three", () => [3]);
+    //grammer.add("one", "one", () => [1]);
+    //grammer.add("two", "two", () => [2]);
+    //grammer.add("three", "three", () => [3]);
     //grammer.add("foo", "foo", () => [999]);
     //grammer.add("bar", "bar", () => [888]);
     //grammer.add("bla", "<foo>+");
     //grammer.add("bla", "<foo>?<foo>?<foo>?<bar>*");
     //grammer.add("bla", "foo?foo?foo?bar*", () => [9999]);
     //grammer.add("bla", "\\*\\<test>+", () => [7777]);
-    grammer.add("bla", "(<one>|<two>|<three>){,4}");
+    //grammer.add("bla", "(<one>|<two>|<three>){,4}");
     //grammer.add("bla", "(one|two|three)+", () => [8888]);
     //grammer.add("bla", "(<one>|two|three){,4}");
     //grammer.add("bla", "(\\n,\n){,4}");
@@ -493,10 +530,29 @@ namespace Abitvin
     //grammer.add("bla", "(anyOf <one>,two,three)");
     //grammer.add("bla", "(alter \\n,\n)");
     //grammer.add("bla", "(all except \\n,\n)");
-    console.log(grammer.scan("bla", "oneone"));
-    console.log(grammer.scan("bla", "onetwothree"));
-    console.log(grammer.scan("bla", "threetwoonetwothree"));
-    console.log(grammer.scan("bla", "four"));
+    //console.log(grammer.scan("bla", "oneone"));
+    //console.log(grammer.scan("bla", "onetwothree"));
+    //console.log(grammer.scan("bla", "threetwoonetwothree"));
+    //console.log(grammer.scan("bla", "four"));
+    grammer.add("bla", ".*", () => [1111]);
+    console.log(grammer.scan("bla", "A"));
+    console.log(grammer.scan("bla", "B"));
+    console.log(grammer.scan("bla", "CC"));
+    
+    grammer.add("foo", "..*", () => [2222]);
+    console.log(grammer.scan("foo", "A"));
+    console.log(grammer.scan("foo", "B"));
+    console.log(grammer.scan("foo", "CC"));
+    
+    grammer.add("faa", ".{0,10}", () => [3333]);
+    console.log(grammer.scan("faa", ""));
+    console.log(grammer.scan("faa", "B"));
+    console.log(grammer.scan("faa", "BB"));
+    
+    grammer.add("blo", ".?.{0,}", () => [4444]);
+    console.log(grammer.scan("blo", ""));
+    console.log(grammer.scan("blo", "B"));
+    console.log(grammer.scan("blo", "CC"));
     
     
     //const literalControlChars = new R<TBranch, TMeta>().alter("\\<", "<", "\\{", "{", "\\(", "(", "\\+", "+", "\\?", "?", "\\*", "*");
