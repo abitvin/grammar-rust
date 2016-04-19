@@ -2,11 +2,9 @@
 
 namespace Abitvin
 {
-    // all:         .
     // allExcept:   ^char
     // alter:       [x,y]
     // between:     [a-z]
-    // eof:         EOF
         
     
     const enum RangeType
@@ -78,8 +76,8 @@ namespace Abitvin
                 rule: null 
             }];
             
-            const literalControlChars = new R<TBranch, TMeta>().alter("\\<", "<", "\\>", ">", "\\{", "{", "\\}", "}", "\\(", "(", "\\)", ")", "\\+", "+", "\\?", "?", "\\*", "*", "\\|", "|", "\\.", ".");
-            const literalAllExcept = new R<TBranch, TMeta>().allExcept("<", ">", "{", "}", "(", ")", "+", "?", "*", "|", ".");
+            const literalControlChars = new R<TBranch, TMeta>().alter("\\<", "<", "\\>", ">", "\\{", "{", "\\}", "}", "\\(", "(", "\\)", ")", "\\+", "+", "\\?", "?", "\\*", "*", "\\|", "|", "\\.", ".", "\\$", "$");
+            const literalAllExcept = new R<TBranch, TMeta>().allExcept("<", ">", "{", "}", "(", ")", "+", "?", "*", "|", ".", "$");
             const literalChar = new R<TBranch, TMeta>().anyOf(literalControlChars, literalAllExcept);
             const literalText = new R<TBranch, TMeta>(literalTextFn).atLeast(1, literalChar);
             
@@ -218,6 +216,20 @@ namespace Abitvin
             };
              
             const anyChar = new R<TBranch, TMeta>(allFn).literal(".").maybe(ranges);
+            
+            // EOF
+            const eofFn = (b, l) =>
+            {
+                return [{ 
+                    arg1: null,
+                    arg2: null,
+                    arg3: null,
+                    rangeType: RangeType.NoRangeType,
+                    rule: new Rule<TBranch, TMeta>().eof()
+                }];
+            };
+            
+            const eof = new R<TBranch, TMeta>(eofFn).literal("$");
             
             // One rule
             const ruleNameFn = (b, l) => [{
@@ -423,14 +435,13 @@ namespace Abitvin
             
             // Ranges and statements definitions
             ranges.anyOf(atLeast, atLeastOne, atMost, between, exact, maybe, noneOrMany);
-            //const statement = new R().anyOf(all, allExcept, eof, atMost, atLeast, between, maybe, noneOrMany);
-            statement.anyOf(literal, anyChar, rule, anyOf);
+            statement.anyOf(literal, eof, anyChar, rule, anyOf /* TODO allExcept, between */);
             
             this._grammer = new R<TBranch, TMeta>().noneOrMany(statement);
             this._rulexps = {};
         }
         
-        public static get version(): string { return "0.1.1"; }
+        public static get version(): string { return "0.1.2"; }
         
         public add(id: string, expr: string, branchFn: BranchFn<TBranch> = null, meta: TMeta = null): void
         {
@@ -534,22 +545,22 @@ namespace Abitvin
     //console.log(grammer.scan("bla", "onetwothree"));
     //console.log(grammer.scan("bla", "threetwoonetwothree"));
     //console.log(grammer.scan("bla", "four"));
-    grammer.add("bla", ".*", () => [1111]);
+    grammer.add("bla", ".*$", () => [5555]);
     console.log(grammer.scan("bla", "A"));
     console.log(grammer.scan("bla", "B"));
     console.log(grammer.scan("bla", "CC"));
     
-    grammer.add("foo", "..*", () => [2222]);
+    grammer.add("foo", "..*$", () => [6666]);
     console.log(grammer.scan("foo", "A"));
     console.log(grammer.scan("foo", "B"));
     console.log(grammer.scan("foo", "CC"));
     
-    grammer.add("faa", ".{0,10}", () => [3333]);
+    grammer.add("faa", ".{0,10}$", () => [7777]);
     console.log(grammer.scan("faa", ""));
     console.log(grammer.scan("faa", "B"));
     console.log(grammer.scan("faa", "BB"));
     
-    grammer.add("blo", ".?.{0,}", () => [4444]);
+    grammer.add("blo", ".?.{0,}$", () => [8888]);
     console.log(grammer.scan("blo", ""));
     console.log(grammer.scan("blo", "B"));
     console.log(grammer.scan("blo", "CC"));
