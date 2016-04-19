@@ -27,6 +27,8 @@ TypeScript/Rule.ts
 * Optimize `anyOf`. Now the items must all be a string or a Rule. But that is not really needed.
 * Refactor isXxx(value) out of the Rule class.
 * Refactor `one`, `maybe`, etc, because these are shorthands for the range functions. 
+* I think "funnelFn" is a better name then "branchFn" but I dislike TFunnel instead of TBranch. 
+* What about `not` or `inverse` a rule?
   
 TypeScript/Examples
 -------------------
