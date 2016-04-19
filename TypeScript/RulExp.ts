@@ -88,10 +88,52 @@ namespace Abitvin
                 rule: null 
             }];
             
-            const literalControlChars = new R<TBranch, TMeta>().alter("\\<", "<", "\\{", "{", "\\(", "(", "\\+", "+", "\\?", "?", "\\*", "*");
-            const literalAllExcept = new R<TBranch, TMeta>().allExcept("<", "{", "(", "+", "?", "*");
+            const literalControlChars = new R<TBranch, TMeta>().alter("\\<", "<", "\\>", ">", "\\{", "{", "\\}", "}", "\\(", "(", "\\)", ")", "\\+", "+", "\\?", "?", "\\*", "*", "\\|", "|");
+            const literalAllExcept = new R<TBranch, TMeta>().allExcept("<", ">", "{", "}", "(", ")", "+", "?", "*", "|");
             const literalChar = new R<TBranch, TMeta>().anyOf(literalControlChars, literalAllExcept);
             const literalText = new R<TBranch, TMeta>(literalTextFn).atLeast(1, literalChar);
+            
+            /* TODO Maybe implement stuff below...
+            const af = new R<TBranch, TMeta>().between("a", "f");
+            const AF = new R<TBranch, TMeta>().between("A", "F");
+            const hex = new R<TBranch, TMeta>().anyOf(digit, af, AF);
+            
+            const combineCharsFn = (b, l) => [{
+                arg1: null, 
+                arg2: null,
+                arg3: b.map(i => i.arg3).join(""), 
+                rangeType: RangeType.NoRangeType, 
+                rule: null 
+            }];
+            
+            const parseCharCodeFn = (b, l) => [{
+                arg1: null, 
+                arg2: null,
+                arg3: String.fromCharCode(parseInt(l.substr(2), 16)), 
+                rangeType: RangeType.NoRangeType, 
+                rule: null 
+            }];
+            
+            const passLexemeFn = (b, l) => [{
+                arg1: null, 
+                arg2: null,
+                arg3: l, 
+                rangeType: RangeType.NoRangeType, 
+                rule: null 
+            }];
+            
+            const strEscapeControl = new R<TBranch, TMeta>(passLexemeFn).alter("\\0", "\0", "\\b", "\b", "\\f", "\f", "\\n", "\n", "\\r", "\r", "\\t", "\t", "\\v", "\v", "\\\"", "\"");
+            const strEscapeLatin1 = new R<TBranch, TMeta>(parseCharCodeFn).literal("\\x").exact(2, hex);
+            const strEscapeUTF16 = new R<TBranch, TMeta>(parseCharCodeFn).literal("\\u").exact(4, hex);
+            const strEscapeUnknown = new R<TBranch, TMeta>(passLexemeFn).literal("\\");
+            //const strAllExceptBs = new R<TBranch, TMeta>(passLexemeFn).allExcept(["\""]);
+            const strAllExceptBs = new R<TBranch, TMeta>(passLexemeFn).allExcept("<", "{", "(", "+", "?", "*");
+            const strChar = new R<TBranch, TMeta>().anyOf(strEscapeControl, strEscapeLatin1, strEscapeUTF16, strEscapeUnknown, strAllExceptBs);
+            //const strValue = new R<TBranch, TMeta>(combineCharsFn).noneOrMany(strChar);
+            const literalText = new R<TBranch, TMeta>(combineCharsFn).atLeast(1, strChar);
+            //const str = new R<TBranch, TMeta>().literal("\"").one(strValue).literal("\"");
+            //const literalText = new R<TBranch, TMeta>(literalTextFn).atLeast(1, literalChar);
+            */
             
             const literalFn = (b, l) =>
             {
@@ -284,15 +326,68 @@ namespace Abitvin
             const noneOrMany = new R<TBranch, TMeta>(noneOrManyFn).literal("*");
             
             // Any of
-            //const anyOfFn = (b, l) => [new Rule<TBranch, TMeta>().anyOf(b)];
-            //const more = new R<TBranch, TMeta>().literal("|").anyOf(statement);
-            //const anyOf = new R<TBranch, TMeta>(anyOfFn).literal("(").anyOf(statement).noneOrMany(more).literal(")");
+            const anyOfFn = (b, l) =>
+            {
+                const rules = b.map(r => r.rule);
+                const last = b[b.length - 1];
+                let rule = null;
+                
+                switch(last.rangeType)
+                {
+                    case RangeType.AtLeast:
+                    {
+                        rule = new Rule<TBranch, TMeta>().anyOf(rules.slice(0, -1));
+                        rule = new Rule<TBranch, TMeta>().atLeast(last.arg1, rule);
+                        break;
+                    }
+                    
+                    case RangeType.AtMost:
+                    {
+                        rule = new Rule<TBranch, TMeta>().anyOf(rules.slice(0, -1));
+                        rule = new Rule<TBranch, TMeta>().atMost(last.arg1, rule);
+                        break;
+                    }
+                    
+                    case RangeType.Between:
+                    {
+                        rule = new Rule<TBranch, TMeta>().anyOf(rules.slice(0, -1));
+                        rule = new Rule<TBranch, TMeta>().between(last.arg1, last.arg2, rule);
+                        break;
+                    }
+                    
+                    case RangeType.Exact:
+                    {
+                        rule = new Rule<TBranch, TMeta>().anyOf(rules.slice(0, -1));
+                        rule = new Rule<TBranch, TMeta>().exact(last.arg1, rule);
+                        break;
+                    }
+                    
+                    case RangeType.NoRangeType:
+                    {
+                        rule = new Rule<TBranch, TMeta>().anyOf(rules);
+                        break;
+                    }
+                        
+                    default:
+                        throw new Error("Not implemented.");
+                }
+                
+                return [{
+                    arg1: null,
+                    arg2: null,
+                    arg3: null,
+                    rangeType: RangeType.NoRangeType,
+                    rule: rule
+                }];
+            }
             
+            const more = new R<TBranch, TMeta>().literal("|").one(statement);
+            const anyOf = new R<TBranch, TMeta>(anyOfFn).literal("(").one(statement).noneOrMany(more).literal(")").maybe(ranges);
+            
+            // Ranges and statements definitions
             ranges.anyOf(atLeast, atLeastOne, atMost, between, exact, maybe, noneOrMany);
-            
             //const statement = new R().anyOf(all, allExcept, eof, atMost, atLeast, between, maybe, noneOrMany);
-            //statement.anyOf(anyOf, atLeastOne, literal, rule);
-            statement.anyOf(literal, rule);
+            statement.anyOf(literal, rule, anyOf);
             
             this._grammer = new R<TBranch, TMeta>().noneOrMany(statement);
             this._rulexps = {};
@@ -378,28 +473,38 @@ namespace Abitvin
     
     //grammer.scan("addition", "3 + 3 * 5");
     
-    
     //grammer.add("anynumber", "one{0,}<two>{2,10}<three>*");
-    //grammer.add("one", "one", () => [1]);
-    //grammer.add("two", "two", () => [2]);
-    //grammer.add("three", "three", () => [3]);
-    //grammer.add("bla", "");
+    grammer.add("one", "one", () => [1]);
+    grammer.add("two", "two", () => [2]);
+    grammer.add("three", "three", () => [3]);
     //grammer.add("foo", "foo", () => [999]);
     //grammer.add("bar", "bar", () => [888]);
     //grammer.add("bla", "<foo>+");
     //grammer.add("bla", "<foo>?<foo>?<foo>?<bar>*");
     //grammer.add("bla", "foo?foo?foo?bar*", () => [9999]);
     //grammer.add("bla", "\\*\\<test>+", () => [7777]);
+    grammer.add("bla", "(<one>|<two>|<three>){,4}");
+    //grammer.add("bla", "(one|two|three)+", () => [8888]);
+    //grammer.add("bla", "(<one>|two|three){,4}");
+    //grammer.add("bla", "(\\n,\n){,4}");
+    //grammer.add("bla", "(|<one>,two,three){,4}");
+    //grammer.add("bla", "(anyOf <one>,two,three)");
+    //grammer.add("bla", "(alter \\n,\n)");
+    //grammer.add("bla", "(all except \\n,\n)");
+    console.log(grammer.scan("bla", "oneone"));
+    console.log(grammer.scan("bla", "onetwothree"));
+    console.log(grammer.scan("bla", "threetwoonetwothree"));
+    console.log(grammer.scan("bla", "four"));
     
     
     //const literalControlChars = new R<TBranch, TMeta>().alter("\\<", "<", "\\{", "{", "\\(", "(", "\\+", "+", "\\?", "?", "\\*", "*");
     //const literalAllExcept = new R<TBranch, TMeta>().allExcept("<", "{", "(", "+", "?", "*");
     
-    grammer.add("q", "\\+\\*", () => [8888]);
-    grammer.add("banana", "<q>+");
-    console.log(grammer.scan("banana", ""));
-    console.log(grammer.scan("banana", "+*+*"));
-    console.log(grammer.scan("banana", "+*+*+*+*+*+*+*"));
+    //grammer.add("q", "\\+\\*", () => [8888]);
+    //grammer.add("banana", "<q>+");
+    //console.log(grammer.scan("banana", ""));
+    //console.log(grammer.scan("banana", "+*+*"));
+    //console.log(grammer.scan("banana", "+*+*+*+*+*+*+*"));
             
     
         
