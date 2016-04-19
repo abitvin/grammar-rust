@@ -48,7 +48,7 @@ namespace Abitvin
         rule: Rule<TBranch, TMeta>;
     }
     
-    export class RulExp<TBranch, TMeta> 
+    export class Grammer<TBranch, TMeta> 
     {
         private _grammer: R<TBranch, TMeta>;
         private _rulexps: {[name: string]: IRule<TBranch, TMeta>};
@@ -393,6 +393,8 @@ namespace Abitvin
             this._rulexps = {};
         }
         
+        public static get version(): string { return "0.1.0"; }
+        
         public add(id: string, expr: string, branchFn: BranchFn<TBranch> = null, meta: TMeta = null): void
         {
             const rulexp: IRule<TBranch, TMeta> = this._rulexps[id];
@@ -461,7 +463,7 @@ namespace Abitvin
     }
     
     
-    const grammer = new RulExp<number, IEmpty>();
+    const grammer = new Grammer<number, IEmpty>();
     
     //grammer.declare("digit", "two", "three");
     //grammer.add("bla", "<one>two<two>three<three>three");
