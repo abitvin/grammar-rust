@@ -2,7 +2,6 @@
 
 namespace Abitvin
 {
-    // allExcept:   ^char
     // alter:       [x,y]
         
     
@@ -70,7 +69,7 @@ namespace Abitvin
                 rule: null 
             }];
             
-            const literalControlChars = new R<TBranch, TMeta>().alter("\\<", "<", "\\>", ">", "\\{", "{", "\\}", "}", "\\(", "(", "\\)", ")", "\\[", "[", "\\]", "]", "\\+", "+", "\\?", "?", "\\*", "*", "\\|", "|", "\\.", ".", "\\$", "$");
+            const literalControlChars = new R<TBranch, TMeta>().alter("\\<", "<", "\\>", ">", "\\{", "{", "\\}", "}", "\\(", "(", "\\)", ")", "\\[", "[", "\\]", "]", "\\+", "+", "\\?", "?", "\\*", "*", "\\|", "|", "\\.", ".", "\\$", "$", "\\^", "^");
             const literalAllExcept = new R<TBranch, TMeta>().allExcept("<", ">", "{", "}", "(", ")", "[", "]", "+", "?", "*", "|", ".", "$");
             const literalChar = new R<TBranch, TMeta>().anyOf(literalControlChars, literalAllExcept);
             const literalText = new R<TBranch, TMeta>(literalTextFn).atLeast(1, literalChar);
@@ -210,6 +209,67 @@ namespace Abitvin
             };
              
             const anyChar = new R<TBranch, TMeta>(allFn).literal(".").maybe(ranges);
+            
+            // All except
+            const allExceptCharsFn = (b, l) => [{
+                arg1: null,
+                arg2: null,
+                arg3: l,
+                rangeType: RangeType.NoRangeType,
+                rule: null
+            }];
+            
+            const allExceptFn = (b, l) =>
+            {
+                let rule = new Rule<TBranch, TMeta>().allExcept(b[0].arg3.split(""));
+                
+                const last = b[b.length - 1];
+                
+                if (last.rangeType !== RangeType.NoRangeType)
+                switch(last.rangeType)
+                {
+                    case RangeType.AtLeast:
+                    {
+                        rule = new Rule<TBranch, TMeta>().atLeast(last.arg1, rule);
+                        break;
+                    }
+                    
+                    case RangeType.AtMost:
+                    {
+                        rule = new Rule<TBranch, TMeta>().atMost(last.arg1, rule);
+                        break;
+                    }
+                    
+                    case RangeType.Between:
+                    {
+                        rule = new Rule<TBranch, TMeta>().between(last.arg1, last.arg2, rule);
+                        break;
+                    }
+                    
+                    case RangeType.Exact:
+                    {
+                        rule = new Rule<TBranch, TMeta>().exact(last.arg1, rule);
+                        break;
+                    }
+                    
+                    default:
+                        throw new Error("Not implemented.");
+                }
+                
+                return [{ 
+                    arg1: null,
+                    arg2: null,
+                    arg3: null,
+                    rangeType: RangeType.NoRangeType,
+                    rule: rule 
+                }];
+            };
+            
+            const allExceptEscaped = new R<TBranch, TMeta>().alter("\\]", "]");
+            const allExceptAnyOther = new R<TBranch, TMeta>().allExcept("]");
+            const allExceptChar = new R<TBranch, TMeta>().anyOf(allExceptEscaped, allExceptAnyOther);
+            const allExceptChars = new R<TBranch, TMeta>(allExceptCharsFn).atLeast(1, allExceptChar);
+            const allExcept = new R<TBranch, TMeta>(allExceptFn).literal("[^").one(allExceptChars).literal("]").maybe(ranges);
             
             // Match character range
             const charRangeFn = (b, l) => l.split("-").map(c => ({
@@ -498,13 +558,13 @@ namespace Abitvin
             
             // Ranges and statements definitions
             ranges.anyOf(atLeast, atLeastOne, atMost, between, exact, maybe, noneOrMany);
-            statement.anyOf(literal, eof, charRanges, anyChar, rule, anyOf /* TODO allExcept, between */);
+            statement.anyOf(literal, eof, allExcept, charRanges, anyChar, rule, anyOf);
             
             this._grammer = new R<TBranch, TMeta>().noneOrMany(statement);
             this._rulexps = {};
         }
         
-        public static get version(): string { return "0.1.4"; }
+        public static get version(): string { return "0.1.5"; }
         
         public add(id: string, expr: string, branchFn: BranchFn<TBranch> = null, meta: TMeta = null): void
         {
@@ -575,24 +635,18 @@ namespace Abitvin
     
     
     const grammer = new Grammer<number, IEmpty>();
-    grammer.add("ad", "[a-bc-d]+", () => [1]);
+    grammer.add("ad", "[^abcd]", () => [7]);
     grammer.add("eh", "[e-h]", () => [2]);
     grammer.add("il", "[i-l]+", () => [3]);
-    grammer.add("root", "(<ad>|<eh>|<il>)+");
+    grammer.add("roof", "[\\^-`]", () => [9999]);
+    grammer.add("root", "(<roof>|<eh>|<il>|<ad>)+");
     
-    console.log(grammer.scan("root", "dabcihgae"));
+    console.log(grammer.scan("root", "xyk^zi_hg`AE"));
     
     /*
     
     alter this into that, ...
     ???
-    
-    all except this, that and this
-    [^xasd]
-    
-    any of
-    (asdasd|asdasd|asdasdasd)
-    
     
     */
     
