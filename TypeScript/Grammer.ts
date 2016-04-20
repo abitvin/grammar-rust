@@ -553,8 +553,28 @@ namespace Abitvin
                 }];
             }
             
-            const more = new R<TBranch, TMeta>().literal("|").one(statement);
-            const anyOf = new R<TBranch, TMeta>(anyOfFn).literal("(").one(statement).noneOrMany(more).literal(")").maybe(ranges);
+            const statementsFn = (b, l) =>
+            {
+                if (b.length === 1)
+                   return b; 
+                
+                const rule = new R<TBranch, TMeta>();
+                
+                for (const pc of b)
+                    rule.one(pc.rule);
+                 
+                return [{
+                    arg1: null,
+                    arg2: null,
+                    arg3: null,
+                    rangeType: RangeType.NoRangeType,
+                    rule: rule
+                }];
+            };
+            
+            const statements = new R<TBranch, TMeta>(statementsFn).atLeast(1, statement); 
+            const more = new R<TBranch, TMeta>().literal("|").one(statements);
+            const anyOf = new R<TBranch, TMeta>(anyOfFn).literal("(").one(statements).noneOrMany(more).literal(")").maybe(ranges);
             
             // Ranges and statements definitions
             ranges.anyOf(atLeast, atLeastOne, atMost, between, exact, maybe, noneOrMany);
@@ -564,7 +584,7 @@ namespace Abitvin
             this._rulexps = {};
         }
         
-        public static get version(): string { return "0.1.5"; }
+        public static get version(): string { return "0.1.6"; }
         
         public add(id: string, expr: string, branchFn: BranchFn<TBranch> = null, meta: TMeta = null): void
         {
@@ -634,36 +654,30 @@ namespace Abitvin
     }
     
     
-    const grammer = new Grammer<number, IEmpty>();
-    grammer.add("ad", "[^abcd]", () => [7]);
-    grammer.add("eh", "[e-h]", () => [2]);
-    grammer.add("il", "[i-l]+", () => [3]);
-    grammer.add("roof", "[\\^-`]", () => [9999]);
-    grammer.add("root", "(<roof>|<eh>|<il>|<ad>)+");
+    //const grammer = new Grammer<number, IEmpty>();
+    //grammer.add("ad", "[^abcd]", () => [7]);
+    //grammer.add("eh", "[e-h]", () => [2]);
+    //grammer.add("il", "[i-l]+", () => [3]);
+    //grammer.add("roof", "[\\^-`]", () => [9999]);
+    //grammer.add("root", "(<roof>|<eh>|<il>|<ad>)+");
     
-    console.log(grammer.scan("root", "xyk^zi_hg`AE"));
+    //console.log(grammer.scan("root", "xyk^zi_hg`AE"));
+    
+    
+    
+    
     
     /*
     
     alter this into that, ...
-    ???
+    (\\n->\n,\\r->\r)
     
     */
     
     
     
     
-    /* TODO Implement this in QBaksteen
-    
-    
-    //grammer.add("digit", "x+");
-    //grammer.add("multiplication", "<digit> (* <multiplication>)?");
-    //grammer.add("addition", "<multiplication> (+ <addition)?")
-    
-    //grammer.scan("addition", "3 + 3 * 5");
-    
-    
-    
+    // TODO Implement this in QBaksteen
     interface IParseContextB
     {      
         num: number;
@@ -702,14 +716,24 @@ namespace Abitvin
     
     expr.anyOf(add, brackets);
     
-    
-    
-    
     console.log(expr.scan("2*(3*4*5)")); // 120
     console.log(expr.scan("2*(3+4)*5")); // 70
     console.log(expr.scan("((2+3*4+5))")); // 19
-    */
     
+    
+    const calc = new Grammer<number, IEmpty>();
+    calc.declare("add", "expr", "mul");
+    calc.add("num", "[0-9]+", (b, l) => [parseInt(l)]);
+    calc.add("brackets", "\\(<expr>\\)");   // Identity function
+    calc.add("mul", "(<num>|<brackets>)(\\*<mul>)?", b => b.length === 1 ? b : [b[0] * b[1]]);
+    calc.add("add", "<mul>(\\+<add>)?", b => b.length === 1 ? b : [b[0] + b[1]]);
+    calc.add("expr", "(<add>|<brackets>)");
+    
+    console.log(calc.scan("expr", "2*(3*s4*5)")); // 120
+    console.log(calc.scan("expr", "2*(3+4)*5")); // 70
+    console.log(calc.scan("expr", "((2+3*4+5))")); // 19
+    
+    /*
     //grammer.add("digit", "x+");
     //grammer.add("multiplication", "<digit> (* <multiplication>)?");
     //grammer.add("addition", "<multiplication> (+ <addition)?")
