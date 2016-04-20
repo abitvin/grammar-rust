@@ -222,13 +222,13 @@ namespace Abitvin
             
             const charRangesFn = (b, l) =>
             {
-                const rule = new Rule<TBranch, TMeta>();
+                let rule = new Rule<TBranch, TMeta>();
                 
                 if (b.length > 2)
                 {
                     const ranges: Rule<TBranch, TMeta>[] = [];
                     
-                    for (let i: number = 0; i < b.length; i += 2)
+                    for (let i: number = 0; i < b.length - 1; i += 2)
                         ranges.push(new Rule<TBranch, TMeta>().between(b[i].arg3, b[i + 1].arg3));
                     
                     rule.anyOf(ranges);
@@ -236,6 +236,39 @@ namespace Abitvin
                 else
                 {
                     rule.between(b[0].arg3, b[1].arg3);
+                }
+                
+                const last = b[b.length - 1];
+                
+                if (last.rangeType !== RangeType.NoRangeType)
+                switch(last.rangeType)
+                {
+                    case RangeType.AtLeast:
+                    {
+                        rule = new Rule<TBranch, TMeta>().atLeast(last.arg1, rule);
+                        break;
+                    }
+                    
+                    case RangeType.AtMost:
+                    {
+                        rule = new Rule<TBranch, TMeta>().atMost(last.arg1, rule);
+                        break;
+                    }
+                    
+                    case RangeType.Between:
+                    {
+                        rule = new Rule<TBranch, TMeta>().between(last.arg1, last.arg2, rule);
+                        break;
+                    }
+                    
+                    case RangeType.Exact:
+                    {
+                        rule = new Rule<TBranch, TMeta>().exact(last.arg1, rule);
+                        break;
+                    }
+                    
+                    default:
+                        throw new Error("Not implemented.");
                 }
                 
                 return [{ 
@@ -248,7 +281,7 @@ namespace Abitvin
             };
             
             const charRange = new R<TBranch, TMeta>(charRangeFn).one(literalChar).literal("-").one(literalChar);
-            const charRanges = new R<TBranch, TMeta>(charRangesFn).literal("[").atLeast(1, charRange).literal("]");
+            const charRanges = new R<TBranch, TMeta>(charRangesFn).literal("[").atLeast(1, charRange).literal("]").maybe(ranges);
             
             // EOF
             const eofFn = (b, l) => [{ 
@@ -471,7 +504,7 @@ namespace Abitvin
             this._rulexps = {};
         }
         
-        public static get version(): string { return "0.1.3"; }
+        public static get version(): string { return "0.1.4"; }
         
         public add(id: string, expr: string, branchFn: BranchFn<TBranch> = null, meta: TMeta = null): void
         {
@@ -542,23 +575,20 @@ namespace Abitvin
     
     
     const grammer = new Grammer<number, IEmpty>();
-    grammer.add("ad", "[a-bc-d]", () => [1]);
+    grammer.add("ad", "[a-bc-d]+", () => [1]);
     grammer.add("eh", "[e-h]", () => [2]);
-    grammer.add("il", "[i-l]", () => [3]);
+    grammer.add("il", "[i-l]+", () => [3]);
     grammer.add("root", "(<ad>|<eh>|<il>)+");
     
-    console.log(grammer.scan("root", "dabcihg"));
+    console.log(grammer.scan("root", "dabcihgae"));
     
     /*
     
     alter this into that, ...
     ???
     
-    between this and that, ...
-    [x-y]
-    
     all except this, that and this
-    ???
+    [^xasd]
     
     any of
     (asdasd|asdasd|asdasdasd)
