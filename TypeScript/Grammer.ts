@@ -2,9 +2,6 @@
 
 namespace Abitvin
 {
-    // alter:       [x,y]
-        
-    
     const enum RangeType
     {
         NoRangeType = 0,
@@ -69,8 +66,8 @@ namespace Abitvin
                 rule: null 
             }];
             
-            const literalControlChars = new R<TBranch, TMeta>().alter("\\<", "<", "\\>", ">", "\\{", "{", "\\}", "}", "\\(", "(", "\\)", ")", "\\[", "[", "\\]", "]", "\\+", "+", "\\?", "?", "\\*", "*", "\\|", "|", "\\.", ".", "\\$", "$", "\\^", "^");
-            const literalAllExcept = new R<TBranch, TMeta>().allExcept("<", ">", "{", "}", "(", ")", "[", "]", "+", "?", "*", "|", ".", "$");
+            const literalControlChars = new R<TBranch, TMeta>().alter("\\<", "<", "\\>", ">", "\\{", "{", "\\}", "}", "\\(", "(", "\\)", ")", "\\[", "[", "\\]", "]", "\\+", "+", "\\?", "?", "\\*", "*", "\\|", "|", "\\.", ".", "\\$", "$", "\\^", "^", "\\,", ",");
+            const literalAllExcept = new R<TBranch, TMeta>().allExcept("<", ">", "{", "}", "(", ")", "[", "]", "+", "?", "*", "|", ".", "$", ",");
             const literalChar = new R<TBranch, TMeta>().anyOf(literalControlChars, literalAllExcept);
             const literalText = new R<TBranch, TMeta>(literalTextFn).atLeast(1, literalChar);
             
@@ -558,7 +555,7 @@ namespace Abitvin
                 if (b.length === 1)
                    return b; 
                 
-                const rule = new R<TBranch, TMeta>();
+                const rule = new Rule<TBranch, TMeta>();
                 
                 for (const pc of b)
                     rule.one(pc.rule);
@@ -576,15 +573,79 @@ namespace Abitvin
             const more = new R<TBranch, TMeta>().literal("|").one(statements);
             const anyOf = new R<TBranch, TMeta>(anyOfFn).literal("(").one(statements).noneOrMany(more).literal(")").maybe(ranges);
             
+            // Alter
+            const alterCharFn = (b, l) => [{
+                arg1: null,
+                arg2: null,
+                arg3: l,
+                rangeType: RangeType.NoRangeType,
+                rule: null
+            }];
+            
+            const alterFn = (b, l) => 
+            {
+                const last = b[b.length - 1];
+                
+                if (last.rangeType !== RangeType.NoRangeType)
+                    b = b.slice(0, -1);
+                
+                let rule = new Rule<TBranch, TMeta>().alter(b.map(i => i.arg3));
+                
+                switch (last.rangeType)
+                {
+                    case RangeType.AtLeast:
+                    {
+                        rule = new Rule<TBranch, TMeta>().atLeast(last.arg1, rule);
+                        break;
+                    }
+                    
+                    case RangeType.AtMost:
+                    {
+                        rule = new Rule<TBranch, TMeta>().atMost(last.arg1, rule);
+                        break;
+                    }
+                    
+                    case RangeType.Between:
+                    {
+                        rule = new Rule<TBranch, TMeta>().between(last.arg1, last.arg2, rule);
+                        break;
+                    }
+                    
+                    case RangeType.Exact:
+                    {
+                        rule = new Rule<TBranch, TMeta>().exact(last.arg1, rule);
+                        break;
+                    }
+                    
+                    case RangeType.NoRangeType:
+                        break;
+                    
+                    default:
+                        throw new Error("Not implemented.");
+                }
+                
+                return [{
+                    arg1: null,
+                    arg2: null,
+                    arg3: null,
+                    rangeType: RangeType.NoRangeType,
+                    rule: rule
+                }];
+            }
+            
+            const alterChar = new R<TBranch, TMeta>(alterCharFn).atLeast(1, literalChar);
+            const alterMore = new R<TBranch, TMeta>().literal(",").one(alterChar);
+            const alter = new R<TBranch, TMeta>(alterFn).literal("(").one(alterChar).noneOrMany(alterMore).literal(")").maybe(ranges);
+            
             // Ranges and statements definitions
             ranges.anyOf(atLeast, atLeastOne, atMost, between, exact, maybe, noneOrMany);
-            statement.anyOf(literal, eof, allExcept, charRanges, anyChar, rule, anyOf);
+            statement.anyOf(literal, eof, alter, allExcept, charRanges, anyChar, rule, anyOf);
             
             this._grammer = new R<TBranch, TMeta>().noneOrMany(statement);
             this._rulexps = {};
         }
         
-        public static get version(): string { return "0.1.6"; }
+        public static get version(): string { return "0.1.7"; }
         
         public add(id: string, expr: string, branchFn: BranchFn<TBranch> = null, meta: TMeta = null): void
         {
@@ -663,19 +724,7 @@ namespace Abitvin
     
     //console.log(grammer.scan("root", "xyk^zi_hg`AE"));
     
-    
-    
-    
-    
     /*
-    
-    alter this into that, ...
-    (\\n->\n,\\r->\r)
-    
-    */
-    
-    
-    
     
     // TODO Implement this in QBaksteen
     interface IParseContextB
@@ -719,7 +768,11 @@ namespace Abitvin
     console.log(expr.scan("2*(3*4*5)")); // 120
     console.log(expr.scan("2*(3+4)*5")); // 70
     console.log(expr.scan("((2+3*4+5))")); // 19
+    */
     
+    const alter = new Grammer<string, IEmpty>();
+    alter.add("root", "(\\n,\n,asdasd,asdasxd,aa,bb,yyy,xxx)+", (b, l) => [l]);
+    console.log(alter.scan("root", "yyy\\n\\nasdasdaaasdasd\\naaasdasdyyy"));
     
     const calc = new Grammer<number, IEmpty>();
     calc.declare("add", "expr", "mul");
@@ -729,7 +782,7 @@ namespace Abitvin
     calc.add("add", "<mul>(\\+<add>)?", b => b.length === 1 ? b : [b[0] + b[1]]);
     calc.add("expr", "(<add>|<brackets>)");
     
-    console.log(calc.scan("expr", "2*(3*s4*5)")); // 120
+    console.log(calc.scan("expr", "2*(3*4*5)")); // 120
     console.log(calc.scan("expr", "2*(3+4)*5")); // 70
     console.log(calc.scan("expr", "((2+3*4+5))")); // 19
     
