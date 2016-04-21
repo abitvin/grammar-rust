@@ -118,37 +118,9 @@ namespace Abitvin
                 const text = b[0].arg3;
                 let rule = new Rule<TBranch, TMeta>().literal(text);
                 
-                if (b.length === 2) 
-                    switch(b[1].rangeType)
-                    {
-                        case RangeType.AtLeast:
-                        {
-                            rule = new Rule<TBranch, TMeta>().atLeast(b[1].arg1, rule);
-                            break;
-                        }
-                        
-                        case RangeType.AtMost:
-                        {
-                            rule = new Rule<TBranch, TMeta>().atMost(b[1].arg1, rule);
-                            break;
-                        }
-                        
-                        case RangeType.Between:
-                        {
-                            rule = new Rule<TBranch, TMeta>().between(b[1].arg1, b[1].arg2, rule);
-                            break;
-                        }
-                        
-                        case RangeType.Exact:
-                        {
-                            rule = new Rule<TBranch, TMeta>().exact(b[1].arg1, rule);
-                            break;
-                        }
-                        
-                        default:
-                            throw new Error("Not implemented.");
-                    }
-                    
+                if (b.length === 2)
+                    rule = this.addRange(rule, b[1]);
+                   
                 return [{ 
                     arg1: null,
                     arg2: null,
@@ -165,37 +137,9 @@ namespace Abitvin
             {
                 let rule = new Rule<TBranch, TMeta>().all();
                 
-                if (b.length > 0) 
-                switch(b[0].rangeType)
-                {
-                    case RangeType.AtLeast:
-                    {
-                        rule = new Rule<TBranch, TMeta>().atLeast(b[0].arg1, rule);
-                        break;
-                    }
-                    
-                    case RangeType.AtMost:
-                    {
-                        rule = new Rule<TBranch, TMeta>().atMost(b[0].arg1, rule);
-                        break;
-                    }
-                    
-                    case RangeType.Between:
-                    {
-                        rule = new Rule<TBranch, TMeta>().between(b[0].arg1, b[0].arg2, rule);
-                        break;
-                    }
-                    
-                    case RangeType.Exact:
-                    {
-                        rule = new Rule<TBranch, TMeta>().exact(b[0].arg1, rule);
-                        break;
-                    }
-                    
-                    default:
-                        throw new Error("Not implemented.");
-                }
-                    
+                if (b.length === 1)
+                    rule = this.addRange(rule, b[0]);
+                
                 return [{ 
                     arg1: null,
                     arg2: null,
@@ -219,39 +163,10 @@ namespace Abitvin
             const allExceptFn = (b, l) =>
             {
                 let rule = new Rule<TBranch, TMeta>().allExcept(b[0].arg3.split(""));
-                
                 const last = b[b.length - 1];
                 
                 if (last.rangeType !== RangeType.NoRangeType)
-                switch(last.rangeType)
-                {
-                    case RangeType.AtLeast:
-                    {
-                        rule = new Rule<TBranch, TMeta>().atLeast(last.arg1, rule);
-                        break;
-                    }
-                    
-                    case RangeType.AtMost:
-                    {
-                        rule = new Rule<TBranch, TMeta>().atMost(last.arg1, rule);
-                        break;
-                    }
-                    
-                    case RangeType.Between:
-                    {
-                        rule = new Rule<TBranch, TMeta>().between(last.arg1, last.arg2, rule);
-                        break;
-                    }
-                    
-                    case RangeType.Exact:
-                    {
-                        rule = new Rule<TBranch, TMeta>().exact(last.arg1, rule);
-                        break;
-                    }
-                    
-                    default:
-                        throw new Error("Not implemented.");
-                }
+                    rule = this.addRange(rule, last);
                 
                 return [{ 
                     arg1: null,
@@ -298,35 +213,7 @@ namespace Abitvin
                 const last = b[b.length - 1];
                 
                 if (last.rangeType !== RangeType.NoRangeType)
-                switch(last.rangeType)
-                {
-                    case RangeType.AtLeast:
-                    {
-                        rule = new Rule<TBranch, TMeta>().atLeast(last.arg1, rule);
-                        break;
-                    }
-                    
-                    case RangeType.AtMost:
-                    {
-                        rule = new Rule<TBranch, TMeta>().atMost(last.arg1, rule);
-                        break;
-                    }
-                    
-                    case RangeType.Between:
-                    {
-                        rule = new Rule<TBranch, TMeta>().between(last.arg1, last.arg2, rule);
-                        break;
-                    }
-                    
-                    case RangeType.Exact:
-                    {
-                        rule = new Rule<TBranch, TMeta>().exact(last.arg1, rule);
-                        break;
-                    }
-                    
-                    default:
-                        throw new Error("Not implemented.");
-                }
+                    rule = this.addRange(rule, last);
                 
                 return [{ 
                     arg1: null,
@@ -373,39 +260,10 @@ namespace Abitvin
                 let rule = null;
                 
                 if (b.length === 1)
-                {
-                    rule = new Rule<TBranch, TMeta>().one(r.rule); 
-                }
-                else switch(b[1].rangeType)
-                {
-                    case RangeType.AtLeast:
-                    {
-                        rule = new Rule<TBranch, TMeta>().atLeast(b[1].arg1, r.rule);
-                        break;
-                    }
-                    
-                    case RangeType.AtMost:
-                    {
-                        rule = new Rule<TBranch, TMeta>().atMost(b[1].arg1, r.rule);
-                        break;
-                    }
-                    
-                    case RangeType.Between:
-                    {
-                        rule = new Rule<TBranch, TMeta>().between(b[1].arg1, b[1].arg2, r.rule);
-                        break;
-                    }
-                    
-                    case RangeType.Exact:
-                    {
-                        rule = new Rule<TBranch, TMeta>().exact(b[1].arg1, r.rule);
-                        break;
-                    }
-                    
-                    default:
-                        throw new Error("Not implemented.");
-                }
-                    
+                    rule = new Rule<TBranch, TMeta>().one(r.rule);
+                else
+                    rule = this.addRange(r.rule, b[1]);
+                
                 return [{ 
                     arg1: null,
                     arg2: null,
@@ -497,49 +355,13 @@ namespace Abitvin
             // Any of
             const anyOfFn = (b, l) =>
             {
-                const rules = b.map(r => r.rule);
                 const last = b[b.length - 1];
-                let rule = null;
+                let rules = b.map(r => r.rule);
                 
-                switch(last.rangeType)
-                {
-                    case RangeType.AtLeast:
-                    {
-                        rule = new Rule<TBranch, TMeta>().anyOf(rules.slice(0, -1));
-                        rule = new Rule<TBranch, TMeta>().atLeast(last.arg1, rule);
-                        break;
-                    }
+                if (last.rangeType !== RangeType.NoRangeType)
+                    rules = rules.slice(0, -1);
                     
-                    case RangeType.AtMost:
-                    {
-                        rule = new Rule<TBranch, TMeta>().anyOf(rules.slice(0, -1));
-                        rule = new Rule<TBranch, TMeta>().atMost(last.arg1, rule);
-                        break;
-                    }
-                    
-                    case RangeType.Between:
-                    {
-                        rule = new Rule<TBranch, TMeta>().anyOf(rules.slice(0, -1));
-                        rule = new Rule<TBranch, TMeta>().between(last.arg1, last.arg2, rule);
-                        break;
-                    }
-                    
-                    case RangeType.Exact:
-                    {
-                        rule = new Rule<TBranch, TMeta>().anyOf(rules.slice(0, -1));
-                        rule = new Rule<TBranch, TMeta>().exact(last.arg1, rule);
-                        break;
-                    }
-                    
-                    case RangeType.NoRangeType:
-                    {
-                        rule = new Rule<TBranch, TMeta>().anyOf(rules);
-                        break;
-                    }
-                        
-                    default:
-                        throw new Error("Not implemented.");
-                }
+                const rule = this.addRange(new Rule<TBranch, TMeta>().anyOf(rules), last);
                 
                 return [{
                     arg1: null,
@@ -589,47 +411,12 @@ namespace Abitvin
                 if (last.rangeType !== RangeType.NoRangeType)
                     b = b.slice(0, -1);
                 
-                let rule = new Rule<TBranch, TMeta>().alter(b.map(i => i.arg3));
-                
-                switch (last.rangeType)
-                {
-                    case RangeType.AtLeast:
-                    {
-                        rule = new Rule<TBranch, TMeta>().atLeast(last.arg1, rule);
-                        break;
-                    }
-                    
-                    case RangeType.AtMost:
-                    {
-                        rule = new Rule<TBranch, TMeta>().atMost(last.arg1, rule);
-                        break;
-                    }
-                    
-                    case RangeType.Between:
-                    {
-                        rule = new Rule<TBranch, TMeta>().between(last.arg1, last.arg2, rule);
-                        break;
-                    }
-                    
-                    case RangeType.Exact:
-                    {
-                        rule = new Rule<TBranch, TMeta>().exact(last.arg1, rule);
-                        break;
-                    }
-                    
-                    case RangeType.NoRangeType:
-                        break;
-                    
-                    default:
-                        throw new Error("Not implemented.");
-                }
-                
                 return [{
                     arg1: null,
                     arg2: null,
                     arg3: null,
                     rangeType: RangeType.NoRangeType,
-                    rule: rule
+                    rule: this.addRange(new Rule<TBranch, TMeta>().alter(b.map(i => i.arg3)), last)
                 }];
             }
             
@@ -645,7 +432,7 @@ namespace Abitvin
             this._rulexps = {};
         }
         
-        public static get version(): string { return "0.1.7"; }
+        public static get version(): string { return "0.1.8"; }
         
         public add(id: string, expr: string, branchFn: BranchFn<TBranch> = null, meta: TMeta = null): void
         {
@@ -712,17 +499,31 @@ namespace Abitvin
              
             return root.rule.scan(code);
         }
+        
+        private addRange(rule: Rule<TBranch, TMeta>, context: IParseContext<TBranch, TBranch>): Rule<TBranch, TMeta>
+        {
+            switch (context.rangeType)
+            {
+                case RangeType.AtLeast:
+                    return new Rule<TBranch, TMeta>().atLeast(context.arg1, rule);
+                
+                case RangeType.AtMost:
+                    return new Rule<TBranch, TMeta>().atMost(context.arg1, rule);
+                
+                case RangeType.Between:
+                    return new Rule<TBranch, TMeta>().between(context.arg1, context.arg2, rule);
+                
+                case RangeType.Exact:
+                    return new Rule<TBranch, TMeta>().exact(context.arg1, rule);
+                
+                case RangeType.NoRangeType:
+                    return rule;
+                
+                default:
+                    throw new Error("Not implemented.");
+            }
+        }
     }
-    
-    
-    //const grammer = new Grammer<number, IEmpty>();
-    //grammer.add("ad", "[^abcd]", () => [7]);
-    //grammer.add("eh", "[e-h]", () => [2]);
-    //grammer.add("il", "[i-l]+", () => [3]);
-    //grammer.add("roof", "[\\^-`]", () => [9999]);
-    //grammer.add("root", "(<roof>|<eh>|<il>|<ad>)+");
-    
-    //console.log(grammer.scan("root", "xyk^zi_hg`AE"));
     
     /*
     
@@ -772,7 +573,7 @@ namespace Abitvin
     
     const alter = new Grammer<string, IEmpty>();
     alter.add("root", "(\\n,\n,asdasd,asdasxd,aa,bb,yyy,xxx)+", (b, l) => [l]);
-    console.log(alter.scan("root", "yyy\\n\\nasdasdaaasdasd\\naaasdasdyyy"));
+    //console.log(alter.scan("root", "yyy\\n\\nasdasdaaasdasd\\naaasdasdyyy"));
     
     const calc = new Grammer<number, IEmpty>();
     calc.declare("add", "expr", "mul");
@@ -782,9 +583,75 @@ namespace Abitvin
     calc.add("add", "<mul>(\\+<add>)?", b => b.length === 1 ? b : [b[0] + b[1]]);
     calc.add("expr", "(<add>|<brackets>)");
     
-    console.log(calc.scan("expr", "2*(3*4*5)")); // 120
-    console.log(calc.scan("expr", "2*(3+4)*5")); // 70
-    console.log(calc.scan("expr", "((2+3*4+5))")); // 19
+    //console.log(calc.scan("expr", "2*(3*4*5)")); // 120
+    //console.log(calc.scan("expr", "2*(3+4)*5")); // 70
+    //console.log(calc.scan("expr", "((2+3*4+5))")); // 19
+    
+    interface IBinaryOperator
+    {
+        operator: Operator;
+        left: AstNode;
+        right: AstNode;
+    }  
+    
+    interface IAssignemnt
+    {
+        variable: string;
+        expr: AstNode;
+    }
+
+    interface IFunction
+    {
+        arguments: AstNode[],
+        name: string
+    }
+    
+    enum Operator { multiply, add }
+    
+    type AstNode = IBinaryOperator | number | IFunction | string | IAssignemnt;
+
+    const calcAst = new Grammer<AstNode, IEmpty>();
+    calcAst.declare("add", "expr", "function", "mul", "base");
+    calcAst.add("num", "[0-9]+", (b, l) => [parseInt(l)]);
+    calcAst.add("symbol", "[a-z]+", (b, l) => [l]);
+    
+    calcAst.add("brackets", "\\(<expr>\\)");   // Identity function
+    calcAst.add("mul", "(<base>)(\\*<mul>)?", b => b.length === 1 ? b : [{ operator: Operator.multiply, left: b[0], right: b[1] }]);
+    calcAst.add("add", "<mul>(\\+<add>)?", b => b.length === 1 ? b : [{ operator: Operator.add, left: b[0], right: b[1] }]);
+    calcAst.add("expr", "<add>");
+    calcAst.add("function", "<symbol>\\((<expr>(\\,<expr>)*)?\\)", b => [{ name: <string>b[0], arguments: b.slice(1)}])
+    calcAst.add("variable", "<symbol>")
+    calcAst.add("base", "(<function>|<num>|<brackets>|<variable>)");
+
+    calcAst.add("assignment", "<symbol> := <expr>", b => [{ variable: <string>b[0], expr: b[1]}]);
+    calcAst.add("statement", "(<assignment>|<expr>);")
+    calcAst.add("codeblock", "<statement>*");
+    
+    calcAst.add("code", "<codeblock>");
+    
+    const showAst = (code: string) => {
+        const result = calcAst.scan("code", code);
+        console.log(JSON.stringify(result.branches));
+    }
+
+    showAst("12;");
+    showAst("(12);");
+    showAst("2*(3*4*5);");
+    showAst("2*(3+4)*5;");
+    showAst("foo();");
+    showAst("2*foo();");
+    showAst("foo(7);");
+    showAst("2*foo(7+bar(4*5));");
+    showAst("foo(5,10);");
+    showAst("2*foo(5,10,34,345,45);");
+    showAst("x := 2*y+1;y := 12;");
+    
+    
+    // console.log(JSON.stringify(calcAst.scan("expr", "2*(3*4*5)").branches[0])); // 120
+    //console.log(calcAst.scan("expr", "2*(3+4)*5")); // 70
+    //console.log(calcAst.scan("expr", "((2+3*4+5))")); // 19
+    // console.log(JSON.stringify(calcAst.scan("expr", "2*foo()").branches[0])); // 120
+    //console.log(calcAst.scan("expr", "2*foo()")); // 120
     
     /*
     //grammer.add("digit", "x+");
