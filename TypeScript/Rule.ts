@@ -44,15 +44,16 @@ namespace Abitvin
 	{
         private _branchFn: BranchFn<TBranch>;
 		private _meta: TMeta;
-        private _parts: {(ctx): number}[] = [];
+        private _parts: {(ctx): number}[];
         
 		constructor(branchFn: BranchFn<TBranch> = null, meta: TMeta = null)
         {
 			this._branchFn = branchFn;
             this._meta = meta;
+            this._parts = [];
 		}
         
-        public static get version(): string { return "0.4.6"; }
+        public static get version(): string { return "0.4.7"; }
         public set branchFn(value: BranchFn<TBranch>) { this._branchFn = value; }
         public get meta(): TMeta { return this._meta; }
         public set meta(value: TMeta) { this._meta = value; }
@@ -202,6 +203,12 @@ namespace Abitvin
                 
 			return this;
 		}
+        
+        public clear(): this
+        {
+            this._parts = [];
+            return this;
+        }
         
         public eof(): this
         {

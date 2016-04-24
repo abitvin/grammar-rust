@@ -35,9 +35,12 @@ namespace Abitvin
     {
         private _grammer: R<TBranch, TMeta>;
         private _rulexps: {[name: string]: IRule<TBranch, TMeta>};
+        private _ws: Rule<TBranch, TMeta>;
         
         constructor()
         {
+            this._ws = new Rule<TBranch, TMeta>().anyOf(" ", "\t", "\n", "\r");
+            
             const ranges = new R<TBranch, TMeta>();
             const statement = new R<TBranch, TMeta>();
             
@@ -66,8 +69,8 @@ namespace Abitvin
                 rule: null 
             }];
             
-            const literalControlChars = new R<TBranch, TMeta>().alter("\\<", "<", "\\>", ">", "\\{", "{", "\\}", "}", "\\(", "(", "\\)", ")", "\\[", "[", "\\]", "]", "\\+", "+", "\\?", "?", "\\*", "*", "\\|", "|", "\\.", ".", "\\$", "$", "\\^", "^", "\\,", ",");
-            const literalAllExcept = new R<TBranch, TMeta>().allExcept("<", ">", "{", "}", "(", ")", "[", "]", "+", "?", "*", "|", ".", "$", ",");
+            const literalControlChars = new R<TBranch, TMeta>().alter("\\<", "<", "\\>", ">", "\\{", "{", "\\}", "}", "\\(", "(", "\\)", ")", "\\[", "[", "\\]", "]", "\\+", "+", "\\?", "?", "\\*", "*", "\\|", "|", "\\.", ".", "\\$", "$", "\\^", "^", "\\,", ",", "\\ ", " ", "\\_", "_");
+            const literalAllExcept = new R<TBranch, TMeta>().allExcept("<", ">", "{", "}", "(", ")", "[", "]", "+", "?", "*", "|", ".", "$", ",", " ", "_");
             const literalChar = new R<TBranch, TMeta>().anyOf(literalControlChars, literalAllExcept);
             const literalText = new R<TBranch, TMeta>(literalTextFn).atLeast(1, literalChar);
             
@@ -424,15 +427,35 @@ namespace Abitvin
             const alterMore = new R<TBranch, TMeta>().literal(",").one(alterChar);
             const alter = new R<TBranch, TMeta>(alterFn).literal("(").one(alterChar).noneOrMany(alterMore).literal(")").maybe(ranges);
             
+            // Whitespace
+            const atLeastOneWsFn = () => [{
+                arg1: null,
+                arg2: null,
+                arg3: null,
+                rangeType: RangeType.NoRangeType,
+                rule: new Rule<TBranch, TMeta>().atLeast(1, this._ws)
+            }];
+            
+            const noneOrManyWsFs = () => [{
+                arg1: null,
+                arg2: null,
+                arg3: null,
+                rangeType: RangeType.NoRangeType,
+                rule: new Rule<TBranch, TMeta>().noneOrMany(this._ws)
+            }];
+            
+            const atLeastOneWs = new R<TBranch, TMeta>(atLeastOneWsFn).literal("_");
+            const noneOrManyWs = new R<TBranch, TMeta>(noneOrManyWsFs).literal(" ");
+            
             // Ranges and statements definitions
             ranges.anyOf(atLeast, atLeastOne, atMost, between, exact, maybe, noneOrMany);
-            statement.anyOf(literal, eof, alter, allExcept, charRanges, anyChar, rule, anyOf);
+            statement.anyOf(noneOrManyWs, atLeastOneWs, literal, eof, alter, allExcept, charRanges, anyChar, rule, anyOf);
             
             this._grammer = new R<TBranch, TMeta>().noneOrMany(statement);
             this._rulexps = {};
         }
         
-        public static get version(): string { return "0.1.8"; }
+        public static get version(): string { return "0.1.9"; }
         
         public add(id: string, expr: string, branchFn: BranchFn<TBranch> = null, meta: TMeta = null): void
         {
@@ -441,7 +464,7 @@ namespace Abitvin
             if (rulexp != null && rulexp.isDefined)
                 throw new Error(`The rule "${id}" already used.`);
             
-            const result = this._grammer.scan(expr); 
+            const result = this._grammer.scan(expr);
                     
             // TODO Show nice errors.
             if (!result.isSuccess)
@@ -498,6 +521,18 @@ namespace Abitvin
                 throw new Error(`Rule with id "${rootId}" not found.`);
              
             return root.rule.scan(code);
+        }
+        
+        public ws(expr: string): void
+        {
+            const result = this._grammer.scan(expr);
+            
+            // TODO Show nice errors.
+            if (!result.isSuccess)
+                throw new Error("Error compiling rule expression.");
+                
+            this._ws.clear();
+            this._ws.one(result.branches[0].rule);
         }
         
         private addRange(rule: Rule<TBranch, TMeta>, context: IParseContext<TBranch, TBranch>): Rule<TBranch, TMeta>
@@ -612,19 +647,22 @@ namespace Abitvin
 
     const calcAst = new Grammer<AstNode, IEmpty>();
     calcAst.declare("add", "expr", "function", "mul", "base");
+    
+    //calcAst.ws("(\\ |\t)");
+    
     calcAst.add("num", "[0-9]+", (b, l) => [parseInt(l)]);
     calcAst.add("symbol", "[a-z]+", (b, l) => [l]);
     
-    calcAst.add("brackets", "\\(<expr>\\)");   // Identity function
-    calcAst.add("mul", "(<base>)(\\*<mul>)?", b => b.length === 1 ? b : [{ operator: Operator.multiply, left: b[0], right: b[1] }]);
-    calcAst.add("add", "<mul>(\\+<add>)?", b => b.length === 1 ? b : [{ operator: Operator.add, left: b[0], right: b[1] }]);
+    calcAst.add("brackets", "\\( <expr> \\)");   // Identity function
+    calcAst.add("mul", "<base>( \\* <mul>)?", b => b.length === 1 ? b : [{ operator: Operator.multiply, left: b[0], right: b[1] }]);
+    calcAst.add("add", "<mul>( \\+ <add>)?", b => b.length === 1 ? b : [{ operator: Operator.add, left: b[0], right: b[1] }]);
     calcAst.add("expr", "<add>");
-    calcAst.add("function", "<symbol>\\((<expr>(\\,<expr>)*)?\\)", b => [{ name: <string>b[0], arguments: b.slice(1)}])
+    calcAst.add("function", "<symbol>\\( (<expr>( \\, <expr>)*)? \\)", b => [{ name: <string>b[0], arguments: b.slice(1)}])
     calcAst.add("variable", "<symbol>")
     calcAst.add("base", "(<function>|<num>|<brackets>|<variable>)");
 
     calcAst.add("assignment", "<symbol> := <expr>", b => [{ variable: <string>b[0], expr: b[1]}]);
-    calcAst.add("statement", "(<assignment>|<expr>);")
+    calcAst.add("statement", " (<assignment>|<expr>) (;|$) ")
     calcAst.add("codeblock", "<statement>*");
     
     calcAst.add("code", "<codeblock>");
@@ -634,17 +672,17 @@ namespace Abitvin
         console.log(JSON.stringify(result.branches));
     }
 
-    showAst("12;");
-    showAst("(12);");
-    showAst("2*(3*4*5);");
-    showAst("2*(3+4)*5;");
+    showAst("14;");
+    showAst("(14);");
+    showAst("2* ( 3*4*5 );");
+    showAst("2*(\t3+4)*5;");
     showAst("foo();");
     showAst("2*foo();");
     showAst("foo(7);");
-    showAst("2*foo(7+bar(4*5));");
-    showAst("foo(5,10);");
-    showAst("2*foo(5,10,34,345,45);");
-    showAst("x := 2*y+1;y := 12;");
+    showAst("2*foo(7 +   bar( 4*5  ));");
+    showAst("foo(  5,10   )");
+    showAst("2*foo(5  ,  10  ,  34,345, 45)");
+    showAst("x    :=  \t\t\t  2*y+1  ;  y := 12   ");
     
     
     // console.log(JSON.stringify(calcAst.scan("expr", "2*(3*4*5)").branches[0])); // 120

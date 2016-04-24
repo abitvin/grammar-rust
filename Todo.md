@@ -29,10 +29,11 @@ TypeScript/Rule.ts
 * Refactor `one`, `maybe`, etc, because these are shorthands for the range functions. 
 * I think "funnelFn" is a better name then "branchFn" but I dislike TFunnel instead of TBranch. 
 * What about `not` or `inverse` a rule?
+* Or a `passthrough` to fix (?) the QBaksteen FOR ... NEXT statement issue.
   
 TypeScript/Examples
 -------------------
-* Create Tabbed hierachie key value parser.
+* Create Tabbed hierarchy key value parser.
 * Create XML parser.
 
 TypeScript/Examples/BiteScript
