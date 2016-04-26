@@ -5,5 +5,6 @@
 /// <reference path="Examples/INI Reader/References.ts"/>
 /// <reference path="Examples/JSON Reader/References.ts"/>
 /// <reference path="Tests/CycleDetection.ts"/>
+/// <reference path="Tests/GrammerTests.ts"/>
 /// <reference path="Tests/Suggestions.ts"/>
 /// <reference path="Rule.ts"/>

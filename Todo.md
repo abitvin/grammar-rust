@@ -17,23 +17,17 @@ TypeScript/Grammer.ts
 * Allow more characters as a rule name.
 * Check the TODO's in QBaksteen grammer for things to look at.
 * Refactor and cleanup code.
-* Move some test code to "Tests" and remove the others.
 
 TypeScript/Rule.ts
 ------------------
 * Tell in the documentation why do you need to do anyOf([float, signedInt]) and not anyOf([signedInt, float]).
 * Error with line count. 
-* Add rule counts in trail to allow (easy) parsing, for example Python syntax that uses whitespace to delimit program blocks.
 * Create unit tests
 * Use algebraic types for checking errors. This will go better in TypeScript 1.8; And 1.8 is out now!
 * Allow reading from different streams, for example an array of numbers or booleans.
-* Implement Rule parsing language which I worked on before.
 * Maybe still implement `fallback(branchFn)` method? Which is not a scanning method but acts like a safety net for bundling all characters not passing the scanning rules. 
-* Optimize `one()` without using a scanRange.
 * What does a rule without any parts mean?
 * Optimize `anyOf`. Now the items must all be a string or a Rule. But that is not really needed.
-* Refactor `one`, `maybe`, etc, because these are shorthands for the range functions. 
-* I think "funnelFn" is a better name then "branchFn" but I dislike TFunnel instead of TBranch. 
 * What about `not` or `inverse` a rule?
 * Or a `passthrough` to fix (?) the QBaksteen FOR ... NEXT statement issue.
   
