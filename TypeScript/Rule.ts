@@ -57,7 +57,7 @@ namespace Abitvin
             this._parts = [];
 		}
         
-        public static get version(): string { return "0.4.8"; }
+        public static get version(): string { return "0.4.9"; }
         public set branchFn(value: BranchFn<TBranch>) { this._branchFn = value; }
         public get meta(): TMeta { return this._meta; }
         public set meta(value: TMeta) { this._meta = value; }
@@ -277,12 +277,16 @@ namespace Abitvin
 			return this;
 		}	
 
-		public one(rule: Rule<TBranch, TMeta>): this
+		public one(...rules: Rule<TBranch, TMeta>[]): this
 		{
-            if(!this.isRule(rule))
-                throw new Error("Argument is not a rule.");
+            for (const r of rules)
+            {
+                if(!this.isRule(r))
+                    throw new Error("Argument is not a rule.");
+                
+                this._parts.push(this.scanRuleRange.bind(this, 1, 1, r));
+            }
             
-			this._parts.push(this.scanRuleRange.bind(this, 1, 1, rule));
 			return this;
 		}
 

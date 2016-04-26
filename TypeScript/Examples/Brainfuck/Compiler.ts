@@ -25,7 +25,7 @@ namespace Abitvin.Brainfuck
             const whileLoop = new BfRule();
             const instruction = new BfRule().anyOf(decByte, decPointer, incByte, incPointer, inputByte, printByte, whileLoop, ignore);
             const branch = new BfRule().noneOrMany(instruction);
-            whileLoop.one(startWhile).one(branch).one(endWhile);
+            whileLoop.one(startWhile, branch, endWhile);
 
             this._root = branch;
         }

@@ -77,7 +77,7 @@ namespace Abitvin
             const sectionScope = new IniRule(sectionScopeFn).atLeast(1, sectionChar);
             const sectionScopeLoop = new IniRule().literal(".").one(sectionScope);
             const sectionRoot = new IniRule(sectionRootFn).literal("[");
-            const section = new IniRule().one(sectionRoot).one(sectionScope).noneOrMany(sectionScopeLoop).literal("]");
+            const section = new IniRule().one(sectionRoot, sectionScope).noneOrMany(sectionScopeLoop).literal("]");
             
             // Content
             const content = new IniRule().anyOf(comment, prop, section);

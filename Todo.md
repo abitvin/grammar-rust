@@ -30,10 +30,8 @@ TypeScript/Rule.ts
 * Implement Rule parsing language which I worked on before.
 * Maybe still implement `fallback(branchFn)` method? Which is not a scanning method but acts like a safety net for bundling all characters not passing the scanning rules. 
 * Optimize `one()` without using a scanRange.
-* Update `one()` with variadic arguments. 
 * What does a rule without any parts mean?
 * Optimize `anyOf`. Now the items must all be a string or a Rule. But that is not really needed.
-* Refactor isXxx(value) out of the Rule class.
 * Refactor `one`, `maybe`, etc, because these are shorthands for the range functions. 
 * I think "funnelFn" is a better name then "branchFn" but I dislike TFunnel instead of TBranch. 
 * What about `not` or `inverse` a rule?

@@ -71,8 +71,8 @@ namespace Abitvin
             const passLexemeFn = (branches: IScanContext[], lexeme: string) => [{ value: lexeme }];
             
             const strEscapeControl = new JsonRule(passLexemeFn).alter("\\0", "\0", "\\b", "\b", "\\f", "\f", "\\n", "\n", "\\r", "\r", "\\t", "\t", "\\v", "\v", "\\\"", "\"");
-            const strEscapeLatin1 = new JsonRule(parseCharCodeFn).literal("\\x").one(hex).one(hex);
-            const strEscapeUTF16 = new JsonRule(parseCharCodeFn).literal("\\u").one(hex).one(hex).one(hex).one(hex);
+            const strEscapeLatin1 = new JsonRule(parseCharCodeFn).literal("\\x").exact(2, hex);
+            const strEscapeUTF16 = new JsonRule(parseCharCodeFn).literal("\\u").exact(4, hex);
             const strEscapeUnknown = new JsonRule(passLexemeFn).literal("\\");
             const strAllExceptBs = new JsonRule(passLexemeFn).allExcept("\"");
             const strChar = new JsonRule().anyOf([strEscapeControl, strEscapeLatin1, strEscapeUTF16, strEscapeUnknown, strAllExceptBs]);
