@@ -54,24 +54,24 @@ namespace Abitvin
             const digit = new R<TBranch, TMeta>().between("0", "9");
             
             // Integer
-            const integerFn = (b, l) => [{
+            const integerFn = (b, l) => ({
                 arg1: parseInt(l), 
                 arg2: null,
                 arg3: null, 
                 rangeType: RangeType.NoRangeType, 
                 rule: null 
-            }];
+            });
             
             const integer = new R<TBranch, TMeta>(integerFn).atLeast(1, digit);
             
             // Literal
-            const literalTextFn = (b, l) => [{
+            const literalTextFn = (b, l) => ({
                 arg1: null, 
                 arg2: null,
                 arg3: l, 
                 rangeType: RangeType.NoRangeType, 
                 rule: null 
-            }];
+            });
             
             const literalControlChars = new R<TBranch, TMeta>().alter("\\<", "<", "\\>", ">", "\\{", "{", "\\}", "}", "\\(", "(", "\\)", ")", "\\[", "[", "\\]", "]", "\\+", "+", "\\?", "?", "\\*", "*", "\\|", "|", "\\.", ".", "\\$", "$", "\\^", "^", "\\,", ",", "\\ ", " ", "\\_", "_");
             const literalAllExcept = new R<TBranch, TMeta>().allExcept("<", ">", "{", "}", "(", ")", "[", "]", "+", "?", "*", "|", ".", "$", ",", " ", "_");
@@ -128,13 +128,13 @@ namespace Abitvin
                 if (b.length === 2)
                     rule = this.addRange(rule, b[1]);
                    
-                return [{ 
+                return { 
                     arg1: null,
                     arg2: null,
                     arg3: null,
                     rangeType: RangeType.NoRangeType,
                     rule: rule 
-                }];
+                };
             };
             
             const literal = new R<TBranch, TMeta>(literalFn).one(literalText).maybe(ranges);
@@ -147,25 +147,25 @@ namespace Abitvin
                 if (b.length === 1)
                     rule = this.addRange(rule, b[0]);
                 
-                return [{ 
+                return {
                     arg1: null,
                     arg2: null,
                     arg3: null,
                     rangeType: RangeType.NoRangeType,
                     rule: rule 
-                }];
+                };
             };
              
             const anyChar = new R<TBranch, TMeta>(allFn).literal(".").maybe(ranges);
             
             // All except
-            const allExceptCharsFn = (b, l) => [{
+            const allExceptCharsFn = (b, l) => ({
                 arg1: null,
                 arg2: null,
                 arg3: l,
                 rangeType: RangeType.NoRangeType,
                 rule: null
-            }];
+            });
             
             const allExceptFn = (b, l) =>
             {
@@ -175,13 +175,13 @@ namespace Abitvin
                 if (last.rangeType !== RangeType.NoRangeType)
                     rule = this.addRange(rule, last);
                 
-                return [{ 
+                return { 
                     arg1: null,
                     arg2: null,
                     arg3: null,
                     rangeType: RangeType.NoRangeType,
                     rule: rule 
-                }];
+                };
             };
             
             const allExceptEscaped = new R<TBranch, TMeta>().alter("\\]", "]");
@@ -222,37 +222,37 @@ namespace Abitvin
                 if (last.rangeType !== RangeType.NoRangeType)
                     rule = this.addRange(rule, last);
                 
-                return [{ 
+                return {
                     arg1: null,
                     arg2: null,
                     arg3: null,
                     rangeType: RangeType.NoRangeType,
                     rule: rule 
-                }];
+                };
             };
             
             const charRange = new R<TBranch, TMeta>(charRangeFn).one(literalChar).literal("-").one(literalChar);
             const charRanges = new R<TBranch, TMeta>(charRangesFn).literal("[").atLeast(1, charRange).literal("]").maybe(ranges);
             
             // EOF
-            const eofFn = (b, l) => [{ 
+            const eofFn = (b, l) => ({
                 arg1: null,
                 arg2: null,
                 arg3: null,
                 rangeType: RangeType.NoRangeType,
                 rule: new Rule<TBranch, TMeta>().eof()
-            }];
+            });
             
             const eof = new R<TBranch, TMeta>(eofFn).literal("$");
             
             // One rule
-            const ruleNameFn = (b, l) => [{
+            const ruleNameFn = (b, l) => ({
                 arg1: null, 
                 arg2: null,
                 arg3: l, 
                 rangeType: RangeType.NoRangeType, 
                 rule: null 
-            }];
+            });
             
             const ruleName = new R<TBranch, TMeta>(ruleNameFn).atLeast(1, Char);
             
@@ -271,91 +271,91 @@ namespace Abitvin
                 else
                     rule = this.addRange(r.rule, b[1]);
                 
-                return [{ 
+                return {
                     arg1: null,
                     arg2: null,
                     arg3: null,
                     rangeType: RangeType.NoRangeType,
                     rule: rule 
-                }];
+                };
             };
              
             const rule = new R<TBranch, TMeta>(ruleFn).literal("<").one(ruleName).literal(">").maybe(ranges);
             
             // At least
-            const atLeastFn = (b, l) => [{
+            const atLeastFn = (b, l) => ({
                 arg1: b[0].arg1,
                 arg2: null,
                 arg3: null,
                 rangeType: RangeType.AtLeast,
                 rule: null
-            }];
+            });
             
             const atLeast = new R<TBranch, TMeta>(atLeastFn).literal("{").one(integer).literal(",}");
             
             // At least one
-            const atLeastOneFn = (b, l) => [{
+            const atLeastOneFn = (b, l) => ({
                 arg1: 1,
                 arg2: null,
                 arg3: null,
                 rangeType: RangeType.AtLeast,
                 rule: null
-            }];
+            });
             
             const atLeastOne = new R<TBranch, TMeta>(atLeastOneFn).literal("+");
             
             // At most
-            const atMostFn = (b, l) => [{
+            const atMostFn = (b, l) => ({
                 arg1: b[0].arg1,
                 arg2: null,
                 arg3: null,
                 rangeType: RangeType.AtMost,
                 rule: null
-            }];
+            });
             
             const atMost = new R<TBranch, TMeta>(atMostFn).literal("{,").one(integer).literal("}");
             
             // Between
-            const betweenFn = (b, l) => [{
+            const betweenFn = (b, l) => ({
                 arg1: b[0].arg1,
                 arg2: b[1].arg1,
                 arg3: null,
                 rangeType: RangeType.Between,
                 rule: null
-            }];
+            });
             
             const between = new R<TBranch, TMeta>(betweenFn).literal("{").one(integer).literal(",").one(integer).literal("}");
             
             // Exact
-            const exactFn = (b, l) => [{
+            const exactFn = (b, l) => ({
                 arg1: b[0].arg1,
                 arg2: null,
                 arg3: null,
                 rangeType: RangeType.Exact,
                 rule: null
-            }];
+            });
             
             const exact = new R<TBranch, TMeta>(exactFn).literal("{").one(integer).literal("}");
             
             // Maybe
-            const maybeFn = (b, l) => [{
+            const maybeFn = (b, l) => ({
                 arg1: 0,
                 arg2: 1,
                 arg3: null,
                 rangeType: RangeType.Between,
                 rule: null
-            }];
+            });
             
             const maybe = new R<TBranch, TMeta>(maybeFn).literal("?");
             
             // None or many
-            const noneOrManyFn = (b, l) => [{
+            const noneOrManyFn = (b, l) => ({
                 arg1: 0,
                 arg2: null,
                 arg3: null,
                 rangeType: RangeType.AtLeast,
                 rule: null
-            }];
+            });
             
             const noneOrMany = new R<TBranch, TMeta>(noneOrManyFn).literal("*");
             
@@ -370,13 +370,13 @@ namespace Abitvin
                     
                 const rule = this.addRange(new Rule<TBranch, TMeta>().anyOf(rules), last);
                 
-                return [{
+                return {
                     arg1: null,
                     arg2: null,
                     arg3: null,
                     rangeType: RangeType.NoRangeType,
                     rule: rule
-                }];
+                };
             }
             
             const statementsFn = (b, l) =>
@@ -389,13 +389,13 @@ namespace Abitvin
                 for (const pc of b)
                     rule.one(pc.rule);
                  
-                return [{
+                return {
                     arg1: null,
                     arg2: null,
                     arg3: null,
                     rangeType: RangeType.NoRangeType,
                     rule: rule
-                }];
+                };
             };
             
             const statements = new R<TBranch, TMeta>(statementsFn).atLeast(1, statement); 
@@ -403,13 +403,13 @@ namespace Abitvin
             const anyOf = new R<TBranch, TMeta>(anyOfFn).literal("(").one(statements).noneOrMany(more).literal(")").maybe(ranges);
             
             // Alter
-            const alterCharFn = (b, l) => [{
+            const alterCharFn = (b, l) => ({
                 arg1: null,
                 arg2: null,
                 arg3: l,
                 rangeType: RangeType.NoRangeType,
                 rule: null
-            }];
+            });
             
             const alterFn = (b, l) => 
             {
@@ -418,13 +418,13 @@ namespace Abitvin
                 if (last.rangeType !== RangeType.NoRangeType)
                     b = b.slice(0, -1);
                 
-                return [{
+                return {
                     arg1: null,
                     arg2: null,
                     arg3: null,
                     rangeType: RangeType.NoRangeType,
                     rule: this.addRange(new Rule<TBranch, TMeta>().alter(b.map(i => i.arg3)), last)
-                }];
+                };
             }
             
             const alterChar = new R<TBranch, TMeta>(alterCharFn).atLeast(1, literalChar);
@@ -432,21 +432,21 @@ namespace Abitvin
             const alter = new R<TBranch, TMeta>(alterFn).literal("(").one(alterChar).noneOrMany(alterMore).literal(")").maybe(ranges);
             
             // Whitespace
-            const atLeastOneWsFn = () => [{
+            const atLeastOneWsFn = () => ({
                 arg1: null,
                 arg2: null,
                 arg3: null,
                 rangeType: RangeType.NoRangeType,
                 rule: new Rule<TBranch, TMeta>().atLeast(1, this._ws)
-            }];
+            });
             
-            const noneOrManyWsFs = () => [{
+            const noneOrManyWsFs = () => ({
                 arg1: null,
                 arg2: null,
                 arg3: null,
                 rangeType: RangeType.NoRangeType,
                 rule: new Rule<TBranch, TMeta>().noneOrMany(this._ws)
-            }];
+            });
             
             const atLeastOneWs = new R<TBranch, TMeta>(atLeastOneWsFn).literal("_");
             const noneOrManyWs = new R<TBranch, TMeta>(noneOrManyWsFs).literal(" ");
@@ -459,7 +459,7 @@ namespace Abitvin
             this._rulexps = {};
         }
         
-        public static get version(): string { return "0.1.9"; }
+        public static get version(): string { return "0.1.10"; }
         
         public add(id: string, expr: string, branchFn: BranchFn<TBranch> = null, meta: TMeta = null): void
         {
@@ -611,20 +611,20 @@ namespace Abitvin
     */
     
     const alter = new Grammer<string, IEmpty>();
-    alter.add("root", "(\\n,\n,asdasd,asdasxd,aa,bb,yyy,xxx)+", (b, l) => [l]);
+    alter.add("root", "(\\n,\n,asdasd,asdasxd,aa,bb,yyy,xxx)+", (b, l) => l);
     //console.log(alter.scan("root", "yyy\\n\\nasdasdaaasdasd\\naaasdasdyyy"));
     
     const calc = new Grammer<number, IEmpty>();
     calc.declare("add", "expr", "mul");
-    calc.add("num", "[0-9]+", (b, l) => [parseInt(l)]);
+    calc.add("num", "[0-9]+", (b, l) => parseInt(l));
     calc.add("brackets", "\\(<expr>\\)");   // Identity function
-    calc.add("mul", "(<num>|<brackets>)(\\*<mul>)?", b => b.length === 1 ? b : [b[0] * b[1]]);
-    calc.add("add", "<mul>(\\+<add>)?", b => b.length === 1 ? b : [b[0] + b[1]]);
+    calc.add("mul", "(<num>|<brackets>)(\\*<mul>)?", b => b.length === 1 ? b : b[0] * b[1]);
+    calc.add("add", "<mul>(\\+<add>)?", b => b.length === 1 ? b : b[0] + b[1]);
     calc.add("expr", "(<add>|<brackets>)");
     
-    //console.log(calc.scan("expr", "2*(3*4*5)")); // 120
-    //console.log(calc.scan("expr", "2*(3+4)*5")); // 70
-    //console.log(calc.scan("expr", "((2+3*4+5))")); // 19
+    console.log(calc.scan("expr", "2*(3*4*5)")); // 120
+    console.log(calc.scan("expr", "2*(3+4)*5")); // 70
+    console.log(calc.scan("expr", "((2+3*4+5))")); // 19
     
     interface IBinaryOperator
     {

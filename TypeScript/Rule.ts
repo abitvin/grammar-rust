@@ -42,7 +42,7 @@ namespace Abitvin
         trail: TMeta[];
 	}
     
-    export type BranchFn<TBranch> = (branches: TBranch[], lexeme: string) => TBranch[];
+    export type BranchFn<TBranch> = (branches: TBranch[], lexeme: string) => TBranch|TBranch[];
 
     export class Rule<TBranch, TMeta>
 	{
@@ -57,7 +57,7 @@ namespace Abitvin
             this._parts = [];
 		}
         
-        public static get version(): string { return "0.4.7"; }
+        public static get version(): string { return "0.4.8"; }
         public set branchFn(value: BranchFn<TBranch>) { this._branchFn = value; }
         public get meta(): TMeta { return this._meta; }
         public set meta(value: TMeta) { this._meta = value; }
@@ -346,6 +346,11 @@ namespace Abitvin
             return arr;
         }
         
+        private isArray<T>(v: any): v is T[]
+        {
+            return v == null ? false : v.constructor === Array;
+        }
+        
         private isInteger(v: any): v is Number
         {
             return this.isNumber(v) ? v % 1 === 0 : false;
@@ -389,9 +394,12 @@ namespace Abitvin
 			return step;
 		}
 
-		private pushList<T>(a: T[], b: T[]): void
+		private pushList<T>(dest: T[], src: T|T[]): void
 		{
-			b.forEach((i: T) => a.push(i));
+            if (this.isArray(src))
+            	src.forEach((i: T) => dest.push(i));
+            else
+                dest.push(src);
 		}
         
         private run(ctx: IScanContext<TBranch, TMeta>): number
