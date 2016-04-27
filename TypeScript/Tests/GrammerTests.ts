@@ -35,10 +35,10 @@ namespace Abitvin.Tests
     test.add("<{[]}>", "ddd", (b, l) => l);
     test.add(" ", "eee", (b, l) => l);
     test.add("id-test", "(<test a>|<test-b>|<test_c>|<<{[]}\\>>|< >)+");
-    console.log(test.scan("id-test", "aaabbbcccdddeeedddeeecccaaabbb"));
+    //console.log(test.scan("id-test", "aaabbbcccdddeeedddeeecccaaabbb"));
     
     test.add("alter-test", "(~\\n,\n|asdasd,asdasxd|aa,DD|yyy,ZZZ)+", (b, l) => l);
-    console.log(test.scan("alter-test", "yyy\\n\\nasdasdaaasdasd\\naaasdasdyyy"));
+    //console.log(test.scan("alter-test", "yyy\\n\\nasdasdaaasdasd\\naaasdasdyyy"));
     
     debugger;
     

@@ -13,7 +13,6 @@ TypeScript general
 
 TypeScript/Grammer.ts
 ---------------------
-* Check the TODO's in QBaksteen grammer for things to look at.
 * Refactor and cleanup code.
 * Show nicer errors.
 
@@ -28,6 +27,7 @@ TypeScript/Rule.ts
 * Optimize `anyOf`. Now the items must all be a string or a Rule. But that is not really needed.
 * What about `not` or `inverse` a rule?
 * Or a `passthrough` to fix (?) the QBaksteen FOR ... NEXT statement issue.
+    * // TODO const callStmt2 = new QbRule(callFn2).id(); TODO This grammer does not work because it conflicts with other grammers, for example the FOR statement.
 * Now if ranges with minimum of 0 (or undefined rules) do not match we don't invoke the branche function. I think we should... For example parsing an empty string.  
   
 TypeScript/Examples
