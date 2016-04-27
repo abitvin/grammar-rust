@@ -53,6 +53,29 @@ namespace Abitvin
             const Char = new R<TBranch, TMeta>().anyOf(char, CHAR);
             const digit = new R<TBranch, TMeta>().between("0", "9");
             
+            const escapedCtrlChars = new R<TBranch, TMeta>().alter(
+                "\\<", "<", 
+                "\\>", ">", 
+                "\\{", "{", 
+                "\\}", "}", 
+                "\\(", "(", 
+                "\\)", ")", 
+                "\\[", "[", 
+                "\\]", "]", 
+                "\\^", "^",
+                "\\~", "~",
+                "\\-", "-",
+                "\\,", ",",
+                "\\|", "|",
+                "\\+", "+", 
+                "\\?", "?", 
+                "\\*", "*", 
+                "\\.", ".", 
+                "\\$", "$",
+                "\\ ", " ", 
+                "\\_", "_"
+            );
+            
             // Integer
             const integerFn = (b, l) => ({
                 arg1: parseInt(l), 
@@ -73,52 +96,9 @@ namespace Abitvin
                 rule: null 
             });
             
-            const literalControlChars = new R<TBranch, TMeta>().alter("\\<", "<", "\\>", ">", "\\{", "{", "\\}", "}", "\\(", "(", "\\)", ")", "\\[", "[", "\\]", "]", "\\+", "+", "\\?", "?", "\\*", "*", "\\|", "|", "\\.", ".", "\\$", "$", "\\^", "^", "\\,", ",", "\\ ", " ", "\\_", "_");
-            const literalAllExcept = new R<TBranch, TMeta>().allExcept("<", ">", "{", "}", "(", ")", "[", "]", "+", "?", "*", "|", ".", "$", ",", " ", "_");
-            const literalChar = new R<TBranch, TMeta>().anyOf(literalControlChars, literalAllExcept);
+            const literalAllExcept = new R<TBranch, TMeta>().allExcept("<", "{", "(", ")", "|", "[", "+", "?", "*", ".", "$", " ", "_");
+            const literalChar = new R<TBranch, TMeta>().anyOf(escapedCtrlChars, literalAllExcept);
             const literalText = new R<TBranch, TMeta>(literalTextFn).atLeast(1, literalChar);
-            
-            /* TODO Maybe implement stuff below...
-            const af = new R<TBranch, TMeta>().between("a", "f");
-            const AF = new R<TBranch, TMeta>().between("A", "F");
-            const hex = new R<TBranch, TMeta>().anyOf(digit, af, AF);
-            
-            const combineCharsFn = (b, l) => [{
-                arg1: null, 
-                arg2: null,
-                arg3: b.map(i => i.arg3).join(""), 
-                rangeType: RangeType.NoRangeType, 
-                rule: null 
-            }];
-            
-            const parseCharCodeFn = (b, l) => [{
-                arg1: null, 
-                arg2: null,
-                arg3: String.fromCharCode(parseInt(l.substr(2), 16)), 
-                rangeType: RangeType.NoRangeType, 
-                rule: null 
-            }];
-            
-            const passLexemeFn = (b, l) => [{
-                arg1: null, 
-                arg2: null,
-                arg3: l, 
-                rangeType: RangeType.NoRangeType, 
-                rule: null 
-            }];
-            
-            const strEscapeControl = new R<TBranch, TMeta>(passLexemeFn).alter("\\0", "\0", "\\b", "\b", "\\f", "\f", "\\n", "\n", "\\r", "\r", "\\t", "\t", "\\v", "\v", "\\\"", "\"");
-            const strEscapeLatin1 = new R<TBranch, TMeta>(parseCharCodeFn).literal("\\x").exact(2, hex);
-            const strEscapeUTF16 = new R<TBranch, TMeta>(parseCharCodeFn).literal("\\u").exact(4, hex);
-            const strEscapeUnknown = new R<TBranch, TMeta>(passLexemeFn).literal("\\");
-            //const strAllExceptBs = new R<TBranch, TMeta>(passLexemeFn).allExcept(["\""]);
-            const strAllExceptBs = new R<TBranch, TMeta>(passLexemeFn).allExcept("<", "{", "(", "+", "?", "*");
-            const strChar = new R<TBranch, TMeta>().anyOf(strEscapeControl, strEscapeLatin1, strEscapeUTF16, strEscapeUnknown, strAllExceptBs);
-            //const strValue = new R<TBranch, TMeta>(combineCharsFn).noneOrMany(strChar);
-            const literalText = new R<TBranch, TMeta>(combineCharsFn).atLeast(1, strChar);
-            //const str = new R<TBranch, TMeta>().literal("\"").one(strValue).literal("\"");
-            //const literalText = new R<TBranch, TMeta>(literalTextFn).atLeast(1, literalChar);
-            */
             
             const literalFn = (b, l) =>
             {
@@ -139,8 +119,8 @@ namespace Abitvin
             
             const literal = new R<TBranch, TMeta>(literalFn).one(literalText).maybe(ranges);
             
-            // All
-            const allFn = (b, l) =>
+            // Any char
+            const anyCharFn = (b, l) =>
             {
                 let rule = new Rule<TBranch, TMeta>().all();
                 
@@ -156,7 +136,7 @@ namespace Abitvin
                 };
             };
              
-            const anyChar = new R<TBranch, TMeta>(allFn).literal(".").maybe(ranges);
+            const anyChar = new R<TBranch, TMeta>(anyCharFn).literal(".").maybe(ranges);
             
             // All except
             const allExceptCharsFn = (b, l) => ({
@@ -184,9 +164,8 @@ namespace Abitvin
                 };
             };
             
-            const allExceptEscaped = new R<TBranch, TMeta>().alter("\\]", "]");
             const allExceptAnyOther = new R<TBranch, TMeta>().allExcept("]");
-            const allExceptChar = new R<TBranch, TMeta>().anyOf(allExceptEscaped, allExceptAnyOther);
+            const allExceptChar = new R<TBranch, TMeta>().anyOf(escapedCtrlChars, allExceptAnyOther);
             const allExceptChars = new R<TBranch, TMeta>(allExceptCharsFn).atLeast(1, allExceptChar);
             const allExcept = new R<TBranch, TMeta>(allExceptFn).literal("[^").one(allExceptChars).literal("]").maybe(ranges);
             
@@ -231,7 +210,9 @@ namespace Abitvin
                 };
             };
             
-            const charRange = new R<TBranch, TMeta>(charRangeFn).one(literalChar).literal("-").one(literalChar);
+            const charRangeAllExcept = new R<TBranch, TMeta>().allExcept("-", "]");
+            const charRangeChar = new R<TBranch, TMeta>().anyOf(escapedCtrlChars, charRangeAllExcept);
+            const charRange = new R<TBranch, TMeta>(charRangeFn).one(charRangeChar).literal("-").one(charRangeChar);
             const charRanges = new R<TBranch, TMeta>(charRangesFn).literal("[").atLeast(1, charRange).literal("]").maybe(ranges);
             
             // EOF
@@ -254,7 +235,9 @@ namespace Abitvin
                 rule: null 
             });
             
-            const ruleName = new R<TBranch, TMeta>(ruleNameFn).atLeast(1, Char);
+            const ruleNameAllExcept = new R<TBranch, TMeta>().allExcept(">");
+            const ruleNameChar = new R<TBranch, TMeta>().anyOf(escapedCtrlChars, ruleNameAllExcept);
+            const ruleName = new R<TBranch, TMeta>(ruleNameFn).atLeast(1, ruleNameChar);
             
             const ruleFn = (b, l) =>
             {
@@ -403,14 +386,6 @@ namespace Abitvin
             const anyOf = new R<TBranch, TMeta>(anyOfFn).literal("(").one(statements).noneOrMany(more).literal(")").maybe(ranges);
             
             // Alter
-            const alterCharFn = (b, l) => ({
-                arg1: null,
-                arg2: null,
-                arg3: l,
-                rangeType: RangeType.NoRangeType,
-                rule: null
-            });
-            
             const alterFn = (b, l) => 
             {
                 const last = b[b.length - 1];
@@ -425,11 +400,25 @@ namespace Abitvin
                     rangeType: RangeType.NoRangeType,
                     rule: this.addRange(new Rule<TBranch, TMeta>().alter(b.map(i => i.arg3)), last)
                 };
-            }
+            };
             
-            const alterChar = new R<TBranch, TMeta>(alterCharFn).atLeast(1, literalChar);
-            const alterMore = new R<TBranch, TMeta>().literal(",").one(alterChar);
-            const alter = new R<TBranch, TMeta>(alterFn).literal("(").one(alterChar).noneOrMany(alterMore).literal(")").maybe(ranges);
+            const alterTextFn = (b, l) => ({
+                arg1: null,
+                arg2: null,
+                arg3: l,
+                rangeType: RangeType.NoRangeType,
+                rule: null
+            });
+            
+            const alterAllExceptLeftChar = new R<TBranch, TMeta>().allExcept(",");
+            const alterLeftChar = new R<TBranch, TMeta>().anyOf(escapedCtrlChars, alterAllExceptLeftChar);
+            const alterLeftText = new R<TBranch, TMeta>(alterTextFn).atLeast(1, alterLeftChar);
+            const alterAllExceptRightChar = new R<TBranch, TMeta>().allExcept("|", ")");
+            const alterRightChar = new R<TBranch, TMeta>().anyOf(escapedCtrlChars, alterAllExceptRightChar);
+            const alterRightText = new R<TBranch, TMeta>(alterTextFn).atLeast(1, alterRightChar);
+            const alterText = new R<TBranch, TMeta>().one(alterLeftText).literal(",").one(alterRightText);
+            const alterMore = new R<TBranch, TMeta>().literal("|").one(alterText);
+            const alter = new R<TBranch, TMeta>(alterFn).literal("(~").one(alterText).noneOrMany(alterMore).literal(")").maybe(ranges);
             
             // Whitespace
             const atLeastOneWsFn = () => ({
@@ -453,13 +442,13 @@ namespace Abitvin
             
             // Ranges and statements definitions
             ranges.anyOf(atLeast, atLeastOne, atMost, between, exact, maybe, noneOrMany);
-            statement.anyOf(noneOrManyWs, atLeastOneWs, literal, eof, alter, allExcept, charRanges, anyChar, rule, anyOf);
+            statement.anyOf(anyChar, noneOrManyWs, atLeastOneWs, eof, alter, allExcept, charRanges, rule, anyOf, literal);
             
             this._grammer = new R<TBranch, TMeta>().noneOrMany(statement);
             this._rulexps = {};
         }
         
-        public static get version(): string { return "0.1.11"; }
+        public static get version(): string { return "0.2.0"; }
         
         public add(id: string, expr: string, branchFn: BranchFn<TBranch> = null, meta: TMeta = null): void
         {

@@ -2,14 +2,45 @@
 
 namespace Abitvin.Tests
 {
+    /*
+        OK  literal:                Any char except the control characters
+        OK  one rule:               < >             all except: >
+        -   range:                  { , }
+        -   any of:                 ( | )
+        OK  alter:                  (~ | , | )      all except: , | )
+        OK  between:                [ - ]           all except: - ]
+        OK  all chars except:       [^ ]            all except: ]
+        -   at least 1:             +
+        -   maybe:                  ?
+        -   none or many:           *
+        -   any char:               .
+        -   eof:                    $
+        -   none or many spaces:    Space character    
+        -   at least one space:     _
+        
+        asdasd<asdasd>
+        (asdasd)
+        asdasd[asd]
+        
+
+    */
+            
     interface IEmpty {}
     
+    const test = new Grammer<string, IEmpty>();
     
+    test.add("test a", "aaa", (b, l) => l);
+    test.add("test-b", "bbb", (b, l) => l);
+    test.add("test_c", "ccc", (b, l) => l);
+    test.add("<{[]}>", "ddd", (b, l) => l);
+    test.add(" ", "eee", (b, l) => l);
+    test.add("id-test", "(<test a>|<test-b>|<test_c>|<<{[]}\\>>|< >)+");
+    console.log(test.scan("id-test", "aaabbbcccdddeeedddeeecccaaabbb"));
     
-    const alter = new Grammer<string, IEmpty>();
-    alter.add("root", "(\\n,\n,asdasd,asdasxd,aa,bb,yyy,xxx)+", (b, l) => l);
-    //console.log(alter.scan("root", "yyy\\n\\nasdasdaaasdasd\\naaasdasdyyy"));
+    test.add("alter-test", "(~\\n,\n|asdasd,asdasxd|aa,DD|yyy,ZZZ)+", (b, l) => l);
+    console.log(test.scan("alter-test", "yyy\\n\\nasdasdaaasdasd\\naaasdasdyyy"));
     
+    debugger;
     
     
     const calc = new Grammer<number, IEmpty>();
