@@ -15,11 +15,12 @@ namespace Abitvin.Tests
         -   none or many:           *
         -   any char:               .
         -   eof:                    $
+        -   not:                    !
         -   none or many spaces:    Space character    
         -   at least one space:     _
         
-        asdasd<asdasd>
-        (asdasd)
+        !asdasd!<asdasd>
+        !(asdasd)
         asdasd[asd]
         
 

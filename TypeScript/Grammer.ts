@@ -12,7 +12,8 @@ namespace Abitvin
         AtLeast,
         AtMost,
         Between,
-        Exact
+        Exact,
+        Not
     }
     
     interface IParseContext<TB, TM>
@@ -45,13 +46,22 @@ namespace Abitvin
         {
             this._ws = new Rule<TBranch, TMeta>().anyOf(" ", "\t", "\n", "\r");
             
-            const ranges = new R<TBranch, TMeta>();
-            const statement = new R<TBranch, TMeta>();
+            const statementFn = (b) =>
+            {
+                if (b[0].rangeType !== RangeType.Not)
+                    return b;
+                  
+                return { 
+                    arg1: null,
+                    arg2: null,
+                    arg3: null,
+                    rangeType: RangeType.NoRangeType,
+                    rule: new Rule<TBranch, TMeta>().not(b[1].rule) 
+                };
+            };
             
-            const char = new R<TBranch, TMeta>().between("a", "z");
-            const CHAR = new R<TBranch, TMeta>().between("A", "Z");
-            const Char = new R<TBranch, TMeta>().anyOf(char, CHAR);
-            const digit = new R<TBranch, TMeta>().between("0", "9");
+            const ranges = new R<TBranch, TMeta>();
+            const statement = new R<TBranch, TMeta>(statementFn);
             
             const escapedCtrlChars = new R<TBranch, TMeta>().alter(
                 "\\<", "<", 
@@ -73,7 +83,8 @@ namespace Abitvin
                 "\\.", ".", 
                 "\\$", "$",
                 "\\ ", " ", 
-                "\\_", "_"
+                "\\_", "_",
+                "\\!", "!"
             );
             
             // Integer
@@ -85,6 +96,7 @@ namespace Abitvin
                 rule: null 
             });
             
+            const digit = new R<TBranch, TMeta>().between("0", "9");
             const integer = new R<TBranch, TMeta>(integerFn).atLeast(1, digit);
             
             // Literal
@@ -96,7 +108,7 @@ namespace Abitvin
                 rule: null 
             });
             
-            const literalAllExcept = new R<TBranch, TMeta>().allExcept("<", "{", "(", ")", "|", "[", "+", "?", "*", ".", "$", " ", "_");
+            const literalAllExcept = new R<TBranch, TMeta>().allExcept("<", "{", "(", ")", "|", "[", "+", "?", "*", ".", "$", " ", "_", "!");
             const literalChar = new R<TBranch, TMeta>().anyOf(escapedCtrlChars, literalAllExcept);
             const literalText = new R<TBranch, TMeta>(literalTextFn).atLeast(1, literalChar);
             
@@ -342,6 +354,17 @@ namespace Abitvin
             
             const noneOrMany = new R<TBranch, TMeta>(noneOrManyFn).literal("*");
             
+            // Not
+            const notFn = () => ({
+                arg1: 0,
+                arg2: null,
+                arg3: null,
+                rangeType: RangeType.Not,
+                rule: null
+            });
+            
+            const not = new R<TBranch, TMeta>(notFn).literal("!");
+            
             // Any of
             const anyOfFn = (b, l) =>
             {
@@ -442,13 +465,13 @@ namespace Abitvin
             
             // Ranges and statements definitions
             ranges.anyOf(atLeast, atLeastOne, atMost, between, exact, maybe, noneOrMany);
-            statement.anyOf(anyChar, noneOrManyWs, atLeastOneWs, eof, alter, allExcept, charRanges, rule, anyOf, literal);
+            statement.maybe(not).anyOf(anyChar, noneOrManyWs, atLeastOneWs, eof, alter, allExcept, charRanges, rule, anyOf, literal);
             
             this._grammer = new R<TBranch, TMeta>().noneOrMany(statement);
             this._rulexps = {};
         }
         
-        public static get version(): string { return "0.2.0"; }
+        public static get version(): string { return "0.3.0"; }
         
         public add(id: string, expr: string, branchFn: BranchFn<TBranch> = null, meta: TMeta = null): void
         {
