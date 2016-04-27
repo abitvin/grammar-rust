@@ -17,6 +17,7 @@ TypeScript/Grammer.ts
 * Allow more characters as a rule name.
 * Check the TODO's in QBaksteen grammer for things to look at.
 * Refactor and cleanup code.
+* Show nicer errors.
 
 TypeScript/Rule.ts
 ------------------
@@ -26,7 +27,6 @@ TypeScript/Rule.ts
 * Use algebraic types for checking errors. This will go better in TypeScript 1.8; And 1.8 is out now!
 * Allow reading from different streams, for example an array of numbers or booleans.
 * Maybe still implement `fallback(branchFn)` method? Which is not a scanning method but acts like a safety net for bundling all characters not passing the scanning rules. 
-* What does a rule without any parts mean?
 * Optimize `anyOf`. Now the items must all be a string or a Rule. But that is not really needed.
 * What about `not` or `inverse` a rule?
 * Or a `passthrough` to fix (?) the QBaksteen FOR ... NEXT statement issue.
@@ -49,12 +49,15 @@ TypeScript/Examples/Brainfuck
 
 TypeScript/Examples/Common rules
 --------------------------------
+* Add Grammer API rule expressions
 * Fancy the visuals.
 
 TypeScript/Examples/INI Reader
 --------------------------------
+* Move to Grammer API.
 * Fancy the visuals.
 
 TypeScript/Examples/JSON Reader
 --------------------------------
+* Move to Grammer API.
 * Fancy the visuals.
