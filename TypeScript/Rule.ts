@@ -57,7 +57,7 @@ namespace Abitvin
             this._parts = [];
 		}
         
-        public static get version(): string { return "0.5.1"; }
+        public static get version(): string { return "0.5.2"; }
         public set branchFn(value: BranchFn<TBranch>) { this._branchFn = value; }
         public get meta(): TMeta { return this._meta; }
         public set meta(value: TMeta) { this._meta = value; }
@@ -240,6 +240,15 @@ namespace Abitvin
 			return this;
 		}
 
+        public literal(text: string): this
+		{
+            if (!this.isString(text) || text.length < 1)
+                throw new Error("Literal text must be a string of at least 1 character.");
+            
+			this._parts.push(this.scanLiteralLeaf.bind(this, text));
+			return this;
+		}
+        
 		public maybe(rule: Rule<TBranch, TMeta>): this
 		public maybe(text: string): this
 		public maybe(arg1: any): this
@@ -254,16 +263,7 @@ namespace Abitvin
 			return this;
 		}
 
-		public literal(text: string): this
-		{
-            if (!this.isString(text) || text.length < 1)
-                throw new Error("Literal text must be a string of at least 1 character.");
-            
-			this._parts.push(this.scanLiteralLeaf.bind(this, text));
-			return this;
-		}
-        
-        public noneOrMany(rule: Rule<TBranch, TMeta>): this
+		public noneOrMany(rule: Rule<TBranch, TMeta>): this
 		public noneOrMany(text: string): this
 		public noneOrMany(arg1: any): this
 		{
@@ -276,6 +276,20 @@ namespace Abitvin
                 
 			return this;
 		}	
+        
+        public not(rule: Rule<TBranch, TMeta>): this
+        public not(text: string): this
+        public not(arg1: any): this
+        {
+            if (this.isString(arg1))
+                this._parts.push(this.scanNot.bind(this, new Rule<TBranch, TMeta>().literal(arg1)));
+            else if (this.isRule(arg1))
+                this._parts.push(this.scanNot.bind(this, arg1));
+            else
+                throw new Error("Argument is not a string or a rule.");
+            
+            return this;
+        }
 
 		public one(...rules: Rule<TBranch, TMeta>[]): this
 		{
@@ -523,6 +537,14 @@ namespace Abitvin
             ctx.lexeme += find;
             return len;
 		}
+        
+        private scanNot(rule: Rule<TBranch, TMeta>, ctx: IScanContext<TBranch, TMeta>): number
+        {
+            if (rule.run(this.branch(ctx, false)) === -1)
+                return 0;
+            else
+                return -1;
+        }
 
 		private scanRuleRange(min: number, max: number, rule: Rule<TBranch, TMeta>, ctx: IScanContext<TBranch, TMeta>): number
 		{
@@ -559,7 +581,7 @@ namespace Abitvin
                 if (newCtx.index < errors[0].index)
                     return -1;
                     
-                // Clear the errors array without destroying reference.
+                // Clear the errors array without destroying references.
                 if (newCtx.index > errors[0].index)
                     while (errors.pop()) {};
             }
