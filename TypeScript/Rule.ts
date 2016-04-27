@@ -57,7 +57,7 @@ namespace Abitvin
             this._parts = [];
 		}
         
-        public static get version(): string { return "0.5.0"; }
+        public static get version(): string { return "0.5.1"; }
         public set branchFn(value: BranchFn<TBranch>) { this._branchFn = value; }
         public get meta(): TMeta { return this._meta; }
         public set meta(value: TMeta) { this._meta = value; }
@@ -410,7 +410,7 @@ namespace Abitvin
 		{
 			const l: number = this._parts.length;
             
-            if (l.length === 0)
+            if (l === 0)
                 throw new Error("Rule is not defined.");
             
             const newCtx: IScanContext<TBranch, TMeta> = this.branch(ctx, true);
