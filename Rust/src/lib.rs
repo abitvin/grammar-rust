@@ -35,6 +35,7 @@ mod abitvin
         All,
         AllExcept(&'a Vec<char>),
         Alter(&'a Vec<(&'static str, &'static str)>),
+        Eof,
         Literal(&'static str),
     }
     
@@ -88,6 +89,18 @@ mod abitvin
             }
             
             self.parts.push(ScanFn::Alter(list));
+            self
+        }
+        
+        pub fn clear(&mut self) -> &mut Self
+        {
+            self.parts.clear();
+            self
+        }
+        
+        pub fn eof(&mut self) -> &mut Self
+        {
+            self.parts.push(ScanFn::Eof);
             self
         }
         
@@ -213,6 +226,7 @@ mod abitvin
                     ScanFn::All => self.scan_all_leaf(&mut new_ctx),
                     ScanFn::AllExcept(ref exclude) => self.scan_all_except_leaf(&exclude, &mut new_ctx),
                     ScanFn::Alter(ref alter) => self.scan_alter_leaf(&alter, &mut new_ctx),
+                    ScanFn::Eof => self.scan_eof(&mut new_ctx),
                     ScanFn::Literal(find) => self.scan_literal_leaf(&find, &mut new_ctx),
                 };
                 
@@ -296,6 +310,18 @@ mod abitvin
             self.update_error(&mut ctx, String::from("Alter characters not found on this position."))
         }
         
+        fn scan_eof(&self, mut ctx: &mut ScanCtx<T>) -> i64
+        {
+            if let None = ctx.code_iter.next() {
+                ctx.has_eof = true;
+                ctx.index += 1;
+                1
+            }
+            else {
+                self.update_error(&mut ctx, String::from("No EOF on this position."))
+            }
+        }
+        
         fn scan_literal_leaf(&self, find: &'static str, mut ctx: &mut ScanCtx<T>) -> i64 
         {
             let iter = find.chars();
@@ -358,7 +384,7 @@ mod tests
     {
         let code = "abcdefg";
         
-        let f = |b: &Vec<bool>, l: &str|
+        let f = |_: &Vec<bool>, l: &str|
         {
             assert_eq!(l, "abcdefg");
             vec![true, false, false, true]
@@ -383,7 +409,7 @@ mod tests
     {
         let code = "abc";
         
-        let f = |b: &Vec<u32>, l: &str|
+        let f = |_: &Vec<u32>, l: &str|
         {
             assert_eq!(l, "abc");
             vec![0u32, 1u32, 2u32, 3u32]
@@ -410,20 +436,20 @@ mod tests
     {
         let code = "aaabbbccc";
         
-        let alterThese = vec![
+        let alterations = vec![
             ("aaa", "AAA"),
             ("bbb", "BBB"),
             ("ccc", "CCC"),
         ];
         
-        let f = |b: &Vec<i32>, l: &str|
+        let f = |_: &Vec<i32>, l: &str|
         {
             assert_eq!(l, "AAABBBCCC");
             vec![111, 222]
         }; 
         
         let mut r: Rule<i32> = Rule::new(Some(Box::new(f)));
-        r.alter(&alterThese).alter(&alterThese).alter(&alterThese);
+        r.alter(&alterations).alter(&alterations).alter(&alterations);
         
         if let Ok(branches) = r.scan(&code) {
             assert_eq!(branches[0], 111);
@@ -435,111 +461,55 @@ mod tests
     }
     
     #[test]
+    #[should_panic]
+    fn test_clear()
+    {
+        let code = "Ello'";
+        
+        let mut r: Rule<char> = Rule::new(None);
+        r.literal("Ello'");
+        r.clear();
+        r.scan(&code);   // Panic! We cleared the rule.
+    }
+    
+    #[test]
+    fn test_eof()
+    {
+        let code = "123";
+        
+        let mut r: Rule<char> = Rule::new(Some(Box::new(|_, _| vec!['A', 'B'] )));
+        r.literal("123").eof();
+        
+        if let Ok(branches) = r.scan(&code) {
+            assert_eq!(branches[0], 'A');
+            assert_eq!(branches[1], 'B');
+        }
+        else {
+            assert!(false);
+        }
+    }
+    
+    #[test]
     fn test_literal()
     {
-        //let code = String::from("sevensevensevenseven");
-        //let code = "sevensevensevenseven";
         let code = "y̆y̆y̆x̆";
         
-        let mut r: Rule<u64> = Rule::new(Some(Box::new(|b, l| vec![7777u64, 8888u64, 9999u64] )));
-        r.literal("y̆").literal("y̆").literal("y̆").literal("x̆");
+        let mut r: Rule<u64> = Rule::new(Some(Box::new(|_, _| vec![7777u64, 8888u64, 9999u64] )));
+        r.literal("y̆y̆").literal("y̆").literal("x̆");
         
-        let res = r.scan(&code);
-        
-        match res {
-            Ok(branches) => {
-                println!("Ok!");
-                
-                for i in branches {
-                    println!("{}", i);
-                }
-                
-                assert!(true);
-            }
-            Err(errors) => {
-                for e in errors {
-                    println!("Error: {}", e.msg);
-                }
-                
-                assert!(false);
-            }
+        if let Ok(branches) = r.scan(&code) {
+            assert_eq!(branches[0], 7777u64);
+            assert_eq!(branches[1], 8888u64);
+            assert_eq!(branches[2], 9999u64);
+        }
+        else {
+            assert!(false);
         }
     }
     
     
     
     
-    
-    
-    
-    struct Point {
-        x: f64,
-        y: f64
-    }
-    
-    fn do_bla6(branches: &Vec<Point>, lexeme: &str) -> Vec<Point>
-    {
-        println!("{}", lexeme);
-        
-        let mut v = vec![
-            Point { x: 0.0, y: 0.0 },
-            Point { x: 1.1, y: 3.3 },
-            Point { x: 2.2, y: 6.6 }
-        ];
-        
-        for i in branches {
-            v.push(Point { x: i.x, y: i.y });
-        }
-        
-        v
-    }
-    
-    fn compare_str() -> bool
-    {
-        //let hello3 = "Hello";
-        //let iter3 = hello3.chars();
-        
-        let hello = String::from("Hello, 日本人 y̆!");
-        /*//let hello2 = String::from("Hello, 日");
-        
-        let mut slice = hello.chars().as_str();
-        //let mut slice2 = hello2.chars();
-        
-        // is_char_boundary
-        // to_uppercase
-        // nth
-        
-        */
-        
-        let bytes = hello.into_bytes();
-        
-        
-        
-        
-        true
-    }
-    
-    
-    /*
-        private scanAlterLeaf(list: string[], ctx: IScanContext<TBranch, TMeta>): number
-		{
-            for (let i = 0; i < list.length; i += 2)
-            {
-                const find: string = list[i];
-                const len: number = find.length;
-
-                if (find === ctx.code.substr(ctx.index, len))
-                {
-                    ctx.lexeme += list[i+1];
-                    ctx.index += len;
-                    return len;
-                }
-            }
-            
-            return this.updateError(ctx, "Alter characters not found on this position.");
-		}
-        */
-        
     
     #[test]
     fn test2()
@@ -565,130 +535,6 @@ mod tests
             assert_eq!(v[0].0, c);
             assert_eq!(v[0].0, d);
         }
-        
-        
-        
-        
-        
-        /*let hello = String::from("Hello, 日本人 y̆!");
-        let hello2 = String::from("Hello, 日");
-        
-        let mut iter = hello.chars();
-        let mut iter2 = hello2.chars();
-        
-        let l = hello.len();
-        let mut i = 0;
-        
-        while i < l 
-        {
-            let a = iter.next();
-            let b = iter2.next();
-            let c = a == b;
-            
-            println!("--------");
-            
-            if let Some(aa) = a 
-            {
-                println!("{}: {}", aa, aa.len_utf8());
-                i += aa.len_utf8();
-            }
-            else 
-            {
-                break;
-            }
-            
-            if let Some(bb) = b {
-                println!("{}", bb);
-            }
-            
-            println!("{}", c);
-        }*/
-        
-        /*
-        //let hello = String::from("Hello, 日本人 y̆!");
-        //let hello2 = "Hello, 日本人!";
-        let hello = String::from("abcdefghijklmnop");
-        
-        let mut iter = hello.chars();
-        iter.next();
-        iter.next();
-        
-        if let Some(c) = iter.next() {
-            println!("{}", c);
-        }
-        
-        let mut iter2 = iter.clone();
-        
-        iter.next();
-        
-        iter2.next();
-        iter2.next();
-        iter2.next();
-        
-        if let Some(c) = iter.next() {
-            println!("{}", c);
-        }
-        
-        if let Some(c) = iter2.next() {
-            println!("{}", c);
-        }
-        */
-        
-        /*let mut i = 0;
-        
-        for (j, c) in hello.chars().enumerate()
-        {
-            i += 1;
-            println!("{}: {}: {}", i, j, c);
-        }
-        
-        println!("---");
-        i = 0;
-        
-        for (j, u) in hello.encode_utf16().enumerate()
-        {
-            i += 1;
-            println!("{}: {}: {}", i, j, u);
-        }*/
-    }
-    
-    #[test]
-    fn test()
-    {
-        let mut r: Rule<u64> = Rule::new(Some(Box::new(|branches, lexeme|
-        {
-            println!("{}", lexeme);
-            
-            let mut v: Vec<u64> = Vec::new();
-            
-            v.push(0u64);
-            v.push(1u64);
-            v.push(2u64);
-            
-            for i in branches {
-                v.push(i.clone());
-            }
-            
-            v
-        })));
-        
-        // TODO Calling `.all()` after `new()` gives compiler errors.
-        r.all().literal("bla").all().literal("buz");
-        
-        /*let x = r.scan(vec![8888u64]);
-        
-        for i in x {
-            println!("{}", i);
-        }*/
-        
-        let r: Rule<Point> = Rule::new(Some(Box::new(do_bla6)));
-        /*let x = r.scan(vec![Point { x: 0.777, y: 0.9999 }]);
-        
-        for i in x {
-            println!("Point {}, {}", i.x, i.y);
-        }*/
-        
-        
     }
 }
 
@@ -864,18 +710,6 @@ namespace Abitvin
 			return this;
 		}
         
-        public clear(): this
-        {
-            this._parts = [];
-            return this;
-        }
-        
-        public eof(): this
-        {
-            this._parts.push(this.scanEofLeaf.bind(this));
-            return this;
-        }
-        
         public exact(count: number, rule: Rule<TBranch, TMeta>): this
 		public exact(count: number, text: string): this
 		public exact(count: number, arg2: any): this
@@ -985,11 +819,6 @@ namespace Abitvin
 			return RuleResult.success<TBranch, TMeta>(ctx.branches);
 		}
 
-       
-		
-
-		
-
 		private scanAnyOf(rules: Rule<TBranch, TMeta>[], ctx: IScanContext<TBranch, TMeta>): number
 		{
             const c: number = rules.length;
@@ -1022,19 +851,6 @@ namespace Abitvin
             ctx.index++;
             return 1;
 		}
-        
-        private scanEofLeaf(ctx: IScanContext<TBranch, TMeta>): number
-        {
-            if (ctx.index === ctx.code.length)
-            {
-                ctx.hasEof = true;
-                ctx.index++;
-                return 1;
-            }
-            
-            return this.updateError(ctx, "No EOF on this position.");
-        }
-        
         
         private scanNot(rule: Rule<TBranch, TMeta>, ctx: IScanContext<TBranch, TMeta>): number
         {
