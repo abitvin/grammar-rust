@@ -9,9 +9,9 @@ mod abitvin
     // TODO Simplify `Option<Box<Fn<...>>>` if we can.
     pub type BranchFn<T> = Option<Box<Fn(&Vec<T>, &str) -> Vec<T>>>;
     
-    pub struct Rule<T> {
+    pub struct Rule<'a, T> {
         branch_fn: BranchFn<T>,
-        parts: Vec<ScanFn>,
+        parts: Vec<ScanFn<'a>>,
     }
     
     pub struct RuleError {
@@ -31,10 +31,10 @@ mod abitvin
         }
     }
     
-    enum ScanFn {
+    enum ScanFn<'a> {
         All,
-        AllExcept(Vec<char>),
-        Alter(Vec<(&'static str, &'static str)>),
+        AllExcept(Vec<char>),   // TODO Shouldn't we be doing &Vec<char>?
+        Alter(&'a Vec<(&'static str, &'static str)>),
         Literal(&'static str),
     }
     
@@ -51,7 +51,7 @@ mod abitvin
         // TODO trail: TMeta[];
     }
     
-    impl<T> Rule<T>
+    impl<'a, T> Rule<'a, T>
     {
         pub fn new(branch_fn: BranchFn<T>) -> Self
         {
@@ -98,7 +98,7 @@ mod abitvin
 		}
         */
         
-        pub fn alter(&mut self, list: Vec<(&'static str, &'static str)>) -> &mut Self
+        pub fn alter(&mut self, list: &'a Vec<(&'static str, &'static str)>) -> &mut Self
         {
             if list.len() == 0 {
                 panic!("List is empty.");
@@ -164,7 +164,7 @@ mod abitvin
         
         // Private functions
         
-        fn branch<'a>(&'a self, ctx: &ScanCtx<'a, T> /*, isRootOfRule: bool*/) -> ScanCtx<T>
+        fn branch(&'a self, ctx: &ScanCtx<'a, T> /*, isRootOfRule: bool*/) -> ScanCtx<T>
         {
             let new_ctx: ScanCtx<T> = ScanCtx {
                 branches: Vec::new(),
@@ -189,7 +189,7 @@ mod abitvin
             new_ctx
         }
         
-        fn merge<'a>(&'a self, target: &mut ScanCtx<'a, T>, source: &mut ScanCtx<'a, T> /*, isRootOfRule: bool = false*/) -> i64
+        fn merge(&'a self, target: &mut ScanCtx<'a, T>, source: &mut ScanCtx<'a, T> /*, isRootOfRule: bool = false*/) -> i64
         {
             /* TODO
             if (isRootOfRule)
@@ -221,7 +221,7 @@ mod abitvin
         
         // TODO Why I need `mut ctx` here: 
         // https://www.reddit.com/r/rust/comments/2sjicp/use_of_mut_in_function_signature/
-        fn run<'a>(&'a self, mut ctx: &mut ScanCtx<'a, T>) -> i64
+        fn run(&'a self, mut ctx: &mut ScanCtx<'a, T>) -> i64
         {
             if self.parts.len() == 0 {
                 panic!("Rule is not defined.");
@@ -245,6 +245,7 @@ mod abitvin
             self.merge(&mut ctx, &mut new_ctx/* TODO ,true */)
         }
         
+        // TODO What about a char with more codepoints?
         fn scan_all_leaf(&self, mut ctx: &mut ScanCtx<T>) -> i64
         {
             let n = ctx.code_iter.next();
@@ -259,6 +260,7 @@ mod abitvin
             }
         }
         
+        // TODO What about a char with more codepoints?
         fn scan_all_except_leaf(&self, exclude: &Vec<char>, mut ctx: &mut ScanCtx<T>) -> i64
         {
             let n = ctx.code_iter.next();
@@ -372,39 +374,85 @@ mod tests
 {
     use abitvin::Rule;
     
+    #[test]
+    fn test_all()
+    {
+        let code = "abcdefg";
+        
+        let f = |b: &Vec<bool>, l: &str|
+        {
+            assert_eq!(l, "abcdefg");
+            vec![true, false, false, true]
+        }; 
+        
+        let mut r: Rule<bool> = Rule::new(Some(Box::new(f)));
+        r.all().all().all().all().all().all().all();
+        
+        if let Ok(branches) = r.scan(&code) {
+            assert_eq!(branches[0], true);
+            assert_eq!(branches[1], false);
+            assert_eq!(branches[2], false);
+            assert_eq!(branches[3], true);
+        }
+        else {
+            assert!(false);
+        }
+    }
+    
+    #[test]
+    fn test_all_except()
+    {
+        /* TODO
+        let code = "abcdefg";
+        
+        let f = |b: &Vec<bool>, l: &str|
+        {
+            assert_eq!(l, "abcdefg");
+            vec![true, false, false, true]
+        }; 
+        
+        let mut r: Rule<bool> = Rule::new(Some(Box::new(f)));
+        r.all().all().all().all().all().all().all();
+        
+        if let Ok(branches) = r.scan(&code) {
+            assert_eq!(branches[0], true);
+            assert_eq!(branches[1], false);
+            assert_eq!(branches[2], false);
+            assert_eq!(branches[3], true);
+        }
+        else {
+            assert!(false);
+        }
+        */
+    }
     
     #[test]
     fn test_alter()
     {
         let code = "aaabbbccc";
         
-        let mut r: Rule<bool> = Rule::new(Some(Box::new(|b, l|
+        let alterThese = vec![
+            ("aaa", "AAA"),
+            ("bbb", "BBB"),
+            ("ccc", "CCC"),
+        ];
+        
+        let f = |b: &Vec<i32>, l: &str|
         {
-            println!("lexeme: {}", l);
-            vec![true, false, true] 
-        })));
+            assert_eq!(l, "AAABBBCCC");
+            vec![111, 222]
+        }; 
         
-        let alterThese1 = vec![
-            ("aaa", "AAA"),
-            ("bbb", "BBB"),
-            ("ccc", "CCC"),
-        ];
+        let mut r: Rule<i32> = Rule::new(Some(Box::new(f)));
+        r.alter(&alterThese).alter(&alterThese).alter(&alterThese);
         
-        let alterThese2 = vec![
-            ("aaa", "AAA"),
-            ("bbb", "BBB"),
-            ("ccc", "CCC"),
-        ];
-        
-        let alterThese3 = vec![
-            ("aaa", "AAA"),
-            ("bbb", "BBB"),
-            ("ccc", "CCC"),
-        ];
-        
-        r.alter(alterThese1).alter(alterThese2).alter(alterThese3);
-        
-        let res = r.scan(&code);
+        if let Ok(branches) = r.scan(&code) {
+            assert_eq!(branches[0], 111);
+            assert_eq!(branches[1], 222);
+        }
+        else {
+            assert!(false);
+        }
     }
     
     #[test]
