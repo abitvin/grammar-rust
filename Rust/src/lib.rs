@@ -33,7 +33,7 @@ mod abitvin
     
     enum ScanFn<'a> {
         All,
-        AllExcept(Vec<char>),   // TODO Shouldn't we be doing &Vec<char>?
+        AllExcept(&'a Vec<char>),
         Alter(&'a Vec<(&'static str, &'static str)>),
         Literal(&'static str),
     }
@@ -67,36 +67,15 @@ mod abitvin
             self
         }
         
-        pub fn all_except(&mut self, exclude: Vec<char>) -> &mut Self
+        pub fn all_except(&mut self, exclude: &'a Vec<char>) -> &mut Self
         {
             if exclude.len() == 0 {
                 panic!("List of excluded characters is empty.");
             }
             
-            self.parts.push(ScanFn::AllExcept(exclude));
+            self.parts.push(ScanFn::AllExcept(&exclude));
             self
         }
-        
-        /*
-        public alter(...list: string[]): this
-        public alter(list: string[]): this
-        public alter(arg1: any): this
-		{
-            const list: string[] = this.getVariadicArray<string>(arguments); 
-            
-            if (list.length === 0)
-                throw new Error("No arguments given for `allExcept`.");
-            
-            if (list.some(i => !this.isString(i) || i.length === 0))
-                throw new Error("An argument in `allExcept` can only be a string with minimal one character.");
-            
-            if (list.length % 2 === 1)
-                throw new Error("Alter list must be a factor of 2.");
-
-			this._parts.push(this.scanAlterLeaf.bind(this, list));
-			return this;
-		}
-        */
         
         pub fn alter(&mut self, list: &'a Vec<(&'static str, &'static str)>) -> &mut Self
         {
@@ -402,28 +381,28 @@ mod tests
     #[test]
     fn test_all_except()
     {
-        /* TODO
-        let code = "abcdefg";
+        let code = "abc";
         
-        let f = |b: &Vec<bool>, l: &str|
+        let f = |b: &Vec<u32>, l: &str|
         {
-            assert_eq!(l, "abcdefg");
-            vec![true, false, false, true]
-        }; 
+            assert_eq!(l, "abc");
+            vec![0u32, 1u32, 2u32, 3u32]
+        };
         
-        let mut r: Rule<bool> = Rule::new(Some(Box::new(f)));
-        r.all().all().all().all().all().all().all();
+        let excluding = vec!['A', 'B', 'C', 'D']; 
+        
+        let mut r: Rule<u32> = Rule::new(Some(Box::new(f)));
+        r.all_except(&excluding).all_except(&excluding).all_except(&excluding);
         
         if let Ok(branches) = r.scan(&code) {
-            assert_eq!(branches[0], true);
-            assert_eq!(branches[1], false);
-            assert_eq!(branches[2], false);
-            assert_eq!(branches[3], true);
+            assert_eq!(branches[0], 0u32);
+            assert_eq!(branches[1], 1u32);
+            assert_eq!(branches[2], 2u32);
+            assert_eq!(branches[3], 3u32);
         }
         else {
             assert!(false);
         }
-        */
     }
     
     #[test]
