@@ -35,6 +35,7 @@ mod abitvin
         All,
         AllExcept(&'a Vec<char>),
         Alter(&'a Vec<(&'static str, &'static str)>),
+        AnyOf(&'a Vec<&'a Rule<'a, T>>),
         Eof,
         Literal(&'static str),
         Range(u64, u64, &'a Rule<'a, T>)
@@ -46,7 +47,6 @@ mod abitvin
         branches: Vec<T>,
         code_iter: Chars<'a>,
         errors: Vec<RuleError>,
-        has_eof: bool,
         index: i64,    // TODO Change to usize? No, because we use an iterator now. Or yes if we don't use Chars.
         lexeme: String,
         // TODO metaPushed: number;
@@ -90,6 +90,16 @@ mod abitvin
             }
             
             self.parts.push(ScanFn::Alter(list));
+            self
+        }
+        
+        pub fn any_of(&mut self, rules: &'a Vec<&Rule<T>>) -> &mut Self
+        {
+            if rules.len() == 0 {
+                panic!("You must specify rules.");
+            }
+            
+            self.parts.push(ScanFn::AnyOf(&rules));
             self
         }
         
@@ -140,37 +150,31 @@ mod abitvin
                 branches: Vec::new(),
                 code_iter: code.chars(),
                 errors: Vec::new(),
-                has_eof: false,
                 index: 0,
                 lexeme: String::new(),
             };
             
             if self.run(&mut ctx) == -1 {
-                // TODO //return RuleResult.failed<TBranch, TMeta>(ctx.errors);
-                
-                /*return Err(RuleError {
-                    index: 0i64,
-                    msg: String::from("Not implemented yet."),
-                });*/
-                
                 return Err(ctx.errors);
             }
-			
-            /*if (ctx.hasEof)
-                ctx.index--;
             
-            if (ctx.index !== ctx.code.length)
-                return RuleResult.failed<TBranch, TMeta>(ctx.errors);
-			
-			return RuleResult.success<TBranch, TMeta>(ctx.branches);
-            */
-            
-            /*Err(RuleError {
-                index: 0u64,
-                msg: "Not implemented yet.",
-            })*/
-            
-            Ok(ctx.branches)
+            if let Some(_) = ctx.code_iter.next() {
+                /*
+                TODO Do we need these checks?
+                if ctx.has_eof {
+                    ctx.index -= 1;
+                }
+                
+                if (ctx.index !== ctx.code.length)
+                    return RuleResult.failed<TBranch, TMeta>(ctx.errors);
+                
+                */
+                
+                Err(ctx.errors)
+            }
+            else {
+                Ok(ctx.branches)
+            }
         }
         
         // Private functions
@@ -179,9 +183,7 @@ mod abitvin
         {
             let new_ctx: ScanCtx<T> = ScanCtx {
                 branches: Vec::new(),
-                //code: ctx.code,
                 code_iter: ctx.code_iter.clone(),
-                has_eof: ctx.has_eof,
                 errors: ctx.errors.clone(),
                 index: ctx.index,
                 lexeme: String::new(),
@@ -212,7 +214,6 @@ mod abitvin
             
 			target.code_iter = source.code_iter.clone();
             target.errors = source.errors.clone();
-            target.has_eof = source.has_eof;
             target.index = source.index;
             target.lexeme.push_str(&source.lexeme.to_string());
             // TODO target.metaPushed = 0;
@@ -245,6 +246,7 @@ mod abitvin
                     ScanFn::All => self.scan_all_leaf(&mut new_ctx),
                     ScanFn::AllExcept(ref exclude) => self.scan_all_except_leaf(&exclude, &mut new_ctx),
                     ScanFn::Alter(ref alter) => self.scan_alter_leaf(&alter, &mut new_ctx),
+                    ScanFn::AnyOf(ref rules) => self.scan_any_of(&rules, &mut new_ctx),
                     ScanFn::Eof => self.scan_eof(&mut new_ctx),
                     ScanFn::Literal(find) => self.scan_literal_leaf(&find, &mut new_ctx),
                     ScanFn::Range(min, max, ref r) => self.scan_rule_range(min, max, &r, &mut new_ctx),
@@ -330,10 +332,22 @@ mod abitvin
             self.update_error(&mut ctx, String::from("Alter characters not found on this position."))
         }
         
+        fn scan_any_of<'b>(&'b self, rules: &Vec<&'b Rule<T>>, mut ctx: &mut ScanCtx<'b, T>) -> i64
+        {
+            for r in rules {
+                let mut new_ctx = self.branch(&ctx /* TODO, false */);
+                
+                if r.run(&mut new_ctx) != -1 {
+                    return self.merge(&mut ctx, &mut new_ctx);
+                }
+            }
+            
+            -1
+        }
+        
         fn scan_eof(&self, mut ctx: &mut ScanCtx<T>) -> i64
         {
             if let None = ctx.code_iter.next() {
-                ctx.has_eof = true;
                 ctx.index += 1;
                 1
             }
@@ -435,11 +449,10 @@ mod tests
     {
         let code = "abcdefg";
         
-        let f = |_: &Vec<bool>, l: &str|
-        {
+        let f = |_: &Vec<bool>, l: &str| {
             assert_eq!(l, "abcdefg");
             vec![true, false, false, true]
-        }; 
+        };
         
         let mut r: Rule<bool> = Rule::new(Some(Box::new(f)));
         r.all().all().all().all().all().all().all();
@@ -460,8 +473,7 @@ mod tests
     {
         let code = "abc";
         
-        let f = |_: &Vec<u32>, l: &str|
-        {
+        let f = |_: &Vec<u32>, l: &str| {
             assert_eq!(l, "abc");
             vec![0u32, 1u32, 2u32, 3u32]
         };
@@ -493,8 +505,7 @@ mod tests
             ("ccc", "CCC"),
         ];
         
-        let f = |_: &Vec<i32>, l: &str|
-        {
+        let f = |_: &Vec<i32>, l: &str| {
             assert_eq!(l, "AAABBBCCC");
             vec![111, 222]
         }; 
@@ -505,6 +516,50 @@ mod tests
         if let Ok(branches) = r.scan(&code) {
             assert_eq!(branches[0], 111);
             assert_eq!(branches[1], 222);
+        }
+        else {
+            assert!(false);
+        }
+    }
+    
+    #[test]
+    fn test_any_of()
+    {
+        let code = "aaabbbccc";
+        
+        let aaa_fn = |_: &Vec<i32>, l: &str| {
+            assert_eq!(l, "aaa");
+            vec![111]
+        }; 
+        
+        let bbb_fn = |_: &Vec<i32>, l: &str| {
+            assert_eq!(l, "bbb");
+            vec![222]
+        };
+        
+        let ccc_fn = |_: &Vec<i32>, l: &str| {
+            assert_eq!(l, "ccc");
+            vec![333]
+        };
+        
+        let mut aaa: Rule<i32> = Rule::new(Some(Box::new(aaa_fn)));
+        aaa.literal("aaa");
+        
+        let mut bbb: Rule<i32> = Rule::new(Some(Box::new(bbb_fn)));
+        bbb.literal("bbb");
+        
+        let mut ccc: Rule<i32> = Rule::new(Some(Box::new(ccc_fn)));
+        ccc.literal("ccc");
+        
+        let these = &vec![&aaa, &bbb, &ccc];
+        
+        let mut root: Rule<i32> = Rule::new(None);
+        root.any_of(&these).any_of(&these).any_of(&these);
+        
+        if let Ok(branches) = root.scan(&code) {
+            assert_eq!(branches[0], 111);
+            assert_eq!(branches[1], 222);
+            assert_eq!(branches[2], 333);
         }
         else {
             assert!(false);
@@ -780,16 +835,7 @@ namespace Abitvin
 			return this;
 		}
 
-        public literal(text: string): this
-		{
-            if (!this.isString(text) || text.length < 1)
-                throw new Error("Literal text must be a string of at least 1 character.");
-            
-			this._parts.push(this.scanLiteralLeaf.bind(this, text));
-			return this;
-		}
-        
-		public maybe(rule: Rule<TBranch, TMeta>): this
+        public maybe(rule: Rule<TBranch, TMeta>): this
 		public maybe(text: string): this
 		public maybe(arg1: any): this
 		{
@@ -897,27 +943,6 @@ namespace Abitvin
                 return 0;
             else
                 return -1;
-        }
-
-		private scanRuleRange(min: number, max: number, rule: Rule<TBranch, TMeta>, ctx: IScanContext<TBranch, TMeta>): number
-		{
-            const newCtx: IScanContext<TBranch, TMeta> = this.branch(ctx, false);
-            let count: number = 0;
-            let progress: number;
-            
-            while ((progress = rule.run(newCtx)) !== -1)
-            {
-                if (progress === 0)
-                    return 0;
-                
-                if (++count === max)
-                    break;
-            }
-            
-            if (count >= min && count <= max)
-                return this.merge(ctx, newCtx);
-            
-            return -1;
         }
         
 		private showCode(text: string, position: number): void
