@@ -9,9 +9,9 @@ mod abitvin
     // TODO Simplify `Option<Box<Fn<...>>>` if we can.
     pub type BranchFn<T> = Option<Box<Fn(&Vec<T>, &str) -> Vec<T>>>;
     
-    pub struct Rule<'a, T> {
+    pub struct Rule<'a, T: 'a> {
         branch_fn: BranchFn<T>,
-        parts: Vec<ScanFn<'a>>,
+        parts: Vec<ScanFn<'a, T>>,
     }
     
     pub struct RuleError {
@@ -31,12 +31,13 @@ mod abitvin
         }
     }
     
-    enum ScanFn<'a> {
+    enum ScanFn<'a, T: 'a> {
         All,
         AllExcept(&'a Vec<char>),
         Alter(&'a Vec<(&'static str, &'static str)>),
         Eof,
         Literal(&'static str),
+        Range(u64, u64, &'a Rule<'a, T>)
     }
     
     use std::str::Chars;
@@ -92,6 +93,18 @@ mod abitvin
             self
         }
         
+        pub fn at_least(&mut self, count: u64, rule: &'a Rule<'a, T>) -> &mut Self
+        {
+            self.parts.push(ScanFn::Range(count, u64::max_value(), &rule));
+            self
+        }
+        
+        pub fn at_most(&mut self, count: u64, rule: &'a Rule<'a, T>) -> &mut Self
+        {
+            self.parts.push(ScanFn::Range(0, count, &rule));
+            self
+        }
+        
         pub fn clear(&mut self) -> &mut Self
         {
             self.parts.clear();
@@ -111,6 +124,12 @@ mod abitvin
             }
                 
             self.parts.push(ScanFn::Literal(&text));
+            self
+        }
+        
+        pub fn one(&mut self, rule: &'a Rule<'a, T>) -> &mut Self
+        {
+            self.parts.push(ScanFn::Range(1, 1, &rule));
             self
         }
         
@@ -228,6 +247,7 @@ mod abitvin
                     ScanFn::Alter(ref alter) => self.scan_alter_leaf(&alter, &mut new_ctx),
                     ScanFn::Eof => self.scan_eof(&mut new_ctx),
                     ScanFn::Literal(find) => self.scan_literal_leaf(&find, &mut new_ctx),
+                    ScanFn::Range(min, max, ref r) => self.scan_rule_range(min, max, &r, &mut new_ctx),
                 };
                 
                 if r == -1 {
@@ -347,6 +367,37 @@ mod abitvin
             step
         }
         
+        fn scan_rule_range<'b>(&'b self, min: u64, max: u64, rule: &'b Rule<T>, mut ctx: &mut ScanCtx<'b, T>) -> i64
+        {
+            let mut new_ctx = self.branch(&ctx /* TODO, false*/);
+            let mut count = 0u64;
+            
+            loop {
+                let progress = rule.run(&mut new_ctx);
+                
+                if progress == -1 {
+                    break;
+                }
+                
+                if progress == 0 {
+                    return 0;
+                }
+                
+                count += 1;
+                
+                if count == max {
+                    break;
+                }
+            }
+            
+            if count >= min && count <= max {
+                self.merge(&mut ctx, &mut new_ctx)
+            }
+            else {
+                -1
+            }
+        }
+        
         fn update_error(&self, mut new_ctx: &mut ScanCtx<T>, error_msg: String) -> i64
         {
             let errors = &mut new_ctx.errors;
@@ -461,6 +512,46 @@ mod tests
     }
     
     #[test]
+    fn test_at_least()
+    {
+        let code = "xxxx";
+        
+        let mut x: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![10] )));
+        x.literal("x");
+       
+        let mut root: Rule<i32> = Rule::new(None);
+        
+        if let Ok(branches) = root.at_least(3, &x).scan(&code) {
+            assert_eq!(branches[0], 10);
+            assert_eq!(branches[1], 10);
+            assert_eq!(branches[2], 10);
+            assert_eq!(branches[3], 10);
+        }
+        else {
+            assert!(false);
+        }
+        
+        if let Ok(branches) = root.clear().at_least(4, &x).scan(&code) {
+            assert_eq!(branches[0], 10);
+            assert_eq!(branches[1], 10);
+            assert_eq!(branches[2], 10);
+            assert_eq!(branches[3], 10);
+        }
+        else {
+            assert!(false);
+        }
+        
+        if let Ok(branches) = root.clear().at_least(5, &x).scan(&code) {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+    }
+    
+    // TODO at_most unit test
+    
+    #[test]
     #[should_panic]
     fn test_clear()
     {
@@ -507,33 +598,30 @@ mod tests
         }
     }
     
-    
-    
-    
-    
     #[test]
-    fn test2()
+    fn test_one()
     {
-        let v = vec![
-            ("aaa", "AAA"),
-            ("bbb", "BBB"),
-            ("ccc", "CCC"),
-        ];
+        let code = "onetwothree";
         
-        let a = &"aaabbb"[0..3];
-        let b = &"bbbaaa"[3..6];
-        assert_eq!(a, b);
+        let mut one: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![1] )));
+        one.literal("one");
         
-        unsafe {
-            let a = String::from("aaabbb");
-            let c = a.slice_unchecked(0, 3);
-            
-            let b = String::from("bbbaaa");
-            let d = b.slice_unchecked(3, 6);
-            
-            assert_eq!(c, d);
-            assert_eq!(v[0].0, c);
-            assert_eq!(v[0].0, d);
+        let mut two: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![2] )));
+        two.literal("two");
+        
+        let mut three: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![3] )));
+        three.literal("three");
+        
+        let mut root: Rule<i32> = Rule::new(None);
+        root.one(&one).one(&two).one(&three);
+        
+        if let Ok(branches) = root.scan(&code) {
+            assert_eq!(branches[0], 1);
+            assert_eq!(branches[1], 2);
+            assert_eq!(branches[2], 3);
+        }
+        else {
+            assert!(false);
         }
     }
 }
@@ -608,45 +696,7 @@ namespace Abitvin
        
 
 
-		public atLeast(count: number, rule: Rule<TBranch, TMeta>): this
-		public atLeast(count: number, text: string): this
-		public atLeast(count: number, arg2: any): this
-		{
-            if (!this.isInteger(count))
-                throw new Error("First argument is not an integer.");
-                
-            if (count < 0)
-                throw new Error("Count cannot be negative.");
-                
-            if (this.isString(arg2))
-                this._parts.push(this.scanRuleRange.bind(this, count, Number.POSITIVE_INFINITY, new Rule<TBranch, TMeta>().literal(arg2)));
-			else if (this.isRule(arg2))
-				this._parts.push(this.scanRuleRange.bind(this, count, Number.POSITIVE_INFINITY, arg2));
-            else
-                throw new Error("Second argument is not a rule or a string.");
-
-			return this;
-		}
-        
-        public atMost(count: number, rule: Rule<TBranch, TMeta>): this
-		public atMost(count: number, text: string): this
-		public atMost(count: number, arg2: any): this
-		{
-            if (!this.isInteger(count))
-                throw new Error("First argument is not an integer.");
-            
-            if (count < 0)
-                throw new Error("Count cannot be negative.");
-                
-            if (this.isString(arg2))
-                this._parts.push(this.scanRuleRange.bind(this, 0, count, new Rule<TBranch, TMeta>().literal(arg2)));
-			else if (this.isRule(arg2))
-				this._parts.push(this.scanRuleRange.bind(this, 0, count, arg2));
-            else
-                throw new Error("Second argument is not a rule or a string.");
-
-			return this;
-		}
+		
 
         public anyOf(...rules: Rule<TBranch, TMeta>[]): this
         public anyOf(rules: Rule<TBranch, TMeta>[]): this
@@ -781,18 +831,7 @@ namespace Abitvin
             return this;
         }
 
-		public one(...rules: Rule<TBranch, TMeta>[]): this
-		{
-            for (const r of rules)
-            {
-                if(!this.isRule(r))
-                    throw new Error("Argument is not a rule.");
-                
-                this._parts.push(this.scanRuleRange.bind(this, 1, 1, r));
-            }
-            
-			return this;
-		}
+		
 
 		public scan(code: string): RuleResult<TBranch, TMeta>
 		{
