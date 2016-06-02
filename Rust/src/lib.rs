@@ -127,6 +127,12 @@ mod abitvin
             self
         }
         
+        pub fn exact(&mut self, count: u64, rule: &'a Rule<'a, T>) -> &mut Self
+        {
+            self.parts.push(ScanFn::Range(count, count, &rule));
+            self
+        }
+        
         pub fn literal(&mut self, text: &'static str) -> &mut Self
         {
             if text.len() < 1 {
@@ -136,6 +142,36 @@ mod abitvin
             self.parts.push(ScanFn::Literal(&text));
             self
         }
+        
+        /*
+        public maybe(rule: Rule<TBranch, TMeta>): this
+		public maybe(text: string): this
+		public maybe(arg1: any): this
+		{
+			if (this.isString(arg1))
+                this._parts.push(this.scanRuleRange.bind(this, 0, 1, new Rule<TBranch, TMeta>().literal(arg1)));
+			else if(this.isRule(arg1))
+				this._parts.push(this.scanRuleRange.bind(this, 0, 1, arg1));
+            else
+                throw new Error("Argument is not a string or a rule.");
+
+			return this;
+		}
+
+		public noneOrMany(rule: Rule<TBranch, TMeta>): this
+		public noneOrMany(text: string): this
+		public noneOrMany(arg1: any): this
+		{
+            if (this.isString(arg1))
+			    this._parts.push(this.scanRuleRange.bind(this, 0, Number.POSITIVE_INFINITY, new Rule<TBranch, TMeta>().literal(arg1)));
+            else if(this.isRule(arg1))
+			    this._parts.push(this.scanRuleRange.bind(this, 0, Number.POSITIVE_INFINITY, arg1));
+            else
+                throw new Error("Argument is not a string or a rule.");
+                
+			return this;
+		}	
+        */
         
         pub fn one(&mut self, rule: &'a Rule<'a, T>) -> &mut Self
         {
@@ -636,6 +672,48 @@ mod tests
     }
     
     #[test]
+    fn test_exact()
+    {
+        let code = "..........";
+        
+        let mut dot: Rule<char> = Rule::new(Some(Box::new(|_, _| vec!['.'] )));
+        dot.literal(".");
+        
+        let mut nope: Rule<char> = Rule::new(Some(Box::new(|_, _| vec!['x'] )));
+        nope.literal("nope");
+        
+        let mut root: Rule<char> = Rule::new(None);
+        
+        if let Ok(branches) = root.exact(10, &dot).scan(&code) {
+            assert!(branches.len() == 10 && branches.into_iter().any(|c| c == '.'));
+        }
+        else {
+            assert!(false);
+        }
+        
+        if let Ok(branches) = root.clear().exact(9, &dot).scan(&code) {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+        
+        if let Ok(branches) = root.clear().exact(11, &dot).scan(&code) {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+        
+        if let Ok(branches) = root.clear().exact(0, &nope).exact(10, &dot).exact(0, &nope).scan(&code) {
+            assert!(branches.len() == 10 && branches.into_iter().any(|c| c == '.'));
+        }
+        else {
+            assert!(false);
+        }
+    }
+    
+    #[test]
     fn test_literal()
     {
         let code = "y̆y̆y̆x̆";
@@ -744,44 +822,12 @@ namespace Abitvin
             this._parts = [];
 		}
         
-        public static get version(): string { return "0.5.2"; }
         public set branchFn(value: BranchFn<TBranch>) { this._branchFn = value; }
         public get meta(): TMeta { return this._meta; }
         public set meta(value: TMeta) { this._meta = value; }
        
 
 
-		
-
-        public anyOf(...rules: Rule<TBranch, TMeta>[]): this
-        public anyOf(rules: Rule<TBranch, TMeta>[]): this
-		public anyOf(...literals: string[]): this
-        public anyOf(literals: string[]): this
-		public anyOf(arg1: any): this
-		{
-            const items: (Rule<TBranch, TMeta>|string)[] = this.getVariadicArray<Rule<TBranch, TMeta>|string>(arguments);
-            
-            if (this.isString(items[0]))
-            {
-                if (items.some(i => !this.isString(i)))
-                    throw new Error("Not all the items in `anyOf` are a string.");
-                
-                this._parts.push(this.scanAnyOf.bind(this, (<string[]>items).map(l => new Rule<TBranch, TMeta>().literal(l))));
-            }
-			else if (this.isRule(items[0]))
-            {
-                if (items.some(i => !this.isRule(i)))
-                    throw new Error("Not all the items in `anyOf` are a rule.");
-                    
-                this._parts.push(this.scanAnyOf.bind(this, items));
-            }
-			else
-            {
-                throw new Error("The items in `anyOf` can only be a string or a rule.");
-            }	
-
-			return this;
-		}
 
 		public between(min: number, max: number, rule: Rule<TBranch, TMeta>): this
         public between(charA: string, charB: string, notUsed?: any): this
@@ -815,53 +861,7 @@ namespace Abitvin
 			return this;
 		}
         
-        public exact(count: number, rule: Rule<TBranch, TMeta>): this
-		public exact(count: number, text: string): this
-		public exact(count: number, arg2: any): this
-		{
-            if (!this.isInteger(count))
-                throw new Error("First argument is not an integer.");
-                
-            if (count < 0)
-                throw new Error("Count cannot be negative.");
-            
-            if (this.isString(arg2))
-                this._parts.push(this.scanRuleRange.bind(this, count, count, new Rule<TBranch, TMeta>().literal(arg2)));
-			else if(this.isRule(arg2))
-				this._parts.push(this.scanRuleRange.bind(this, count, count, arg2));
-            else
-                throw new Error("Second argument is not a string or a rule.");
-            
-			return this;
-		}
-
-        public maybe(rule: Rule<TBranch, TMeta>): this
-		public maybe(text: string): this
-		public maybe(arg1: any): this
-		{
-			if (this.isString(arg1))
-                this._parts.push(this.scanRuleRange.bind(this, 0, 1, new Rule<TBranch, TMeta>().literal(arg1)));
-			else if(this.isRule(arg1))
-				this._parts.push(this.scanRuleRange.bind(this, 0, 1, arg1));
-            else
-                throw new Error("Argument is not a string or a rule.");
-
-			return this;
-		}
-
-		public noneOrMany(rule: Rule<TBranch, TMeta>): this
-		public noneOrMany(text: string): this
-		public noneOrMany(arg1: any): this
-		{
-            if (this.isString(arg1))
-			    this._parts.push(this.scanRuleRange.bind(this, 0, Number.POSITIVE_INFINITY, new Rule<TBranch, TMeta>().literal(arg1)));
-            else if(this.isRule(arg1))
-			    this._parts.push(this.scanRuleRange.bind(this, 0, Number.POSITIVE_INFINITY, arg1));
-            else
-                throw new Error("Argument is not a string or a rule.");
-                
-			return this;
-		}	
+        
         
         public not(rule: Rule<TBranch, TMeta>): this
         public not(text: string): this
@@ -878,47 +878,6 @@ namespace Abitvin
         }
 
 		
-
-		public scan(code: string): RuleResult<TBranch, TMeta>
-		{
-            const ctx: IScanContext<TBranch, TMeta> = {
-                branches: [],
-                code: code,
-                hasEof: false,
-				errors: [],
-                index: 0, 
-                lexeme: "",
-                metaPushed: 0,
-                trail: []
-            };
-
-			if (this.run(ctx) === -1)
-				return RuleResult.failed<TBranch, TMeta>(ctx.errors);
-            
-            if (ctx.hasEof)
-                ctx.index--;
-            
-            if (ctx.index !== ctx.code.length)
-                return RuleResult.failed<TBranch, TMeta>(ctx.errors);
-			
-			return RuleResult.success<TBranch, TMeta>(ctx.branches);
-		}
-
-		private scanAnyOf(rules: Rule<TBranch, TMeta>[], ctx: IScanContext<TBranch, TMeta>): number
-		{
-            const c: number = rules.length;
-
-            for (let i: number = 0; i < c; i++)
-            {
-                const rule: Rule<TBranch, TMeta> = rules[i];
-                const newCtx: IScanContext<TBranch, TMeta> = this.branch(ctx, false);
-                
-                if (rule.run(newCtx) !== -1)
-                    return this.merge(ctx, newCtx);
-            }
-
-            return -1;
-		}
 
 		private scanCharRangeLeaf(codeA: number, codeB: number, ctx: IScanContext<TBranch, TMeta>): number
 		{
