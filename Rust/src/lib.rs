@@ -36,6 +36,7 @@ mod abitvin
         AllExcept(&'a Vec<char>),
         Alter(&'a Vec<(&'static str, &'static str)>),
         AnyOf(&'a Vec<&'a Rule<'a, T>>),
+        CharIn(char, char),
         Eof,
         Literal(&'static str),
         Not(&'a Rule<'a, T>),
@@ -113,6 +114,18 @@ mod abitvin
         pub fn at_most(&mut self, count: u64, rule: &'a Rule<'a, T>) -> &mut Self
         {
             self.parts.push(ScanFn::Range(0, count, &rule));
+            self
+        }
+        
+        pub fn between(&mut self, min: u64, max: u64, rule: &'a Rule<'a, T>) -> &mut Self
+        {
+            self.parts.push(ScanFn::Range(min, max, &rule));
+            self
+        }
+        
+        pub fn char_in(&mut self, min: char, max: char) -> &mut Self
+        {
+            self.parts.push(ScanFn::CharIn(min, max));
             self
         }
         
@@ -272,6 +285,7 @@ mod abitvin
                     ScanFn::AllExcept(ref exclude) => self.scan_all_except_leaf(&exclude, &mut new_ctx),
                     ScanFn::Alter(ref alter) => self.scan_alter_leaf(&alter, &mut new_ctx),
                     ScanFn::AnyOf(ref rules) => self.scan_any_of(&rules, &mut new_ctx),
+                    ScanFn::CharIn(min, max) => self.scan_char_in_leaf(min, max, &mut new_ctx),
                     ScanFn::Eof => self.scan_eof(&mut new_ctx),
                     ScanFn::Literal(find) => self.scan_literal_leaf(&find, &mut new_ctx),
                     ScanFn::Not(ref r) => self.scan_not(&r, &mut new_ctx),
@@ -369,6 +383,27 @@ mod abitvin
             }
             
             -1
+        }
+        
+        fn scan_char_in_leaf(&self, min: char, max: char, mut ctx: &mut ScanCtx<T>) -> i64
+        {
+            let c = ctx.code_iter.next();
+            
+            match c {
+                Some(c) => {
+                    if c < min || c > max {
+                       self.update_error(&mut ctx, format!("Expected a character between '{}' and '{}'; got a {}.", min, max, c))
+                    }
+                    else {
+                        ctx.lexeme.push(c);
+                        ctx.index += 1;
+                        1
+                    }
+                },
+                None => {
+                    self.update_error(&mut ctx, format!("End of code. Expected a character between '{}' and '{}'.", min, max))
+                }
+            }
         }
         
         fn scan_eof(&self, mut ctx: &mut ScanCtx<T>) -> i64
@@ -640,7 +675,155 @@ mod tests
         }
     }
     
-    // TODO at_most unit test
+    #[test]
+    fn test_at_most()
+    {
+        let code = "yyy";
+        
+        let mut y: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![14] )));
+        y.literal("y");
+       
+        let mut root: Rule<i32> = Rule::new(None);
+        
+        if let Ok(branches) = root.at_most(2, &y).scan(&code) {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+        
+        if let Ok(branches) = root.clear().at_most(3, &y).scan(&code) {
+            assert_eq!(branches[0], 14);
+            assert_eq!(branches[1], 14);
+            assert_eq!(branches[2], 14);
+        }
+        else {
+            assert!(false);
+        }
+        
+        if let Ok(branches) = root.clear().at_most(4, &y).scan(&code) {
+            assert_eq!(branches[0], 14);
+            assert_eq!(branches[1], 14);
+            assert_eq!(branches[2], 14);
+        }
+        else {
+            assert!(false);
+        }
+    }
+    
+    #[test]
+    fn test_between()
+    {
+        let code = "zzz";
+        
+        let mut z: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![34])));
+        z.literal("z");
+       
+        let mut root: Rule<i32> = Rule::new(None);
+        
+        if let Ok(branches) = root.between(1, 3, &z).scan(&code) {
+            assert_eq!(branches[0], 34);
+            assert_eq!(branches[1], 34);
+            assert_eq!(branches[2], 34);
+        }
+        else {
+            assert!(true);
+        }
+        
+        if let Ok(branches) = root.clear().between(0, 10, &z).scan(&code) {
+            assert_eq!(branches[0], 34);
+            assert_eq!(branches[1], 34);
+            assert_eq!(branches[2], 34);
+        }
+        else {
+            assert!(false);
+        }
+        
+        if let Ok(branches) = root.clear().between(4, 5, &z).scan(&code) {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+    }
+    
+    #[test]
+    fn test_char_in()
+    {
+        let mut digit: Rule<u32> = Rule::new(Some(Box::new(|_, l| vec![(l.chars().next().unwrap() as u32) - 48])));
+        digit.char_in('0', '9');
+        
+        let mut af: Rule<u32> = Rule::new(Some(Box::new(|_, l| vec![(l.chars().next().unwrap() as u32) - 55])));
+        af.char_in('A', 'F');
+        
+        let one_of_these = vec![&digit, &af];
+        
+        let mut hex: Rule<u32> = Rule::new(None);
+        hex.any_of(&one_of_these);
+        
+        let mut parse: Rule<u32> = Rule::new(Some(Box::new(|b, _| 
+        {
+            let mut m = 1u32;
+            let mut n = 0u32;
+            
+            for i in b.iter().rev() {
+                n += i * m;
+                m <<= 4;
+            }
+            
+            vec![n]
+        })));
+        parse.between(1, 8, &hex);
+        
+        if let Ok(branches) = parse.scan("A") {
+            assert_eq!(branches[0], 10);
+        }
+        else {
+            assert!(false);
+        }
+        
+        if let Ok(branches) = parse.scan("12345678") {
+            assert_eq!(branches[0], 305419896);
+        }
+        else {
+            assert!(false);
+        }
+        
+        if let Ok(branches) = parse.scan("FF") {
+            assert_eq!(branches[0], 255);
+        }
+        else {
+            assert!(false);
+        }
+        
+        if let Ok(branches) = parse.scan("FFFFFFFF") {
+            assert_eq!(branches[0], u32::max_value());
+        }
+        else {
+            assert!(false);
+        }
+        
+        if let Ok(branches) = parse.scan("FFFFFFFFF") {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+        
+        if let Ok(branches) = parse.scan("FFxFF") {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+        
+        if let Ok(branches) = parse.scan("") {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+    }
     
     #[test]
     #[should_panic]
@@ -962,58 +1145,13 @@ namespace Abitvin
 
 
 
-		public between(min: number, max: number, rule: Rule<TBranch, TMeta>): this
-        public between(charA: string, charB: string, notUsed?: any): this
-        public between(arg1: any, arg2: any, arg3: any): this
-		{
-            if (this.isString(arg1))
-            {
-                if (arg1.length !== 1)
-                    throw new Error("First argument can only be a one character string.");
-                
-                if (!this.isString(arg2) || arg2.length !== 1)
-                    throw new Error("Second argument can only be a one character string.");
-                
-                this._parts.push(this.scanCharRangeLeaf.bind(this, arg1.charCodeAt(0), arg2.charCodeAt(0)));
-            }
-            else if(this.isInteger(arg1))
-            {
-                if (!this.isInteger(arg2))
-                    throw new Error("Second argument is not an integer.");
-                    
-                if (!this.isRule(arg3))
-                    throw new Error("Third argument is not a rule.");
-                    
-                this._parts.push(this.scanRuleRange.bind(this, arg1, arg2, arg3));
-            }
-            else
-            {
-                throw new Error("First argument is not an integer or a one character string.");
-            }
-                
-			return this;
-		}
+		
         
         
         
         
 
-		private scanCharRangeLeaf(codeA: number, codeB: number, ctx: IScanContext<TBranch, TMeta>): number
-		{
-            const char: string = ctx.code[ctx.index];
-            
-            if (char == null)
-                return this.updateError(ctx, `End of code. Expected a character between '${String.fromCharCode(codeA)}' and '${String.fromCharCode(codeB)}'.`);
-                
-            const code: number = char.charCodeAt(0);
-            
-            if (code < codeA || code > codeB)
-                return this.updateError(ctx, `Expected a character between '${String.fromCharCode(codeA)}' and '${String.fromCharCode(codeB)}'; got a '${char}'.`);
-                
-            ctx.lexeme += char;
-            ctx.index++;
-            return 1;
-		}
+		
         
         
         
