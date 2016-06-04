@@ -143,35 +143,17 @@ mod abitvin
             self
         }
         
-        /*
-        public maybe(rule: Rule<TBranch, TMeta>): this
-		public maybe(text: string): this
-		public maybe(arg1: any): this
-		{
-			if (this.isString(arg1))
-                this._parts.push(this.scanRuleRange.bind(this, 0, 1, new Rule<TBranch, TMeta>().literal(arg1)));
-			else if(this.isRule(arg1))
-				this._parts.push(this.scanRuleRange.bind(this, 0, 1, arg1));
-            else
-                throw new Error("Argument is not a string or a rule.");
-
-			return this;
-		}
-
-		public noneOrMany(rule: Rule<TBranch, TMeta>): this
-		public noneOrMany(text: string): this
-		public noneOrMany(arg1: any): this
-		{
-            if (this.isString(arg1))
-			    this._parts.push(this.scanRuleRange.bind(this, 0, Number.POSITIVE_INFINITY, new Rule<TBranch, TMeta>().literal(arg1)));
-            else if(this.isRule(arg1))
-			    this._parts.push(this.scanRuleRange.bind(this, 0, Number.POSITIVE_INFINITY, arg1));
-            else
-                throw new Error("Argument is not a string or a rule.");
-                
-			return this;
-		}	
-        */
+        pub fn maybe(&mut self, rule: &'a Rule<'a, T>) -> &mut Self
+        {
+            self.parts.push(ScanFn::Range(0, 1, &rule));
+            self
+        }
+        
+        pub fn none_or_many(&mut self, rule: &'a Rule<'a, T>) -> &mut Self
+        {
+            self.parts.push(ScanFn::Range(0, u64::max_value(), &rule));
+            self
+        }
         
         pub fn one(&mut self, rule: &'a Rule<'a, T>) -> &mut Self
         {
@@ -215,7 +197,7 @@ mod abitvin
         
         // Private functions
         
-        fn branch(&'a self, ctx: &ScanCtx<'a, T> /*, isRootOfRule: bool*/) -> ScanCtx<T>
+        fn branch(&'a self, ctx: &ScanCtx<'a, T>, is_root_of_rule: bool) -> ScanCtx<T>
         {
             let new_ctx: ScanCtx<T> = ScanCtx {
                 branches: Vec::new(),
@@ -238,7 +220,7 @@ mod abitvin
             new_ctx
         }
         
-        fn merge(&'a self, target: &mut ScanCtx<'a, T>, source: &mut ScanCtx<'a, T> /*, isRootOfRule: bool = false*/) -> i64
+        fn merge(&'a self, target: &mut ScanCtx<'a, T>, source: &mut ScanCtx<'a, T>, is_root_of_rule: bool) -> i64
         {
             /* TODO
             if (isRootOfRule)
@@ -256,14 +238,14 @@ mod abitvin
             // TODO target.trail = source.trail;
            
             match self.branch_fn {
-                /* TODO isRootOfRule &&*/ Some(ref f) => {
+                Some(ref f) if is_root_of_rule => {
                     target.branches.append(&mut f(&source.branches, &source.lexeme));
                 },
-                None => {
+                _ => {
                     target.branches.append(&mut source.branches);
                 }
             }
-           
+            
             step
         }
         
@@ -275,7 +257,7 @@ mod abitvin
                 panic!("Rule is not defined.");
             }
             
-            let mut new_ctx = self.branch(&ctx /* TODO, true*/);
+            let mut new_ctx = self.branch(&ctx, true);
             
             for p in &self.parts {
                 let r = match *p {
@@ -293,7 +275,7 @@ mod abitvin
                 }
             }
             
-            self.merge(&mut ctx, &mut new_ctx/* TODO ,true */)
+            self.merge(&mut ctx, &mut new_ctx, true)
         }
         
         // TODO What about a char with more codepoints?
@@ -371,10 +353,10 @@ mod abitvin
         fn scan_any_of<'b>(&'b self, rules: &Vec<&'b Rule<T>>, mut ctx: &mut ScanCtx<'b, T>) -> i64
         {
             for r in rules {
-                let mut new_ctx = self.branch(&ctx /* TODO, false */);
+                let mut new_ctx = self.branch(&ctx, false);
                 
                 if r.run(&mut new_ctx) != -1 {
-                    return self.merge(&mut ctx, &mut new_ctx);
+                    return self.merge(&mut ctx, &mut new_ctx, false);
                 }
             }
             
@@ -419,7 +401,7 @@ mod abitvin
         
         fn scan_rule_range<'b>(&'b self, min: u64, max: u64, rule: &'b Rule<T>, mut ctx: &mut ScanCtx<'b, T>) -> i64
         {
-            let mut new_ctx = self.branch(&ctx /* TODO, false*/);
+            let mut new_ctx = self.branch(&ctx, false);
             let mut count = 0u64;
             
             loop {
@@ -441,7 +423,7 @@ mod abitvin
             }
             
             if count >= min && count <= max {
-                self.merge(&mut ctx, &mut new_ctx)
+                self.merge(&mut ctx, &mut new_ctx, false)
             }
             else {
                 -1
@@ -718,7 +700,12 @@ mod tests
     {
         let code = "y̆y̆y̆x̆";
         
-        let mut r: Rule<u64> = Rule::new(Some(Box::new(|_, _| vec![7777u64, 8888u64, 9999u64] )));
+        let mut r: Rule<u64> = Rule::new(Some(Box::new(|_, l| 
+        {
+            assert_eq!(l, "y̆y̆y̆x̆");
+            vec![7777u64, 8888u64, 9999u64]
+        })));
+        
         r.literal("y̆y̆").literal("y̆").literal("x̆");
         
         if let Ok(branches) = r.scan(&code) {
@@ -727,6 +714,110 @@ mod tests
             assert_eq!(branches[2], 9999u64);
         }
         else {
+            assert!(false);
+        }
+    }
+    
+    #[test]
+    fn test_maybe()
+    {
+        let codes = vec![
+            "xxx",
+            "...xxx",
+            "xxx...",
+            "...xxx...",
+        ];
+        
+        let mut dots: Rule<char> = Rule::new(None);
+        dots.literal("...");
+        
+        let mut xxx: Rule<char> = Rule::new(Some(Box::new(|_, _| vec!['x'] )));
+        xxx.literal("xxx");
+        
+        let mut root: Rule<char> = Rule::new(None);
+        root.maybe(&dots).one(&xxx).maybe(&dots);
+        
+        for c in codes {
+            if let Ok(branches) = root.scan(&c) {
+                assert!(branches.len() == 1 && branches[0] == 'x');
+            }
+            else {
+                assert!(false);
+            }
+        }
+    }
+    
+    #[test]
+    fn test_none_or_many()
+    {
+        let mut dot: Rule<bool> = Rule::new(Some(Box::new(|b, l| vec![true])));
+        dot.literal(".");
+        
+        let mut x: Rule<bool> = Rule::new(Some(Box::new(|b, l| vec![false])));
+        x.literal("x");
+        
+        let mut code1: Rule<bool> = Rule::new(Some(Box::new(|b, l|
+        {
+            assert_eq!(b.len(), 0);
+            assert_eq!(l, "");
+            Vec::new()
+        })));
+        
+        let mut code2: Rule<bool> = Rule::new(Some(Box::new(|b, l|
+        {
+            assert_eq!(b.len(), 1);
+            assert_eq!(b[0], false);
+            assert_eq!(l, "x");
+            Vec::new()
+        })));
+        
+        let mut code3: Rule<bool> = Rule::new(Some(Box::new(|b, l|
+        {
+            assert_eq!(b.len(), 2);
+            assert_eq!(b[0], true);
+            assert_eq!(b[1], true);
+            assert_eq!(l, "..");
+            Vec::new()
+        })));
+        
+        let mut code4: Rule<bool> = Rule::new(Some(Box::new(|b, l|
+        {
+            assert_eq!(b.len(), 3);
+            assert_eq!(b[0], false);
+            assert_eq!(b[1], false);
+            assert_eq!(b[2], true);
+            assert_eq!(l, "xx.");
+            Vec::new()
+        })));
+        
+        let mut code5: Rule<bool> = Rule::new(Some(Box::new(|b, l|
+        {
+            assert_eq!(b.len(), 4);
+            assert_eq!(b[0], true);
+            assert_eq!(b[1], true);
+            assert_eq!(b[2], false);
+            assert_eq!(b[3], false);
+            assert_eq!(l, "..xx");
+            Vec::new()
+        })));
+        
+        if let Err(_) = code1.none_or_many(&dot).none_or_many(&x).none_or_many(&dot).scan("") {
+            assert!(false);
+        }
+        
+        if let Err(_) = code2.none_or_many(&dot).none_or_many(&x).none_or_many(&dot).scan("x") {
+            assert!(false);
+        }
+        
+        if let Err(_) = code3.none_or_many(&dot).none_or_many(&x).none_or_many(&dot).scan("..") {
+            assert!(false);
+        }
+        
+        if let Err(_) = code4.none_or_many(&dot).none_or_many(&x).none_or_many(&dot).scan("xx.") {
+            assert!(false);
+        }
+        
+        if let Err(_) = code5.none_or_many(&dot).none_or_many(&x).none_or_many(&dot).scan("..xx") {
             assert!(false);
         }
     }
