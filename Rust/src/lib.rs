@@ -38,6 +38,7 @@ mod abitvin
         AnyOf(&'a Vec<&'a Rule<'a, T>>),
         Eof,
         Literal(&'static str),
+        Not(&'a Rule<'a, T>),
         Range(u64, u64, &'a Rule<'a, T>)
     }
     
@@ -155,6 +156,12 @@ mod abitvin
             self
         }
         
+        pub fn not(&mut self, rule: &'a Rule<'a, T>) -> &mut Self
+        {
+            self.parts.push(ScanFn::Not(&rule));
+            self
+        }
+        
         pub fn one(&mut self, rule: &'a Rule<'a, T>) -> &mut Self
         {
             self.parts.push(ScanFn::Range(1, 1, &rule));
@@ -267,6 +274,7 @@ mod abitvin
                     ScanFn::AnyOf(ref rules) => self.scan_any_of(&rules, &mut new_ctx),
                     ScanFn::Eof => self.scan_eof(&mut new_ctx),
                     ScanFn::Literal(find) => self.scan_literal_leaf(&find, &mut new_ctx),
+                    ScanFn::Not(ref r) => self.scan_not(&r, &mut new_ctx),
                     ScanFn::Range(min, max, ref r) => self.scan_rule_range(min, max, &r, &mut new_ctx),
                 };
                 
@@ -397,6 +405,16 @@ mod abitvin
             
             ctx.lexeme.push_str(find);
             step
+        }
+        
+        fn scan_not(&self, rule: &Rule<T>, mut ctx: &mut ScanCtx<T>) -> i64
+        {
+            if self.run(&mut self.branch(&ctx, false)) == -1 {
+                0
+            }
+            else {
+                -1
+            }
         }
         
         fn scan_rule_range<'b>(&'b self, min: u64, max: u64, rule: &'b Rule<T>, mut ctx: &mut ScanCtx<'b, T>) -> i64
@@ -823,6 +841,30 @@ mod tests
     }
     
     #[test]
+    fn test_not()
+    {
+        let mut not_this: Rule<i32> = Rule::new(None);
+        not_this.literal("not this");
+        
+        let mut r: Rule<i32> = Rule::new(None);
+        r.literal("aaa").not(&not_this).literal("bbb").literal("ccc");
+        
+        if let Ok(_) = r.scan("aaabbbccc") {
+            assert!(true);
+        }
+        else {
+            assert!(false);
+        }
+        
+        if let Ok(_) = r.scan("aaanot thisbbbccc") {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+    }
+    
+    #[test]
     fn test_one()
     {
         let code = "onetwothree";
@@ -954,21 +996,7 @@ namespace Abitvin
         
         
         
-        public not(rule: Rule<TBranch, TMeta>): this
-        public not(text: string): this
-        public not(arg1: any): this
-        {
-            if (this.isString(arg1))
-                this._parts.push(this.scanNot.bind(this, new Rule<TBranch, TMeta>().literal(arg1)));
-            else if (this.isRule(arg1))
-                this._parts.push(this.scanNot.bind(this, arg1));
-            else
-                throw new Error("Argument is not a string or a rule.");
-            
-            return this;
-        }
-
-		
+        
 
 		private scanCharRangeLeaf(codeA: number, codeB: number, ctx: IScanContext<TBranch, TMeta>): number
 		{
@@ -987,13 +1015,7 @@ namespace Abitvin
             return 1;
 		}
         
-        private scanNot(rule: Rule<TBranch, TMeta>, ctx: IScanContext<TBranch, TMeta>): number
-        {
-            if (rule.run(this.branch(ctx, false)) === -1)
-                return 0;
-            else
-                return -1;
-        }
+        
         
 		private showCode(text: string, position: number): void
         {
