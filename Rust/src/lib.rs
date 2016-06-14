@@ -4,18 +4,17 @@
 
 mod abitvin
 {
-    use std::rc::Rc;
     use std::str::Chars;
 
     // TODO What is the best way to store the branch closure?
     // http://stackoverflow.com/questions/27831944/how-do-i-store-a-closure-in-rust
     // TODO Simplify `Option<Box<Fn<...>>>` if we can.
+    // TODO I think we can do `Fn(Vec<T>, &str)`.
     pub type BranchFn<T> = Option<Box<Fn(&Vec<T>, &str) -> Vec<T>>>;
     
-    //#[derive(Clone)]
-    pub struct Rule<T> {
+    pub struct Rule<'a, T: 'a> {
         branch_fn: BranchFn<T>,
-        parts: Vec<ScanFn<T>>,
+        parts: Vec<ScanFn<'a, T>>,
     }
     
     pub struct RuleError {
@@ -35,16 +34,20 @@ mod abitvin
         }
     }
     
-    enum ScanFn<T> {
+    enum ScanFn<'a, T: 'a> {
         All,
         AllExcept(Vec<char>),
         Alter(Vec<(&'static str, &'static str)>),
-        AnyOf(Vec<Rc<Rule<T>>>),
+        AnyOf(Vec<&'a Rule<'a, T>>),
+        AnyOfOwned(Vec<Rule<'a, T>>),
         CharIn(char, char),
         Eof,
         Literal(&'static str),
-        Not(Rc<Rule<T>>),
-        Range(u64, u64, Rc<Rule<T>>)
+        Placeholder,
+        Not(&'a Rule<'a, T>),
+        NotOwned(Rule<'a, T>),
+        Range(u64, u64, &'a Rule<'a, T>),
+        RangeOwned(u64, u64, Rule<'a, T>)
     }
 
     struct ScanCtx<'a, T> {
@@ -57,7 +60,7 @@ mod abitvin
         // TODO trail: TMeta[];
     }
 
-    impl<T> Rule<T>
+    impl<'a, T> Rule<'a, T>
     {
         pub fn new(branch_fn: BranchFn<T>) -> Self
         {
@@ -97,37 +100,59 @@ mod abitvin
             self
         }
         
-        pub fn any_of(&mut self, rules: Vec<&Rc<Rule<T>>>) -> &mut Self
+        pub fn any_of(&mut self, rules: Vec<&'a Rule<'a, T>>) -> &mut Self
         {
             if rules.len() == 0 {
                 panic!("You must specify rules.");
             }
             
-            let mut cloned = Vec::new();
+            self.parts.push(ScanFn::AnyOf(rules));
+            self
+        }
 
-            for r in rules {
-                cloned.push(r.clone());
+        pub fn any_of_owned(&mut self, rules: Vec<Rule<'a, T>>) -> &mut Self
+        {
+            if rules.len() == 0 {
+                panic!("You must specify rules.");
             }
             
-            self.parts.push(ScanFn::AnyOf(cloned));
+            self.parts.push(ScanFn::AnyOfOwned(rules));
             self
         }
 
-        pub fn at_least(&mut self, count: u64, rule: &Rc<Rule<T>>) -> &mut Self
+        pub fn at_least(&mut self, count: u64, rule: &'a Rule<'a, T>) -> &mut Self
         {
-            self.parts.push(ScanFn::Range(count, u64::max_value(), rule.clone()));
+            self.parts.push(ScanFn::Range(count, u64::max_value(), &rule));
+            self
+        }
+
+        pub fn at_least_owned(&mut self, count: u64, rule: Rule<'a, T>) -> &mut Self
+        {
+            self.parts.push(ScanFn::RangeOwned(count, u64::max_value(), rule));
             self
         }
         
-        pub fn at_most(&mut self, count: u64, rule: &Rc<Rule<T>>) -> &mut Self
+        pub fn at_most(&mut self, count: u64, rule: &'a Rule<'a, T>) -> &mut Self
         {
-            self.parts.push(ScanFn::Range(0, count, rule.clone()));
+            self.parts.push(ScanFn::Range(0, count, &rule));
             self
         }
         
-        pub fn between(&mut self, min: u64, max: u64, rule: &Rc<Rule<T>>) -> &mut Self
+        pub fn at_most_owned(&mut self, count: u64, rule: Rule<'a, T>) -> &mut Self
         {
-            self.parts.push(ScanFn::Range(min, max, rule.clone()));
+            self.parts.push(ScanFn::RangeOwned(0, count, rule));
+            self
+        }
+        
+        pub fn between(&mut self, min: u64, max: u64, rule: &'a Rule<'a, T>) -> &mut Self
+        {
+            self.parts.push(ScanFn::Range(min, max, &rule));
+            self
+        }
+        
+        pub fn between_owned(&mut self, min: u64, max: u64, rule: Rule<'a, T>) -> &mut Self
+        {
+            self.parts.push(ScanFn::RangeOwned(min, max, rule));
             self
         }
         
@@ -149,17 +174,18 @@ mod abitvin
             self
         }
         
-        pub fn exact(&mut self, count: u64, rule: &Rc<Rule<T>>) -> &mut Self
+        pub fn exact(&mut self, count: u64, rule: &'a Rule<'a, T>) -> &mut Self
         {
-            self.parts.push(ScanFn::Range(count, count, rule.clone()));
+            self.parts.push(ScanFn::Range(count, count, &rule));
             self
         }
 
-        pub fn into_rc(self) -> Rc<Self>
+        pub fn exact_owned(&mut self, count: u64, rule: Rule<'a, T>) -> &mut Self
         {
-            Rc::new(self)
+            self.parts.push(ScanFn::RangeOwned(count, count, rule));
+            self
         }
-        
+
         pub fn literal(&mut self, text: &'static str) -> &mut Self
         {
             if text.len() < 1 {
@@ -170,27 +196,51 @@ mod abitvin
             self
         }
 
-        pub fn maybe(&mut self, rule: &Rc<Rule<T>>) -> &mut Self
+        pub fn maybe(&mut self, rule: &'a Rule<'a, T>) -> &mut Self
         {
-            self.parts.push(ScanFn::Range(0, 1, rule.clone()));
+            self.parts.push(ScanFn::Range(0, 1, &rule));
             self
         }
         
-        pub fn none_or_many(&mut self, rule: &Rc<Rule<T>>) -> &mut Self
+        pub fn maybe_owned(&mut self, rule: Rule<'a, T>) -> &mut Self
         {
-            self.parts.push(ScanFn::Range(0, u64::max_value(), rule.clone()));
+            self.parts.push(ScanFn::RangeOwned(0, 1, rule));
             self
         }
         
-        pub fn not(&mut self, rule: &Rc<Rule<T>>) -> &mut Self
+        pub fn none_or_many(&mut self, rule: &'a Rule<'a, T>) -> &mut Self
         {
-            self.parts.push(ScanFn::Not(rule.clone()));
+            self.parts.push(ScanFn::Range(0, u64::max_value(), &rule));
             self
         }
         
-        pub fn one(&mut self, rule: &Rc<Rule<T>>) -> &mut Self
+        pub fn none_or_many_owned(&mut self, rule: Rule<'a, T>) -> &mut Self
         {
-            self.parts.push(ScanFn::Range(1, 1, rule.clone()));
+            self.parts.push(ScanFn::RangeOwned(0, u64::max_value(), rule));
+            self
+        }
+        
+        pub fn not(&mut self, rule: &'a Rule<'a, T>) -> &mut Self
+        {
+            self.parts.push(ScanFn::Not(&rule));
+            self
+        }
+        
+        pub fn not_owned(&mut self, rule: Rule<'a, T>) -> &mut Self
+        {
+            self.parts.push(ScanFn::NotOwned(rule));
+            self
+        }
+        
+        pub fn one(&mut self, rule: &'a Rule<'a, T>) -> &mut Self
+        {
+            self.parts.push(ScanFn::Range(1, 1, &rule));
+            self
+        }
+
+        pub fn one_owned(&mut self, rule: Rule<'a, T>) -> &mut Self
+        {
+            self.parts.push(ScanFn::RangeOwned(1, 1, rule));
             self
         }
 
@@ -230,7 +280,7 @@ mod abitvin
 
         // Private functions
 
-        fn branch<'a>(&'a self, ctx: &ScanCtx<'a, T>, is_root_of_rule: bool) -> ScanCtx<T>
+        fn branch<'b>(&'b self, ctx: &ScanCtx<'b, T>, is_root_of_rule: bool) -> ScanCtx<T>
         {
             let new_ctx = ScanCtx {
                 branches: Vec::new(),
@@ -253,7 +303,7 @@ mod abitvin
             new_ctx
         }
         
-        fn merge<'a>(&'a self, target: &mut ScanCtx<'a, T>, source: &mut ScanCtx<'a, T>, is_root_of_rule: bool) -> i64
+        fn merge<'b>(&self, target: &mut ScanCtx<'b, T>, source: &mut ScanCtx<'b, T>, is_root_of_rule: bool) -> i64
         {
             /* TODO
             if (isRootOfRule)
@@ -284,7 +334,7 @@ mod abitvin
         
         // TODO Why I need `mut ctx` here: 
         // https://www.reddit.com/r/rust/comments/2sjicp/use_of_mut_in_function_signature/
-        fn run<'a>(&'a self, mut ctx: &mut ScanCtx<'a, T>) -> i64
+        fn run<'b>(&'b self, mut ctx: &mut ScanCtx<'b, T>) -> i64
         {
             if self.parts.len() == 0 {
                 panic!("Rule is not defined.");
@@ -297,12 +347,16 @@ mod abitvin
                     ScanFn::All => self.scan_all_leaf(&mut new_ctx),
                     ScanFn::AllExcept(ref exclude) => self.scan_all_except_leaf(&exclude, &mut new_ctx),
                     ScanFn::Alter(ref alter) => self.scan_alter_leaf(&alter, &mut new_ctx),
-                    ScanFn::AnyOf(ref rules) => self.scan_any_of(&rules, &mut new_ctx),
+                    ScanFn::AnyOf(ref rules) => self.scan_any_of(rules, &mut new_ctx),
+                    ScanFn::AnyOfOwned(ref rules) => self.scan_any_of_owned(rules, &mut new_ctx),
                     ScanFn::CharIn(min, max) => self.scan_char_in_leaf(min, max, &mut new_ctx),
                     ScanFn::Eof => self.scan_eof(&mut new_ctx),
                     ScanFn::Literal(find) => self.scan_literal_leaf(&find, &mut new_ctx),
                     ScanFn::Not(ref r) => self.scan_not(&r, &mut new_ctx),
+                    ScanFn::NotOwned(ref r) => self.scan_not(&r, &mut new_ctx),
+                    ScanFn::Placeholder => panic!("Error, placeholder found."),
                     ScanFn::Range(min, max, ref r) => self.scan_rule_range(min, max, &r, &mut new_ctx),
+                    ScanFn::RangeOwned(min, max, ref r) => self.scan_rule_range(min, max, &r, &mut new_ctx),
                 };
                 
                 if r == -1 {
@@ -385,11 +439,24 @@ mod abitvin
             self.update_error(&mut ctx, String::from("Alter characters not found on this position."))
         }
         
-        fn scan_any_of<'a>(&'a self, rules: &'a Vec<Rc<Rule<T>>>, mut ctx: &mut ScanCtx<'a, T>) -> i64
+        fn scan_any_of<'b>(&'b self, rules: &Vec<&'a Rule<T>>, mut ctx: &mut ScanCtx<'b, T>) -> i64
         {
             for r in rules {
                 let mut new_ctx = self.branch(&ctx, false);
-                
+
+                if r.run(&mut new_ctx) != -1 {
+                    return self.merge(&mut ctx, &mut new_ctx, false);
+                }
+            }
+            
+            -1
+        }
+
+        fn scan_any_of_owned<'b>(&'b self, rules: &'b Vec<Rule<T>>, mut ctx: &mut ScanCtx<'b, T>) -> i64
+        {
+            for r in rules {
+                let mut new_ctx = self.branch(&ctx, false);
+
                 if r.run(&mut new_ctx) != -1 {
                     return self.merge(&mut ctx, &mut new_ctx, false);
                 }
@@ -457,7 +524,7 @@ mod abitvin
         
         fn scan_not(&self, rule: &Rule<T>, mut ctx: &mut ScanCtx<T>) -> i64
         {
-            if self.run(&mut self.branch(&ctx, false)) == -1 {
+            if rule.run(&mut self.branch(&ctx, false)) == -1 {
                 0
             }
             else {
@@ -465,7 +532,7 @@ mod abitvin
             }
         }
         
-        fn scan_rule_range<'a>(&'a self, min: u64, max: u64, rule: &'a Rule<T>, mut ctx: &mut ScanCtx<'a, T>) -> i64
+        fn scan_rule_range<'b>(&'b self, min: u64, max: u64, rule: &'a Rule<T>, mut ctx: &mut ScanCtx<'b, T>) -> i64
         {
             let mut new_ctx = self.branch(&ctx, false);
             let mut count = 0u64;
@@ -521,593 +588,6 @@ mod abitvin
             -1
         }
     }
-}
-
-
-#[cfg(test)]
-mod tests 
-{
-    use abitvin::Rule;
-    use std::rc::Rc;
-    
-    #[test]
-    fn test_all()
-    {
-        let code = "abcdefg";
-        
-        let f = |_: &Vec<bool>, l: &str| {
-            assert_eq!(l, "abcdefg");
-            vec![true, false, false, true]
-        };
-        
-        let mut r: Rule<bool> = Rule::new(Some(Box::new(f)));
-        r.all().all().all().all().all().all().all();
-        
-        if let Ok(branches) = r.scan(&code) {
-            assert_eq!(branches[0], true);
-            assert_eq!(branches[1], false);
-            assert_eq!(branches[2], false);
-            assert_eq!(branches[3], true);
-        }
-        else {
-            assert!(false);
-        }
-    }
-    
-    #[test]
-    fn test_all_except()
-    {
-        let code = "abc";
-        
-        let f = |_: &Vec<u32>, l: &str| {
-            assert_eq!(l, "abc");
-            vec![0u32, 1u32, 2u32, 3u32]
-        };
-        
-        let mut c: Rule<u32> = Rule::new(None);
-        c.all_except(vec!['A', 'B', 'C', 'D']);
-        
-        let mut r: Rule<u32> = Rule::new(Some(Box::new(f)));
-        r.exact(3, &c.into_rc());
-        
-        if let Ok(branches) = r.scan(&code) {
-            assert_eq!(branches[0], 0u32);
-            assert_eq!(branches[1], 1u32);
-            assert_eq!(branches[2], 2u32);
-            assert_eq!(branches[3], 3u32);
-        }
-        else {
-            assert!(false);
-        }
-    }
-    
-    #[test]
-    fn test_alter()
-    {
-        let code = "aaabbbccc";
-        
-        let alterations = vec![
-            ("aaa", "AAA"),
-            ("bbb", "BBB"),
-            ("ccc", "CCC"),
-        ];
-        
-        let mut a: Rule<i32> = Rule::new(None);
-        a.alter(alterations);
-
-        let f = |_: &Vec<i32>, l: &str| {
-            assert_eq!(l, "AAABBBCCC");
-            vec![111, 222]
-        }; 
-        
-        let mut r: Rule<i32> = Rule::new(Some(Box::new(f)));
-        r.exact(3, &a.into_rc());
-        
-        if let Ok(branches) = r.scan(&code) {
-            assert_eq!(branches[0], 111);
-            assert_eq!(branches[1], 222);
-        }
-        else {
-            assert!(false);
-        }
-    }
-    
-    #[test]
-    fn test_any_of()
-    {
-        let code = "aaabbbccc";
-        
-        let aaa_fn = |_: &Vec<i32>, l: &str| {
-            assert_eq!(l, "aaa");
-            vec![111]
-        }; 
-        
-        let bbb_fn = |_: &Vec<i32>, l: &str| {
-            assert_eq!(l, "bbb");
-            vec![222]
-        };
-        
-        let ccc_fn = |_: &Vec<i32>, l: &str| {
-            assert_eq!(l, "ccc");
-            vec![333]
-        };
-        
-        let mut aaa: Rule<i32> = Rule::new(Some(Box::new(aaa_fn)));
-        aaa.literal("aaa");
-        
-        let mut bbb: Rule<i32> = Rule::new(Some(Box::new(bbb_fn)));
-        bbb.literal("bbb");
-        
-        let mut ccc: Rule<i32> = Rule::new(Some(Box::new(ccc_fn)));
-        ccc.literal("ccc");
-        
-        let mut any_of_these: Rule<i32> = Rule::new(None);
-        any_of_these.any_of(vec![&aaa.into_rc(), &bbb.into_rc(), &ccc.into_rc()]);
-        
-        let mut root: Rule<i32> = Rule::new(None);
-        root.exact(3, &any_of_these.into_rc());
-        
-        if let Ok(branches) = root.scan(&code) {
-            assert_eq!(branches[0], 111);
-            assert_eq!(branches[1], 222);
-            assert_eq!(branches[2], 333);
-        }
-        else {
-            assert!(false);
-        }
-    }
-    
-    #[test]
-    fn test_at_least()
-    {
-        let code = "xxxx";
-        
-        let mut x: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![10] )));
-        x.literal("x");
-        let x = x.into_rc();
-
-        let mut root: Rule<i32> = Rule::new(None);
-        
-        if let Ok(branches) = root.at_least(3, &x).scan(&code) {
-            assert_eq!(branches[0], 10);
-            assert_eq!(branches[1], 10);
-            assert_eq!(branches[2], 10);
-            assert_eq!(branches[3], 10);
-        }
-        else {
-            assert!(false);
-        }
-        
-        if let Ok(branches) = root.clear().at_least(4, &x).scan(&code) {
-            assert_eq!(branches[0], 10);
-            assert_eq!(branches[1], 10);
-            assert_eq!(branches[2], 10);
-            assert_eq!(branches[3], 10);
-        }
-        else {
-            assert!(false);
-        }
-        
-        if let Ok(branches) = root.clear().at_least(5, &x).scan(&code) {
-            assert!(false);
-        }
-        else {
-            assert!(true);
-        }
-    }
-    
-    #[test]
-    fn test_at_most()
-    {
-        let code = "yyy";
-        
-        let mut y: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![14] )));
-        y.literal("y");
-        let y = y.into_rc();
-       
-        let mut root: Rule<i32> = Rule::new(None);
-        
-        if let Ok(branches) = root.at_most(2, &y).scan(&code) {
-            assert!(false);
-        }
-        else {
-            assert!(true);
-        }
-        
-        if let Ok(branches) = root.clear().at_most(3, &y).scan(&code) {
-            assert_eq!(branches[0], 14);
-            assert_eq!(branches[1], 14);
-            assert_eq!(branches[2], 14);
-        }
-        else {
-            assert!(false);
-        }
-        
-        if let Ok(branches) = root.clear().at_most(4, &y).scan(&code) {
-            assert_eq!(branches[0], 14);
-            assert_eq!(branches[1], 14);
-            assert_eq!(branches[2], 14);
-        }
-        else {
-            assert!(false);
-        }
-    }
-    
-    #[test]
-    fn test_between()
-    {
-        let code = "zzz";
-        
-        let mut z: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![34])));
-        z.literal("z");
-        let z = z.into_rc();
-       
-        let mut root: Rule<i32> = Rule::new(None);
-        
-        if let Ok(branches) = root.between(1, 3, &z).scan(&code) {
-            assert_eq!(branches[0], 34);
-            assert_eq!(branches[1], 34);
-            assert_eq!(branches[2], 34);
-        }
-        else {
-            assert!(true);
-        }
-        
-        if let Ok(branches) = root.clear().between(0, 10, &z).scan(&code) {
-            assert_eq!(branches[0], 34);
-            assert_eq!(branches[1], 34);
-            assert_eq!(branches[2], 34);
-        }
-        else {
-            assert!(false);
-        }
-        
-        if let Ok(branches) = root.clear().between(4, 5, &z).scan(&code) {
-            assert!(false);
-        }
-        else {
-            assert!(true);
-        }
-    }
-    
-    #[test]
-    fn test_char_in()
-    {
-        let mut digit: Rule<u32> = Rule::new(Some(Box::new(|_, l| vec![(l.chars().next().unwrap() as u32) - 48])));
-        digit.char_in('0', '9');
-        
-        let mut af: Rule<u32> = Rule::new(Some(Box::new(|_, l| vec![(l.chars().next().unwrap() as u32) - 55])));
-        af.char_in('A', 'F');
-
-        let mut hex: Rule<u32> = Rule::new(None);
-        hex.any_of(vec![&digit.into_rc(), &af.into_rc()]);
-        let hex = hex.into_rc();
-        
-        let mut parse: Rule<u32> = Rule::new(Some(Box::new(|b, _| 
-        {
-            let mut m = 1u32;
-            let mut n = 0u32;
-            
-            for i in b.iter().rev() {
-                n += i * m;
-                m <<= 4;
-            }
-            
-            vec![n]
-        })));
-        parse.between(1, 8, &hex);
-        
-        if let Ok(branches) = parse.scan("A") {
-            assert_eq!(branches[0], 10);
-        }
-        else {
-            assert!(false);
-        }
-        
-        if let Ok(branches) = parse.scan("12345678") {
-            assert_eq!(branches[0], 305419896);
-        }
-        else {
-            assert!(false);
-        }
-        
-        if let Ok(branches) = parse.scan("FF") {
-            assert_eq!(branches[0], 255);
-        }
-        else {
-            assert!(false);
-        }
-        
-        if let Ok(branches) = parse.scan("FFFFFFFF") {
-            assert_eq!(branches[0], u32::max_value());
-        }
-        else {
-            assert!(false);
-        }
-        
-        if let Ok(branches) = parse.scan("FFFFFFFFF") {
-            assert!(false);
-        }
-        else {
-            assert!(true);
-        }
-        
-        if let Ok(branches) = parse.scan("FFxFF") {
-            assert!(false);
-        }
-        else {
-            assert!(true);
-        }
-        
-        if let Ok(branches) = parse.scan("") {
-            assert!(false);
-        }
-        else {
-            assert!(true);
-        }
-    }
-    
-    #[test]
-    #[should_panic]
-    fn test_clear()
-    {
-        let code = "Ello'";
-        
-        let mut r: Rule<char> = Rule::new(None);
-        r.literal("Ello'");
-        r.clear();
-        r.scan(&code);   // Panic! We cleared the rule.
-    }
-    
-    #[test]
-    fn test_eof()
-    {
-        let code = "123";
-        
-        let mut r: Rule<char> = Rule::new(Some(Box::new(|_, _| vec!['A', 'B'] )));
-        r.literal("123").eof();
-        
-        if let Ok(branches) = r.scan(&code) {
-            assert_eq!(branches[0], 'A');
-            assert_eq!(branches[1], 'B');
-        }
-        else {
-            assert!(false);
-        }
-    }
-    
-    #[test]
-    fn test_exact()
-    {
-        let code = "..........";
-        
-        let mut dot: Rule<char> = Rule::new(Some(Box::new(|_, _| vec!['.'] )));
-        dot.literal(".");
-        let dot = dot.into_rc();
-        
-        let mut nope: Rule<char> = Rule::new(Some(Box::new(|_, _| vec!['x'] )));
-        nope.literal("nope");
-        let nope = nope.into_rc();
-        
-        let mut root: Rule<char> = Rule::new(None);
-        
-        if let Ok(branches) = root.exact(10, &dot).scan(&code) {
-            assert!(branches.len() == 10 && branches.into_iter().any(|c| c == '.'));
-        }
-        else {
-            assert!(false);
-        }
-        
-        if let Ok(branches) = root.clear().exact(9, &dot).scan(&code) {
-            assert!(false);
-        }
-        else {
-            assert!(true);
-        }
-        
-        if let Ok(branches) = root.clear().exact(11, &dot).scan(&code) {
-            assert!(false);
-        }
-        else {
-            assert!(true);
-        }
-        
-        if let Ok(branches) = root.clear().exact(0, &nope).exact(10, &dot).exact(0, &nope).scan(&code) {
-            assert!(branches.len() == 10 && branches.into_iter().any(|c| c == '.'));
-        }
-        else {
-            assert!(false);
-        }
-    }
-    
-    #[test]
-    fn test_literal()
-    {
-        let code = "y̆y̆y̆x̆";
-        
-        let mut r: Rule<u64> = Rule::new(Some(Box::new(|_, l| 
-        {
-            assert_eq!(l, "y̆y̆y̆x̆");
-            vec![7777u64, 8888u64, 9999u64]
-        })));
-        
-        r.literal("y̆y̆").literal("y̆").literal("x̆");
-        
-        if let Ok(branches) = r.scan(&code) {
-            assert_eq!(branches[0], 7777u64);
-            assert_eq!(branches[1], 8888u64);
-            assert_eq!(branches[2], 9999u64);
-        }
-        else {
-            assert!(false);
-        }
-    }
-    
-    #[test]
-    fn test_maybe()
-    {
-        let codes = vec![
-            "xxx",
-            "...xxx",
-            "xxx...",
-            "...xxx...",
-        ];
-        
-        let mut dots: Rule<char> = Rule::new(None);
-        dots.literal("...");
-        let dots = dots.into_rc();
-        
-        let mut xxx: Rule<char> = Rule::new(Some(Box::new(|_, _| vec!['x'] )));
-        xxx.literal("xxx");
-        let xxx = xxx.into_rc();
-        
-        let mut root: Rule<char> = Rule::new(None);
-        root.maybe(&dots).one(&xxx).maybe(&dots);
-        
-        for c in codes {
-            if let Ok(branches) = root.scan(&c) {
-                assert!(branches.len() == 1 && branches[0] == 'x');
-            }
-            else {
-                assert!(false);
-            }
-        }
-    }
-    
-    #[test]
-    fn test_none_or_many()
-    {
-        let mut dot: Rule<bool> = Rule::new(Some(Box::new(|b, l| vec![true])));
-        dot.literal(".");
-        let dot = dot.into_rc();
-        
-        let mut x: Rule<bool> = Rule::new(Some(Box::new(|b, l| vec![false])));
-        x.literal("x");
-        let x = x.into_rc();
-        
-        let mut code1: Rule<bool> = Rule::new(Some(Box::new(|b, l|
-        {
-            assert_eq!(b.len(), 0);
-            assert_eq!(l, "");
-            Vec::new()
-        })));
-        
-        let mut code2: Rule<bool> = Rule::new(Some(Box::new(|b, l|
-        {
-            assert_eq!(b.len(), 1);
-            assert_eq!(b[0], false);
-            assert_eq!(l, "x");
-            Vec::new()
-        })));
-        
-        let mut code3: Rule<bool> = Rule::new(Some(Box::new(|b, l|
-        {
-            assert_eq!(b.len(), 2);
-            assert_eq!(b[0], true);
-            assert_eq!(b[1], true);
-            assert_eq!(l, "..");
-            Vec::new()
-        })));
-        
-        let mut code4: Rule<bool> = Rule::new(Some(Box::new(|b, l|
-        {
-            assert_eq!(b.len(), 3);
-            assert_eq!(b[0], false);
-            assert_eq!(b[1], false);
-            assert_eq!(b[2], true);
-            assert_eq!(l, "xx.");
-            Vec::new()
-        })));
-        
-        let mut code5: Rule<bool> = Rule::new(Some(Box::new(|b, l|
-        {
-            assert_eq!(b.len(), 4);
-            assert_eq!(b[0], true);
-            assert_eq!(b[1], true);
-            assert_eq!(b[2], false);
-            assert_eq!(b[3], false);
-            assert_eq!(l, "..xx");
-            Vec::new()
-        })));
-        
-        if let Err(_) = code1.none_or_many(&dot).none_or_many(&x).none_or_many(&dot).scan("") {
-            assert!(false);
-        }
-        
-        if let Err(_) = code2.none_or_many(&dot).none_or_many(&x).none_or_many(&dot).scan("x") {
-            assert!(false);
-        }
-        
-        if let Err(_) = code3.none_or_many(&dot).none_or_many(&x).none_or_many(&dot).scan("..") {
-            assert!(false);
-        }
-        
-        if let Err(_) = code4.none_or_many(&dot).none_or_many(&x).none_or_many(&dot).scan("xx.") {
-            assert!(false);
-        }
-        
-        if let Err(_) = code5.none_or_many(&dot).none_or_many(&x).none_or_many(&dot).scan("..xx") {
-            assert!(false);
-        }
-    }
-    
-    #[test]
-    fn test_not()
-    {
-        let mut not_this: Rule<i32> = Rule::new(None);
-        not_this.literal("not this");
-        
-        let mut r: Rule<i32> = Rule::new(None);
-        r.literal("aaa").not(&not_this.into_rc()).literal("bbb").literal("ccc");
-        
-        if let Ok(_) = r.scan("aaabbbccc") {
-            assert!(true);
-        }
-        else {
-            assert!(false);
-        }
-        
-        if let Ok(_) = r.scan("aaanot thisbbbccc") {
-            assert!(false);
-        }
-        else {
-            assert!(true);
-        }
-    }
-    
-    #[test]
-    fn test_one()
-    {
-        let code = "onetwothree";
-        
-        let mut one: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![1] )));
-        one.literal("one");
-        
-        let mut two: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![2] )));
-        two.literal("two");
-        
-        let mut three: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![3] )));
-        three.literal("three");
-        
-        let mut root: Rule<i32> = Rule::new(None);
-        root.one(&one.into_rc()).one(&two.into_rc()).one(&three.into_rc());
-        
-        if let Ok(branches) = root.scan(&code) {
-            assert_eq!(branches[0], 1);
-            assert_eq!(branches[1], 2);
-            assert_eq!(branches[2], 3);
-        }
-        else {
-            assert!(false);
-        }
-    }
-}
-
-/*
-mod abitvin
-{
-    
-
 
     /////////////
     // Grammer //
@@ -1127,7 +607,7 @@ mod abitvin
         Not
     }
     
-    struct ParseContext<'a, T: 'a>
+    struct ParseContext<'a, T>
     {
         arg1: u64,
         arg2: u64,
@@ -1139,27 +619,28 @@ mod abitvin
     // TODO TMeta class R<TB, TM> extends Rule<IParseContext<TB, TM>, IEmpty> {}
     type R<'a, T> = Rule<'a, ParseContext<'a, T>>;
     
-    // TODO Note: This was IRule, remove this later after porting.
-    struct RuleExpr<'a, T: 'a>
+    // TODO Note: This was IRule, remove this comment later after porting.
+    struct RuleExpr<'a, T>
     {
         id: &'static str,
         is_defined: bool,
         rule: Rule<'a, T>
     }
     
-    pub struct Grammer<'a, T: 'a> /* <TBranch, TMeta> */
+    pub struct Grammer<'a, T> /* <TBranch, TMeta> */
     {
         grammer: R<'a, T>,
-        rule_exps: BTreeMap<&'a str, RuleExpr<'a, T>>,
+        rule_exps: BTreeMap<&'static str, RuleExpr<'a, T>>,
         ws: Rule<'a, T>,
     }
     
-    impl<'a, T: 'a> Grammer<'a, T>
+    impl<'a, T> Grammer<'a, T>
     {
-        pub fn new() -> Grammer<'a, T>
+        pub fn new() -> Self
         {
-            Grammer 
-            {
+
+
+            Grammer {
                 // TODO this._grammer = new R<TBranch, TMeta>().noneOrMany(statement);
                 grammer: R::new(None), 
                 rule_exps: BTreeMap::new(),
@@ -1662,7 +1143,7 @@ mod abitvin
             }
         }
         
-        pub fn ws(&'a mut self, expr: &'static str) 
+        pub fn ws(&mut self, expr: &'static str) 
         {
             // TODO
             panic!("Not implemented yet.");
@@ -1715,9 +1196,690 @@ mod abitvin
             }
         }
         */
-    }
-    */
+    }*/
 }
+
+#[cfg(test)]
+mod tests 
+{
+    use abitvin::Rule;
+    use std::rc::Rc;
+    
+    #[test]
+    fn all()
+    {
+        let code = "abcdefg";
+        
+        let f = |_: &Vec<bool>, l: &str| {
+            assert_eq!(l, "abcdefg");
+            vec![true, false, false, true]
+        };
+        
+        let mut r: Rule<bool> = Rule::new(Some(Box::new(f)));
+        r.all().all().all().all().all().all().all();
+        
+        if let Ok(branches) = r.scan(&code) {
+            assert_eq!(branches[0], true);
+            assert_eq!(branches[1], false);
+            assert_eq!(branches[2], false);
+            assert_eq!(branches[3], true);
+        }
+        else {
+            assert!(false);
+        }
+    }
+    
+    #[test]
+    fn all_except()
+    {
+        let code = "abc";
+        
+        let f = |_: &Vec<u32>, l: &str| {
+            assert_eq!(l, "abc");
+            vec![0u32, 1u32, 2u32, 3u32]
+        };
+        
+        let mut c: Rule<u32> = Rule::new(None);
+        c.all_except(vec!['A', 'B', 'C', 'D']);
+        
+        let mut r: Rule<u32> = Rule::new(Some(Box::new(f)));
+        r.exact_owned(3, c);
+        
+        if let Ok(branches) = r.scan(&code) {
+            assert_eq!(branches[0], 0u32);
+            assert_eq!(branches[1], 1u32);
+            assert_eq!(branches[2], 2u32);
+            assert_eq!(branches[3], 3u32);
+        }
+        else {
+            assert!(false);
+        }
+    }
+    
+    #[test]
+    fn alter()
+    {
+        let code = "aaabbbccc";
+        
+        let alterations = vec![
+            ("aaa", "AAA"),
+            ("bbb", "BBB"),
+            ("ccc", "CCC"),
+        ];
+        
+        let mut a: Rule<i32> = Rule::new(None);
+        a.alter(alterations);
+
+        let f = |_: &Vec<i32>, l: &str| {
+            assert_eq!(l, "AAABBBCCC");
+            vec![111, 222]
+        }; 
+        
+        let mut r: Rule<i32> = Rule::new(Some(Box::new(f)));
+        r.exact_owned(3, a);
+        
+        if let Ok(branches) = r.scan(&code) {
+            assert_eq!(branches[0], 111);
+            assert_eq!(branches[1], 222);
+        }
+        else {
+            assert!(false);
+        }
+    }
+    
+    #[test]
+    fn any_of()
+    {
+        let code = "aaabbbccc";
+        
+        let aaa_fn = |_: &Vec<i32>, l: &str| {
+            assert_eq!(l, "aaa");
+            vec![111]
+        }; 
+        
+        let bbb_fn = |_: &Vec<i32>, l: &str| {
+            assert_eq!(l, "bbb");
+            vec![222]
+        };
+        
+        let ccc_fn = |_: &Vec<i32>, l: &str| {
+            assert_eq!(l, "ccc");
+            vec![333]
+        };
+        
+        let mut aaa: Rule<i32> = Rule::new(Some(Box::new(aaa_fn)));
+        aaa.literal("aaa");
+        
+        let mut bbb: Rule<i32> = Rule::new(Some(Box::new(bbb_fn)));
+        bbb.literal("bbb");
+        
+        let mut ccc: Rule<i32> = Rule::new(Some(Box::new(ccc_fn)));
+        ccc.literal("ccc");
+        
+        let mut any_of_these: Rule<i32> = Rule::new(None);
+        any_of_these.any_of_owned(vec![aaa, bbb, ccc]);
+        
+        let mut root: Rule<i32> = Rule::new(None);
+        root.exact_owned(3, any_of_these);
+        
+        if let Ok(branches) = root.scan(&code) {
+            assert_eq!(branches[0], 111);
+            assert_eq!(branches[1], 222);
+            assert_eq!(branches[2], 333);
+        }
+        else {
+            assert!(false);
+        }
+    }
+
+    #[test]
+    fn at_least()
+    {
+        let code = "xxxx";
+        
+        let mut x: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![10] )));
+        x.literal("x");
+        
+        let mut root: Rule<i32> = Rule::new(None);
+        
+        if let Ok(branches) = root.at_least(3, &x).scan(&code) {
+            assert_eq!(branches[0], 10);
+            assert_eq!(branches[1], 10);
+            assert_eq!(branches[2], 10);
+            assert_eq!(branches[3], 10);
+        }
+        else {
+            assert!(false);
+        }
+        
+        if let Ok(branches) = root.clear().at_least(4, &x).scan(&code) {
+            assert_eq!(branches[0], 10);
+            assert_eq!(branches[1], 10);
+            assert_eq!(branches[2], 10);
+            assert_eq!(branches[3], 10);
+        }
+        else {
+            assert!(false);
+        }
+        
+        if let Ok(branches) = root.clear().at_least(5, &x).scan(&code) {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+    }
+    
+    #[test]
+    fn at_most()
+    {
+        let code = "yyy";
+        
+        let mut y: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![14] )));
+        y.literal("y");
+               
+        let mut root: Rule<i32> = Rule::new(None);
+        
+        if let Ok(branches) = root.at_most(2, &y).scan(&code) {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+        
+        if let Ok(branches) = root.clear().at_most(3, &y).scan(&code) {
+            assert_eq!(branches[0], 14);
+            assert_eq!(branches[1], 14);
+            assert_eq!(branches[2], 14);
+        }
+        else {
+            assert!(false);
+        }
+        
+        if let Ok(branches) = root.clear().at_most(4, &y).scan(&code) {
+            assert_eq!(branches[0], 14);
+            assert_eq!(branches[1], 14);
+            assert_eq!(branches[2], 14);
+        }
+        else {
+            assert!(false);
+        }
+    }
+    
+    #[test]
+    fn between()
+    {
+        let code = "zzz";
+        
+        let mut z: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![34])));
+        z.literal("z");
+               
+        let mut root: Rule<i32> = Rule::new(None);
+        
+        if let Ok(branches) = root.between(1, 3, &z).scan(&code) {
+            assert_eq!(branches[0], 34);
+            assert_eq!(branches[1], 34);
+            assert_eq!(branches[2], 34);
+        }
+        else {
+            assert!(true);
+        }
+        
+        if let Ok(branches) = root.clear().between(0, 10, &z).scan(&code) {
+            assert_eq!(branches[0], 34);
+            assert_eq!(branches[1], 34);
+            assert_eq!(branches[2], 34);
+        }
+        else {
+            assert!(false);
+        }
+        
+        if let Ok(branches) = root.clear().between(4, 5, &z).scan(&code) {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+    }
+    
+    #[test]
+    fn char_in()
+    {
+        let mut digit: Rule<u32> = Rule::new(Some(Box::new(|_, l| vec![(l.chars().next().unwrap() as u32) - 48])));
+        digit.char_in('0', '9');
+        
+        let mut af: Rule<u32> = Rule::new(Some(Box::new(|_, l| vec![(l.chars().next().unwrap() as u32) - 55])));
+        af.char_in('A', 'F');
+
+        let mut hex: Rule<u32> = Rule::new(None);
+        hex.any_of_owned(vec![digit, af]);
+                
+        let mut parse: Rule<u32> = Rule::new(Some(Box::new(|b, _| 
+        {
+            let mut m = 1u32;
+            let mut n = 0u32;
+            
+            for i in b.iter().rev() {
+                n += i * m;
+                m <<= 4;
+            }
+            
+            vec![n]
+        })));
+        parse.between_owned(1, 8, hex);
+        
+        if let Ok(branches) = parse.scan("A") {
+            assert_eq!(branches[0], 10);
+        }
+        else {
+            assert!(false);
+        }
+        
+        if let Ok(branches) = parse.scan("12345678") {
+            assert_eq!(branches[0], 305419896);
+        }
+        else {
+            assert!(false);
+        }
+        
+        if let Ok(branches) = parse.scan("FF") {
+            assert_eq!(branches[0], 255);
+        }
+        else {
+            assert!(false);
+        }
+        
+        if let Ok(branches) = parse.scan("FFFFFFFF") {
+            assert_eq!(branches[0], u32::max_value());
+        }
+        else {
+            assert!(false);
+        }
+        
+        if let Ok(branches) = parse.scan("FFFFFFFFF") {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+        
+        if let Ok(branches) = parse.scan("FFxFF") {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+        
+        if let Ok(branches) = parse.scan("") {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+    }
+    
+    #[test]
+    #[should_panic]
+    fn clear()
+    {
+        let code = "Ello'";
+        
+        let mut r: Rule<char> = Rule::new(None);
+        r.literal("Ello'");
+        r.clear();
+        r.scan(&code);   // Panic! We cleared the rule.
+    }
+    
+    #[test]
+    fn eof()
+    {
+        let code = "123";
+        
+        let mut r: Rule<char> = Rule::new(Some(Box::new(|_, _| vec!['A', 'B'] )));
+        r.literal("123").eof();
+        
+        if let Ok(branches) = r.scan(&code) {
+            assert_eq!(branches[0], 'A');
+            assert_eq!(branches[1], 'B');
+        }
+        else {
+            assert!(false);
+        }
+    }
+    
+    #[test]
+    fn exact()
+    {
+        let code = "..........";
+        
+        let mut dot: Rule<char> = Rule::new(Some(Box::new(|_, _| vec!['.'] )));
+        dot.literal(".");
+                
+        let mut nope: Rule<char> = Rule::new(Some(Box::new(|_, _| vec!['x'] )));
+        nope.literal("nope");
+                
+        let mut root: Rule<char> = Rule::new(None);
+        
+        if let Ok(branches) = root.exact(10, &dot).scan(&code) {
+            assert!(branches.len() == 10 && branches.into_iter().any(|c| c == '.'));
+        }
+        else {
+            assert!(false);
+        }
+        
+        if let Ok(branches) = root.clear().exact(9, &dot).scan(&code) {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+        
+        if let Ok(branches) = root.clear().exact(11, &dot).scan(&code) {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+        
+        if let Ok(branches) = root.clear().exact(0, &nope).exact(10, &dot).exact(0, &nope).scan(&code) {
+            assert!(branches.len() == 10 && branches.into_iter().any(|c| c == '.'));
+        }
+        else {
+            assert!(false);
+        }
+    }
+    
+    #[test]
+    fn literal()
+    {
+        let code = "y̆y̆y̆x̆";
+        
+        let mut r: Rule<u64> = Rule::new(Some(Box::new(|_, l| 
+        {
+            assert_eq!(l, "y̆y̆y̆x̆");
+            vec![7777u64, 8888u64, 9999u64]
+        })));
+        
+        r.literal("y̆y̆").literal("y̆").literal("x̆");
+        
+        if let Ok(branches) = r.scan(&code) {
+            assert_eq!(branches[0], 7777u64);
+            assert_eq!(branches[1], 8888u64);
+            assert_eq!(branches[2], 9999u64);
+        }
+        else {
+            assert!(false);
+        }
+    }
+    
+    #[test]
+    fn maybe()
+    {
+        let codes = vec![
+            "xxx",
+            "...xxx",
+            "xxx...",
+            "...xxx...",
+        ];
+        
+        let mut dots: Rule<char> = Rule::new(None);
+        dots.literal("...");
+                
+        let mut xxx: Rule<char> = Rule::new(Some(Box::new(|_, _| vec!['x'] )));
+        xxx.literal("xxx");
+                
+        let mut root: Rule<char> = Rule::new(None);
+        root.maybe(&dots).one_owned(xxx).maybe(&dots);
+        
+        for c in codes {
+            if let Ok(branches) = root.scan(&c) {
+                assert!(branches.len() == 1 && branches[0] == 'x');
+            }
+            else {
+                assert!(false);
+            }
+        }
+    }
+    
+    #[test]
+    fn none_or_many()
+    {
+        let mut dot: Rule<bool> = Rule::new(Some(Box::new(|b, l| vec![true])));
+        dot.literal(".");
+                
+        let mut x: Rule<bool> = Rule::new(Some(Box::new(|b, l| vec![false])));
+        x.literal("x");
+                
+        let mut code1: Rule<bool> = Rule::new(Some(Box::new(|b, l|
+        {
+            assert_eq!(b.len(), 0);
+            assert_eq!(l, "");
+            Vec::new()
+        })));
+        
+        let mut code2: Rule<bool> = Rule::new(Some(Box::new(|b, l|
+        {
+            assert_eq!(b.len(), 1);
+            assert_eq!(b[0], false);
+            assert_eq!(l, "x");
+            Vec::new()
+        })));
+        
+        let mut code3: Rule<bool> = Rule::new(Some(Box::new(|b, l|
+        {
+            assert_eq!(b.len(), 2);
+            assert_eq!(b[0], true);
+            assert_eq!(b[1], true);
+            assert_eq!(l, "..");
+            Vec::new()
+        })));
+        
+        let mut code4: Rule<bool> = Rule::new(Some(Box::new(|b, l|
+        {
+            assert_eq!(b.len(), 3);
+            assert_eq!(b[0], false);
+            assert_eq!(b[1], false);
+            assert_eq!(b[2], true);
+            assert_eq!(l, "xx.");
+            Vec::new()
+        })));
+        
+        let mut code5: Rule<bool> = Rule::new(Some(Box::new(|b, l|
+        {
+            assert_eq!(b.len(), 4);
+            assert_eq!(b[0], true);
+            assert_eq!(b[1], true);
+            assert_eq!(b[2], false);
+            assert_eq!(b[3], false);
+            assert_eq!(l, "..xx");
+            Vec::new()
+        })));
+        
+        if let Err(_) = code1.none_or_many(&dot).none_or_many(&x).none_or_many(&dot).scan("") {
+            assert!(false);
+        }
+        
+        if let Err(_) = code2.none_or_many(&dot).none_or_many(&x).none_or_many(&dot).scan("x") {
+            assert!(false);
+        }
+        
+        if let Err(_) = code3.none_or_many(&dot).none_or_many(&x).none_or_many(&dot).scan("..") {
+            assert!(false);
+        }
+        
+        if let Err(_) = code4.none_or_many(&dot).none_or_many(&x).none_or_many(&dot).scan("xx.") {
+            assert!(false);
+        }
+        
+        if let Err(_) = code5.none_or_many(&dot).none_or_many(&x).none_or_many(&dot).scan("..xx") {
+            assert!(false);
+        }
+    }
+    
+    #[test]
+    fn not()
+    {
+        let mut not_this: Rule<i32> = Rule::new(None);
+        not_this.literal("not this");
+        
+        let mut r: Rule<i32> = Rule::new(None);
+        r.literal("aaa").not_owned(not_this).literal("bbb").literal("ccc");
+        
+        if let Ok(_) = r.scan("aaabbbccc") {
+            assert!(true);
+        }
+        else {
+            assert!(false);
+        }
+        
+        if let Ok(_) = r.scan("aaanot thisbbbccc") {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+    }
+    
+    #[test]
+    fn one()
+    {
+        let code = "onetwothree";
+        
+        let mut one: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![1] )));
+        one.literal("one");
+        
+        let mut two: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![2] )));
+        two.literal("two");
+        
+        let mut three: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![3] )));
+        three.literal("three");
+        
+        let mut root: Rule<i32> = Rule::new(None);
+        root.one_owned(one).one_owned(two).one_owned(three);
+        
+        if let Ok(branches) = root.scan(&code) {
+            assert_eq!(branches[0], 1);
+            assert_eq!(branches[1], 2);
+            assert_eq!(branches[2], 3);
+        }
+        else {
+            assert!(false);
+        }
+    }
+
+    #[test]
+    fn misc_calc()
+    {
+        /*
+        const calc = new Grammer<number, IEmpty>();
+        calc.declare("add", "expr", "mul");
+        calc.add("num", "[0-9]+", (b, l) => parseInt(l));
+        calc.add("brackets", "\\(<expr>\\)");   // Identity function
+        calc.add("mul", "(<num>|<brackets>)(\\*<mul>)?", b => b.length === 1 ? b : b[0] * b[1]);
+        calc.add("add", "<mul>(\\+<add>)?", b => b.length === 1 ? b : b[0] + b[1]);
+        calc.add("expr", "(<add>|<brackets>)");
+        
+        console.log(calc.scan("expr", "2*(3*4*5)")); // 120
+        console.log(calc.scan("expr", "2*(3+4)*5")); // 70
+        console.log(calc.scan("expr", "((2+3*4+5))")); // 19
+        */
+
+        /*
+        // Predeclare add, expr and mul.
+        let mut add: Rule<f64> = Rule::new(Some(Box::new(|b, _| if b.len() == 1 { vec![b[0]] } else { vec![b[0] + b[1]] } )));
+        let mut expr: Rule<f64> = Rule::new(None);
+        let mut mul: Rule<f64> = Rule::new(Some(Box::new(|b, _| if b.len() == 1 { vec![b[0]] } else { vec![b[0] * b[1]] } )));
+
+        let mut digit: Rule<f64> = Rule::new(None);
+        digit.char_in('0', '9');
+
+        let mut num: Rule<f64> = Rule::new(Some(Box::new(|_, l| vec![l.parse().unwrap()])));
+        num.at_least(1, &digit);
+
+        let mut brackets: Rule<f64> = Rule::new(None);
+        brackets.literal("(").one(&expr).literal(")");
+
+        let mut mul_right: Rule<f64> = Rule::new(None);
+        mul_right.literal("*").one(&mul);
+        mul.any_of(vec![&num, &brackets]).maybe(&mul_right);
+
+        let mut add_right: Rule<f64> = Rule::new(None);
+        add_right.literal("+").one(&add);
+        add.one(&mul).maybe(&add_right);
+
+        expr.any_of(vec![&add, &brackets]);
+
+        if let Ok(branches) = expr.scan("2*(3*4*5)") {
+            assert_eq!(branches[0], 120f64);
+        }
+        else {
+            assert!(false);
+        }
+
+        if let Ok(branches) = expr.scan("2*(3+4)*5") {
+            assert_eq!(branches[0], 70f64);
+        }
+        else {
+            assert!(false);
+        }
+
+        if let Ok(branches) = expr.scan("((2+3*4+5))") {
+            assert_eq!(branches[0], 19f64);
+        }
+        else {
+            assert!(false);
+        }
+        */
+
+        /*
+        let expr_index_1: usize = 0;
+
+        let mut digit: Rule<i32> = Rule::new(None);
+        digit.char_in('0', '9');
+        
+        let mut num: Rule<i32> = Rule::new(None);
+        num.at_least(1, &digit.into_rc());
+
+        let mut brackets_expr_index: usize = 0;
+        let mut brackets: Rule<i32> = Rule::new(None);
+        brackets.literal("(").placeholder(&brackets_expr_index).literal(")");
+        let mut brackets = brackets.into_rc();
+
+        let mut mul_num_index: usize = 0;
+        let mut mul_mul_index: usize = 0;
+        let mut mul: Rule<i32> = Rule::new(None);
+        //mul.any_of(vec![])
+        */
+
+        //let mut aaa_index: usize = 0;
+        //let mut aaa: Rule<i32> = Rule::new(None);
+        //aaa.literal("bla").placeholder(&mut aaa_index).literal("bla");
+        //let aaa_rc = aaa.into_rc();
+
+        //let mut bbb: Rule<i32> = Rule::new(None);
+        //aaa.at(aaa_index, &bbb.into_rc());
+
+        //let xxx = Rc::new(Cell::new(123u64));
+        //xxx.borrow_mut().set(1234u64);
+
+        //let xxx = Cell::new(123u64);
+        //xxx.set(1234u64);
+
+        //let yyy = Rc::new(Cell::new(123u64));
+        //yyy.set(1234u64);
+
+        //let mut aaa_index: usize = 0;
+        //let mut aaa: Rule<i32> = Rule::new(None);
+        //aaa.literal("bla").placeholder(&mut aaa_index).literal("bla");
+
+        //let aaa = Rc::new(RefCell::new(aaa));
+        //aaa.borrow_mut().literal("asdasd");
+
+        //let aaa_rc = aaa.into_rc();
+    }
+}
+
+/*
 
 
 //#![feature(test)]
