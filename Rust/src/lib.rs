@@ -9,7 +9,6 @@ mod abitvin
     // TODO What is the best way to store the branch closure?
     // http://stackoverflow.com/questions/27831944/how-do-i-store-a-closure-in-rust
     // TODO Simplify `Option<Box<Fn<...>>>` if we can.
-    // TODO I think we can do `Fn(Vec<T>, &str)`.
     pub type BranchFn<T> = Option<Box<Fn(&Vec<T>, &str) -> Vec<T>>>;
     
     pub struct Rule<'a, T: 'a> {
@@ -40,14 +39,16 @@ mod abitvin
         Alter(Vec<(&'static str, &'static str)>),
         AnyOf(Vec<&'a Rule<'a, T>>),
         AnyOfOwned(Vec<Rule<'a, T>>),
+        AnyOfRaw(Vec<*const Rule<'a, T>>),
         CharIn(char, char),
         Eof,
         Literal(&'static str),
-        Placeholder,
         Not(&'a Rule<'a, T>),
         NotOwned(Rule<'a, T>),
+        NotRaw(*const Rule<'a, T>),
         Range(u64, u64, &'a Rule<'a, T>),
-        RangeOwned(u64, u64, Rule<'a, T>)
+        RangeOwned(u64, u64, Rule<'a, T>),
+        RangeRaw(u64, u64, *const Rule<'a, T>),
     }
 
     struct ScanCtx<'a, T> {
@@ -120,6 +121,16 @@ mod abitvin
             self
         }
 
+        pub unsafe fn any_of_raw(&mut self, rules: Vec<*const Rule<'a, T>>) -> &mut Self
+        {
+            if rules.len() == 0 {
+                panic!("You must specify rules.");
+            }
+            
+            self.parts.push(ScanFn::AnyOfRaw(rules));
+            self
+        }
+
         pub fn at_least(&mut self, count: u64, rule: &'a Rule<'a, T>) -> &mut Self
         {
             self.parts.push(ScanFn::Range(count, u64::max_value(), &rule));
@@ -129,6 +140,12 @@ mod abitvin
         pub fn at_least_owned(&mut self, count: u64, rule: Rule<'a, T>) -> &mut Self
         {
             self.parts.push(ScanFn::RangeOwned(count, u64::max_value(), rule));
+            self
+        }
+        
+        pub unsafe fn at_least_raw(&mut self, count: u64, rule: *const Rule<'a, T>) -> &mut Self
+        {
+            self.parts.push(ScanFn::RangeRaw(count, u64::max_value(), rule));
             self
         }
         
@@ -144,6 +161,12 @@ mod abitvin
             self
         }
         
+        pub unsafe fn at_most_raw(&mut self, count: u64, rule: *const Rule<'a, T>) -> &mut Self
+        {
+            self.parts.push(ScanFn::RangeRaw(0, count, rule));
+            self
+        }
+        
         pub fn between(&mut self, min: u64, max: u64, rule: &'a Rule<'a, T>) -> &mut Self
         {
             self.parts.push(ScanFn::Range(min, max, &rule));
@@ -153,6 +176,12 @@ mod abitvin
         pub fn between_owned(&mut self, min: u64, max: u64, rule: Rule<'a, T>) -> &mut Self
         {
             self.parts.push(ScanFn::RangeOwned(min, max, rule));
+            self
+        }
+        
+        pub unsafe fn between_raw(&mut self, min: u64, max: u64, rule: *const Rule<'a, T>) -> &mut Self
+        {
+            self.parts.push(ScanFn::RangeRaw(min, max, rule));
             self
         }
         
@@ -186,6 +215,12 @@ mod abitvin
             self
         }
 
+        pub unsafe fn exact_raw(&mut self, count: u64, rule: *const Rule<'a, T>) -> &mut Self
+        {
+            self.parts.push(ScanFn::RangeRaw(count, count, rule));
+            self
+        }
+
         pub fn literal(&mut self, text: &'static str) -> &mut Self
         {
             if text.len() < 1 {
@@ -208,6 +243,12 @@ mod abitvin
             self
         }
         
+        pub unsafe fn maybe_raw(&mut self, rule: *const Rule<'a, T>) -> &mut Self
+        {
+            self.parts.push(ScanFn::RangeRaw(0, 1, rule));
+            self
+        }
+        
         pub fn none_or_many(&mut self, rule: &'a Rule<'a, T>) -> &mut Self
         {
             self.parts.push(ScanFn::Range(0, u64::max_value(), &rule));
@@ -217,6 +258,12 @@ mod abitvin
         pub fn none_or_many_owned(&mut self, rule: Rule<'a, T>) -> &mut Self
         {
             self.parts.push(ScanFn::RangeOwned(0, u64::max_value(), rule));
+            self
+        }
+        
+        pub unsafe fn none_or_many_raw(&mut self, rule: *const Rule<'a, T>) -> &mut Self
+        {
+            self.parts.push(ScanFn::RangeRaw(0, u64::max_value(), rule));
             self
         }
         
@@ -231,6 +278,12 @@ mod abitvin
             self.parts.push(ScanFn::NotOwned(rule));
             self
         }
+
+        pub unsafe fn not_raw(&mut self, rule: *const Rule<'a, T>) -> &mut Self
+        {
+            self.parts.push(ScanFn::NotRaw(rule));
+            self
+        }
         
         pub fn one(&mut self, rule: &'a Rule<'a, T>) -> &mut Self
         {
@@ -241,6 +294,12 @@ mod abitvin
         pub fn one_owned(&mut self, rule: Rule<'a, T>) -> &mut Self
         {
             self.parts.push(ScanFn::RangeOwned(1, 1, rule));
+            self
+        }
+
+        pub unsafe fn one_raw(&mut self, rule: *const Rule<'a, T>) -> &mut Self
+        {
+            self.parts.push(ScanFn::RangeRaw(1, 1, rule));
             self
         }
 
@@ -280,6 +339,7 @@ mod abitvin
 
         // Private functions
 
+        #[allow(unused_variables)]   // TODO This warning is for `is_root_of_rule` which we must implement.
         fn branch<'b>(&'b self, ctx: &ScanCtx<'b, T>, is_root_of_rule: bool) -> ScanCtx<T>
         {
             let new_ctx = ScanCtx {
@@ -349,14 +409,16 @@ mod abitvin
                     ScanFn::Alter(ref alter) => self.scan_alter_leaf(&alter, &mut new_ctx),
                     ScanFn::AnyOf(ref rules) => self.scan_any_of(rules, &mut new_ctx),
                     ScanFn::AnyOfOwned(ref rules) => self.scan_any_of_owned(rules, &mut new_ctx),
+                    ScanFn::AnyOfRaw(ref rules) => self.scan_any_of_raw(rules, &mut new_ctx),
                     ScanFn::CharIn(min, max) => self.scan_char_in_leaf(min, max, &mut new_ctx),
                     ScanFn::Eof => self.scan_eof(&mut new_ctx),
                     ScanFn::Literal(find) => self.scan_literal_leaf(&find, &mut new_ctx),
-                    ScanFn::Not(ref r) => self.scan_not(&r, &mut new_ctx),
-                    ScanFn::NotOwned(ref r) => self.scan_not(&r, &mut new_ctx),
-                    ScanFn::Placeholder => panic!("Error, placeholder found."),
-                    ScanFn::Range(min, max, ref r) => self.scan_rule_range(min, max, &r, &mut new_ctx),
-                    ScanFn::RangeOwned(min, max, ref r) => self.scan_rule_range(min, max, &r, &mut new_ctx),
+                    ScanFn::Not(r) => self.scan_not(r as *const Rule<T>, &mut new_ctx),
+                    ScanFn::NotOwned(ref r) => self.scan_not(r as *const Rule<T>, &mut new_ctx),
+                    ScanFn::NotRaw(r) => self.scan_not(r, &mut new_ctx),
+                    ScanFn::Range(min, max, r) => self.scan_rule_range(min, max, r as *const Rule<T>, &mut new_ctx),
+                    ScanFn::RangeOwned(min, max, ref r) => self.scan_rule_range(min, max, r as *const Rule<T>, &mut new_ctx),
+                    ScanFn::RangeRaw(min, max, r) => self.scan_rule_range(min, max, r, &mut new_ctx),
                 };
                 
                 if r == -1 {
@@ -464,6 +526,19 @@ mod abitvin
             
             -1
         }
+
+        fn scan_any_of_raw<'b>(&'b self, rules: &Vec<*const Rule<'b, T>>, mut ctx: &mut ScanCtx<'b, T>) -> i64
+        {
+            for r in rules {
+                let mut new_ctx = self.branch(&ctx, false);
+                
+                if unsafe { (**r).run(&mut new_ctx) } != -1 {
+                    return self.merge(&mut ctx, &mut new_ctx, false);
+                }
+            }
+            
+            -1
+        }
         
         fn scan_char_in_leaf(&self, min: char, max: char, mut ctx: &mut ScanCtx<T>) -> i64
         {
@@ -522,9 +597,9 @@ mod abitvin
             step
         }
         
-        fn scan_not(&self, rule: &Rule<T>, mut ctx: &mut ScanCtx<T>) -> i64
+        fn scan_not(&self, rule: *const Rule<T>, mut ctx: &mut ScanCtx<T>) -> i64
         {
-            if rule.run(&mut self.branch(&ctx, false)) == -1 {
+            if unsafe { (*rule).run(&mut self.branch(&ctx, false)) } == -1 {
                 0
             }
             else {
@@ -532,13 +607,13 @@ mod abitvin
             }
         }
         
-        fn scan_rule_range<'b>(&'b self, min: u64, max: u64, rule: &'a Rule<T>, mut ctx: &mut ScanCtx<'b, T>) -> i64
+        fn scan_rule_range<'b>(&'b self, min: u64, max: u64, rule: *const Rule<'a, T>, mut ctx: &mut ScanCtx<'b, T>) -> i64
         {
             let mut new_ctx = self.branch(&ctx, false);
             let mut count = 0u64;
             
             loop {
-                let progress = rule.run(&mut new_ctx);
+                let progress = unsafe { (*rule).run(&mut new_ctx) };
                 
                 if progress == -1 {
                     break;
@@ -1203,7 +1278,6 @@ mod abitvin
 mod tests 
 {
     use abitvin::Rule;
-    use std::rc::Rc;
     
     #[test]
     fn all()
@@ -1362,7 +1436,7 @@ mod tests
             assert!(false);
         }
         
-        if let Ok(branches) = root.clear().at_least(5, &x).scan(&code) {
+        if let Ok(_) = root.clear().at_least(5, &x).scan(&code) {
             assert!(false);
         }
         else {
@@ -1380,7 +1454,7 @@ mod tests
                
         let mut root: Rule<i32> = Rule::new(None);
         
-        if let Ok(branches) = root.at_most(2, &y).scan(&code) {
+        if let Ok(_) = root.at_most(2, &y).scan(&code) {
             assert!(false);
         }
         else {
@@ -1434,7 +1508,7 @@ mod tests
             assert!(false);
         }
         
-        if let Ok(branches) = root.clear().between(4, 5, &z).scan(&code) {
+        if let Ok(_) = root.clear().between(4, 5, &z).scan(&code) {
             assert!(false);
         }
         else {
@@ -1496,21 +1570,21 @@ mod tests
             assert!(false);
         }
         
-        if let Ok(branches) = parse.scan("FFFFFFFFF") {
+        if let Ok(_) = parse.scan("FFFFFFFFF") {
             assert!(false);
         }
         else {
             assert!(true);
         }
         
-        if let Ok(branches) = parse.scan("FFxFF") {
+        if let Ok(_) = parse.scan("FFxFF") {
             assert!(false);
         }
         else {
             assert!(true);
         }
         
-        if let Ok(branches) = parse.scan("") {
+        if let Ok(_) = parse.scan("") {
             assert!(false);
         }
         else {
@@ -1520,6 +1594,7 @@ mod tests
     
     #[test]
     #[should_panic]
+    #[allow(unused_must_use)]
     fn clear()
     {
         let code = "Ello'";
@@ -1567,14 +1642,14 @@ mod tests
             assert!(false);
         }
         
-        if let Ok(branches) = root.clear().exact(9, &dot).scan(&code) {
+        if let Ok(_) = root.clear().exact(9, &dot).scan(&code) {
             assert!(false);
         }
         else {
             assert!(true);
         }
         
-        if let Ok(branches) = root.clear().exact(11, &dot).scan(&code) {
+        if let Ok(_) = root.clear().exact(11, &dot).scan(&code) {
             assert!(false);
         }
         else {
@@ -1644,10 +1719,10 @@ mod tests
     #[test]
     fn none_or_many()
     {
-        let mut dot: Rule<bool> = Rule::new(Some(Box::new(|b, l| vec![true])));
+        let mut dot: Rule<bool> = Rule::new(Some(Box::new(|_, _| vec![true])));
         dot.literal(".");
                 
-        let mut x: Rule<bool> = Rule::new(Some(Box::new(|b, l| vec![false])));
+        let mut x: Rule<bool> = Rule::new(Some(Box::new(|_, _| vec![false])));
         x.literal("x");
                 
         let mut code1: Rule<bool> = Rule::new(Some(Box::new(|b, l|
@@ -1770,112 +1845,52 @@ mod tests
     #[test]
     fn misc_calc()
     {
-        /*
-        const calc = new Grammer<number, IEmpty>();
-        calc.declare("add", "expr", "mul");
-        calc.add("num", "[0-9]+", (b, l) => parseInt(l));
-        calc.add("brackets", "\\(<expr>\\)");   // Identity function
-        calc.add("mul", "(<num>|<brackets>)(\\*<mul>)?", b => b.length === 1 ? b : b[0] * b[1]);
-        calc.add("add", "<mul>(\\+<add>)?", b => b.length === 1 ? b : b[0] + b[1]);
-        calc.add("expr", "(<add>|<brackets>)");
-        
-        console.log(calc.scan("expr", "2*(3*4*5)")); // 120
-        console.log(calc.scan("expr", "2*(3+4)*5")); // 70
-        console.log(calc.scan("expr", "((2+3*4+5))")); // 19
-        */
+        unsafe {
+            // Predeclare add, expr and mul.
+            let mut add: Rule<f64> = Rule::new(Some(Box::new(|b, _| if b.len() == 1 { vec![b[0]] } else { vec![b[0] + b[1]] } )));
+            let mut expr: Rule<f64> = Rule::new(None);
+            let mut mul: Rule<f64> = Rule::new(Some(Box::new(|b, _| if b.len() == 1 { vec![b[0]] } else { vec![b[0] * b[1]] } )));
 
-        /*
-        // Predeclare add, expr and mul.
-        let mut add: Rule<f64> = Rule::new(Some(Box::new(|b, _| if b.len() == 1 { vec![b[0]] } else { vec![b[0] + b[1]] } )));
-        let mut expr: Rule<f64> = Rule::new(None);
-        let mut mul: Rule<f64> = Rule::new(Some(Box::new(|b, _| if b.len() == 1 { vec![b[0]] } else { vec![b[0] * b[1]] } )));
+            let mut digit: Rule<f64> = Rule::new(None);
+            digit.char_in('0', '9');
 
-        let mut digit: Rule<f64> = Rule::new(None);
-        digit.char_in('0', '9');
+            let mut num: Rule<f64> = Rule::new(Some(Box::new(|_, l| vec![l.parse().unwrap()])));
+            num.at_least_owned(1, digit);
 
-        let mut num: Rule<f64> = Rule::new(Some(Box::new(|_, l| vec![l.parse().unwrap()])));
-        num.at_least(1, &digit);
+            let mut brackets: Rule<f64> = Rule::new(None);
+            brackets.literal("(").one_raw(&expr).literal(")"); 
 
-        let mut brackets: Rule<f64> = Rule::new(None);
-        brackets.literal("(").one(&expr).literal(")");
+            let mut mul_right: Rule<f64> = Rule::new(None);
+            mul_right.literal("*").one_raw(&mul);
+            mul.any_of_raw(vec![&num, &brackets]).maybe_owned(mul_right);
 
-        let mut mul_right: Rule<f64> = Rule::new(None);
-        mul_right.literal("*").one(&mul);
-        mul.any_of(vec![&num, &brackets]).maybe(&mul_right);
+            let mut add_right: Rule<f64> = Rule::new(None);
+            add_right.literal("+").one_raw(&add);
+            add.one_raw(&mul).maybe_owned(add_right);
 
-        let mut add_right: Rule<f64> = Rule::new(None);
-        add_right.literal("+").one(&add);
-        add.one(&mul).maybe(&add_right);
+            expr.any_of_raw(vec![&add, &brackets]);
 
-        expr.any_of(vec![&add, &brackets]);
+            if let Ok(branches) = expr.scan("2*(3*4*5)") {
+                assert_eq!(branches[0], 120f64);
+            }
+            else {
+                assert!(false);
+            }
 
-        if let Ok(branches) = expr.scan("2*(3*4*5)") {
-            assert_eq!(branches[0], 120f64);
+            if let Ok(branches) = expr.scan("2*(3+4)*5") {
+                assert_eq!(branches[0], 70f64);
+            }
+            else {
+                assert!(false);
+            }
+
+            if let Ok(branches) = expr.scan("((2+3*4+5))") {
+                assert_eq!(branches[0], 19f64);
+            }
+            else {
+                assert!(false);
+            }
         }
-        else {
-            assert!(false);
-        }
-
-        if let Ok(branches) = expr.scan("2*(3+4)*5") {
-            assert_eq!(branches[0], 70f64);
-        }
-        else {
-            assert!(false);
-        }
-
-        if let Ok(branches) = expr.scan("((2+3*4+5))") {
-            assert_eq!(branches[0], 19f64);
-        }
-        else {
-            assert!(false);
-        }
-        */
-
-        /*
-        let expr_index_1: usize = 0;
-
-        let mut digit: Rule<i32> = Rule::new(None);
-        digit.char_in('0', '9');
-        
-        let mut num: Rule<i32> = Rule::new(None);
-        num.at_least(1, &digit.into_rc());
-
-        let mut brackets_expr_index: usize = 0;
-        let mut brackets: Rule<i32> = Rule::new(None);
-        brackets.literal("(").placeholder(&brackets_expr_index).literal(")");
-        let mut brackets = brackets.into_rc();
-
-        let mut mul_num_index: usize = 0;
-        let mut mul_mul_index: usize = 0;
-        let mut mul: Rule<i32> = Rule::new(None);
-        //mul.any_of(vec![])
-        */
-
-        //let mut aaa_index: usize = 0;
-        //let mut aaa: Rule<i32> = Rule::new(None);
-        //aaa.literal("bla").placeholder(&mut aaa_index).literal("bla");
-        //let aaa_rc = aaa.into_rc();
-
-        //let mut bbb: Rule<i32> = Rule::new(None);
-        //aaa.at(aaa_index, &bbb.into_rc());
-
-        //let xxx = Rc::new(Cell::new(123u64));
-        //xxx.borrow_mut().set(1234u64);
-
-        //let xxx = Cell::new(123u64);
-        //xxx.set(1234u64);
-
-        //let yyy = Rc::new(Cell::new(123u64));
-        //yyy.set(1234u64);
-
-        //let mut aaa_index: usize = 0;
-        //let mut aaa: Rule<i32> = Rule::new(None);
-        //aaa.literal("bla").placeholder(&mut aaa_index).literal("bla");
-
-        //let aaa = Rc::new(RefCell::new(aaa));
-        //aaa.borrow_mut().literal("asdasd");
-
-        //let aaa_rc = aaa.into_rc();
     }
 }
 
