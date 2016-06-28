@@ -9,7 +9,7 @@ pub mod abitvin
     // TODO What is the best way to store the branch closure?
     // http://stackoverflow.com/questions/27831944/how-do-i-store-a-closure-in-rust
     // TODO Simplify `Option<Box<Fn<...>>>` if we can.
-    pub type BranchFn<T, S> = Option<Box<Fn(&Vec<T>, &str, &mut S) -> Vec<T>>>;
+    pub type BranchFn<T, S> = Option<Box<Fn(Vec<T>, &str, &mut S) -> Vec<T>>>;
     
     // TODO Better name
     enum Progress<'a, T: 'a> {
@@ -100,7 +100,7 @@ pub mod abitvin
                 panic!("List is empty.");
             }
             
-            if !list.iter().any(|&t| { t.0.len() > 0 && t.1.len() > 1 }) {
+            if !list.iter().any(|&t| { t.0.len() > 0 && t.1.len() > 0 }) {
                 panic!("The strings in the list must be minimal one character long.");
             }
             
@@ -400,7 +400,7 @@ pub mod abitvin
             
             match self.branch_fn {
                 Some(ref f) if is_root_of_rule => {
-                    target.branches.append(&mut f(&source.branches, &source.lexeme, &mut state));
+                    target.branches.append(&mut f(source.branches, &source.lexeme, &mut state));
                 },
                 _ => {
                     target.branches.append(&mut source.branches);
@@ -483,39 +483,19 @@ pub mod abitvin
         
         fn scan_alter_leaf<'b>(&'b self, list: &Vec<(&'static str, &'static str)>, mut ctx: ScanCtx<'b, T>) -> Progress<T>
         {
-            // TODO Is there a nice native substr compare function?
-            for find in list {
-                let mut found = true;
-                let mut len = 0;
-                let mut iter = ctx.code_iter.clone();
-                
-                for f in find.0.chars() {
-                    len += 1;
-                    
-                    let c = iter.next();
-                    
-                    match c {
-                        Some(c) => {
-                            if c != f {
-                                found = false;
-                                break;
-                            }
-                        },
-                        None => {
-                            found = false;
-                            break;
-                        }
-                    }
-                }
-                
-                if found {
-                    ctx.code_iter = iter;
-                    ctx.lexeme.push_str(find.1);
-                    ctx.index += len;
+            for alter in list {
+                let find = alter.0;
+                let len = find.chars().count();
+                let compare: String = ctx.code_iter.clone().take(len).collect();
+
+                if find == compare {
+                    ctx.code_iter.nth(len - 1);
+                    ctx.lexeme.push_str(alter.1);
+                    ctx.index += len as i64;    // TODO As usize instead of i64
                     return Progress::Some(len as usize, ctx);
                 }
             }
-            
+
             self.update_error(ctx, String::from("Alter characters not found on this position."))
         }
         
@@ -705,7 +685,7 @@ pub mod abitvin
         arg2: u64,
         arg3: Option<String>,
         range_type: RangeType,
-        rule: Option<Box<Rule<'a, T, NoShared>>>,
+        rule: Option<Rule<'a, T, NoShared>>,
     }
 
     type RuleExprMap<'a, T> = BTreeMap<&'static str, RuleExpr<'a, T>>;
@@ -739,71 +719,30 @@ pub mod abitvin
             let mut carriage_return = Rule::new(None); space.literal("\r");
             let mut ws = Rule::new(None); ws.any_of_owned(vec![space, tab, new_line, carriage_return]);
 
-            /*
-            this._ws = new Rule<TBranch, TMeta>().anyOf(" ", "\t", "\n", "\r");
-            
-            const statementFn = (b) =>
+            let statement_fn = |mut b: Vec<ParseContext<'a, T>>, _: &str, _: &mut RuleExprMap<T>|
             {
-                if (b[0].rangeType !== RangeType.Not)
-                    return b;
-                  
-                return { 
-                    arg1: null,
-                    arg2: null,
-                    arg3: null,
-                    rangeType: RangeType.NoRangeType,
-                    rule: new Rule<TBranch, TMeta>().not(b[1].rule) 
-                };
-            };
-            
-            const ranges = new R<TBranch, TMeta>();
-            const statement = new R<TBranch, TMeta>(statementFn);
-            */
-
-            let statement_fn = |b: &Vec<ParseContext<T>>, _: &str, _: &mut RuleExprMap<T>|
-            {   
-                // TODO
-                panic!("TODO");
-
-                /*match b[0].range_type {
+                match b[0].range_type {
                     RangeType::Not => {
-                        b
-                    },
-                    _ => {
-                        let mut r: Rule<'a, T, NoShared> = Rule::new(None);
-                        r.not_owned(b[1].rule.unwrap().into_raw());
+                        let mut r: Rule<T, NoShared> = Rule::new(None);
+                        r.not_owned(b.pop().unwrap().rule.unwrap());    // TODO Test this, originally it was b[1]
 
                         vec![ParseContext{ 
                             arg1: 0,
                             arg2: 0,
                             arg3: None,
                             range_type: RangeType::NoRangeType,
-                            rule: Some(Box::new(r)) 
+                            rule: Some(r), 
                         }]
+                    },
+                    _ => {
+                        b
                     }
-                } */
-                
-                /*
-                if b[0].range_type != RangeType::Not {
-                    return b;
                 }
-                    
-                let mut r = Rule::new();
-                r.not(b[1].rule);
-
-                vec![ParseContext{ 
-                    arg1: 0,
-                    arg2: 0,
-                    arg3: None,
-                    range_type: RangeType::NoRangeType,
-                    rule: Some(Box::new(r)) 
-                }]
-                */
             };
 
-            // TODO let statement = R::new(Some(Box(statement_fn)));
-            let statement = R::new(None);
-
+            let mut ranges = R::new(None);
+            let mut statement = R::new(Some(Box::new(statement_fn)));
+            
             let mut escaped_ctrl_chars: R<'a, T> = Rule::new(None);
             escaped_ctrl_chars.alter(vec![
                 ("\\<", "<"), 
@@ -875,7 +814,7 @@ pub mod abitvin
             const literal = new R<TBranch, TMeta>(literalFn).one(literalText).maybe(ranges);
             */
             
-            let literal_text_fn = |_: &Vec<ParseContext<T>>, l: &str, _: &mut RuleExprMap<T>|
+            let literal_text_fn = |_: Vec<ParseContext<T>>, l: &str, _: &mut RuleExprMap<T>|
             {
                 vec![ParseContext { 
                     arg1: 0,
@@ -895,7 +834,7 @@ pub mod abitvin
             let mut literal_text: R<'a, T> = Rule::new(Some(Box::new(literal_text_fn)));
             literal_text.at_least_owned(1, literal_char);
 
-            let literal_fn = |b: &Vec<ParseContext<T>>, l: &str, _: &mut RuleExprMap<T>|
+            let literal_fn = |b: Vec<ParseContext<T>>, l: &str, _: &mut RuleExprMap<T>|
             {
                 let mut rule = Rule::new(None);
                 rule.literal_string(b[0].arg3.clone().unwrap());
@@ -909,12 +848,12 @@ pub mod abitvin
                     arg2: 0,
                     arg3: None,
                     range_type: RangeType::NoRangeType,
-                    rule: Some(Box::new(rule)),
+                    rule: Some(rule),
                 }]
             };
 
             let mut literal: R<'a, T> = Rule::new(Some(Box::new(literal_fn)));
-            literal.one_owned(literal_text); // TODO .maybe(&ranges);
+            unsafe { literal.one_owned(literal_text).maybe_raw(&ranges) };
 
             /*
             // Any char
@@ -1130,6 +1069,12 @@ pub mod abitvin
             const maybe = new R<TBranch, TMeta>(maybeFn).literal("?");
             
             // None or many
+            */
+            
+            
+            
+            
+            /*
             const noneOrManyFn = (b, l) => ({
                 arg1: 0,
                 arg2: null,
@@ -1139,7 +1084,28 @@ pub mod abitvin
             });
             
             const noneOrMany = new R<TBranch, TMeta>(noneOrManyFn).literal("*");
-            
+            */
+
+            let none_or_many_fn = |_: Vec<ParseContext<T>>, _: &str, _: &mut RuleExprMap<T>|
+            {
+                vec![ParseContext { 
+                    arg1: 0,
+                    arg2: 0,
+                    arg3: None,
+                    range_type: RangeType::AtLeast,
+                    rule: None,
+                }]
+            };
+
+            let mut none_or_many: R<'a, T> = Rule::new(Some(Box::new(none_or_many_fn)));
+            none_or_many.literal("*");
+
+
+
+
+
+
+            /*
             // Not
             const notFn = () => ({
                 arg1: 0,
@@ -1248,11 +1214,12 @@ pub mod abitvin
             
             const atLeastOneWs = new R<TBranch, TMeta>(atLeastOneWsFn).literal("_");
             const noneOrManyWs = new R<TBranch, TMeta>(noneOrManyWsFs).literal(" ");
-            
-            // Ranges and statements definitions
-            ranges.anyOf(atLeast, atLeastOne, atMost, between, exact, maybe, noneOrMany);
-            statement.maybe(not).anyOf(anyChar, noneOrManyWs, atLeastOneWs, eof, alter, allExcept, charRanges, rule, anyOf, literal);
             */
+            // Ranges and statements definitions
+            //ranges.anyOf(atLeast, atLeastOne, atMost, between, exact, maybe, noneOrMany);
+            ranges.any_of_owned(vec![/*atLeast, atLeastOne, atMost, between, exact, maybe, */ none_or_many]);
+            //statement.maybe(not).anyOf(anyChar, noneOrManyWs, atLeastOneWs, eof, alter, allExcept, charRanges, rule, anyOf, literal);
+            statement/*.maybe(not)*/.any_of_owned(vec![/*anyChar, noneOrManyWs, atLeastOneWs, eof, alter, allExcept, charRanges, rule, anyOf,*/ literal]);
             
             let mut grammer = R::new(None);
             grammer.none_or_many_owned(statement);
@@ -1288,7 +1255,7 @@ pub mod abitvin
                             // TODO rulexp.rule.meta = meta;
 
                             for r in branches {
-                                rulexp.rule.one_owned(*r.rule.unwrap());
+                                rulexp.rule.one_owned(r.rule.unwrap());
                             }
 
                             None
@@ -1308,7 +1275,7 @@ pub mod abitvin
                                 }
                             }
 
-                            let mut compiled = *reversed.pop().unwrap().rule.unwrap();
+                            let mut compiled = reversed.pop().unwrap().rule.unwrap();
                             let mut reversed_again = Vec::new();
 
                             loop {
@@ -1324,7 +1291,7 @@ pub mod abitvin
                             // TODO compiled.meta = meta;
 
                             for r in reversed_again {
-                                compiled.one_owned(*r.rule.unwrap());
+                                compiled.one_owned(r.rule.unwrap());
                             }
 
                             Some(RuleExpr {
@@ -1376,7 +1343,7 @@ pub mod abitvin
                         panic!("Error compiling rule expression.");
                     }
                     
-                    let r = *b.pop().unwrap().rule.unwrap();
+                    let r = b.pop().unwrap().rule.unwrap();
                     self.ws.clear().one_owned(r);
                 },
                 Err(_) => panic!("Error compiling rule expression."),
@@ -1390,8 +1357,28 @@ pub mod abitvin
                     let mut r = Rule::new(None);
                     r.at_least_owned(ctx.arg1, rule);
                     r
-                }
-                _ => panic!("Not implemented!"),
+                },
+                RangeType::AtMost => {
+                    let mut r = Rule::new(None);
+                    r.at_most_owned(ctx.arg1, rule);
+                    r
+                },
+                RangeType::Between => {
+                    let mut r = Rule::new(None);
+                    r.between_owned(ctx.arg1, ctx.arg2, rule);
+                    r
+                },
+                RangeType::Exact => {
+                    let mut r = Rule::new(None);
+                    r.exact_owned(ctx.arg1, rule);
+                    r
+                },
+                RangeType::NoRangeType => {
+                    rule
+                },
+                RangeType::Not => {
+                    panic!("Application error")     // TODO Fix this
+                },
             }
         }
 
@@ -1426,9 +1413,75 @@ pub mod abitvin
 #[cfg(test)]
 mod tests 
 {
+    use abitvin::Grammer;
+    use abitvin::NoShared;
+
+    #[test]
+    fn grammer_literal()
+    {
+        let f = |_: Vec<i32>, _: &str, _: &mut NoShared| {
+            vec![123, 456, 789]
+        };
+
+        let mut grammer: Grammer<i32> = Grammer::new();
+        grammer.add("root", "monkey", Some(Box::new(f)));
+
+        if let Ok(branches) = grammer.scan("root", "monkey") {
+            assert_eq!(branches[0], 123);
+            assert_eq!(branches[1], 456);
+            assert_eq!(branches[2], 789);
+        }
+        else {
+            assert!(false);
+        }
+    }
+
+    #[test]
+    fn grammer_none_or_many()
+    {
+        let f = |_: Vec<i32>, _: &str, _: &mut NoShared| {
+            vec![1983, 2, 7]
+        };
+
+        let mut grammer: Grammer<i32> = Grammer::new();
+        grammer.add("root", "monkey*", Some(Box::new(f)));
+
+        if let Ok(branches) = grammer.scan("root", "") {
+            assert_eq!(branches[0], 1983);
+            assert_eq!(branches[1], 2);
+            assert_eq!(branches[2], 7);
+        }
+        else {
+            assert!(false);
+        }
+
+        if let Ok(branches) = grammer.scan("root", "monkey") {
+            assert_eq!(branches[0], 1983);
+            assert_eq!(branches[1], 2);
+            assert_eq!(branches[2], 7);
+        }
+        else {
+            assert!(false);
+        }
+
+        if let Ok(branches) = grammer.scan("root", "monkeymonkeymonkey") {
+            assert_eq!(branches[0], 1983);
+            assert_eq!(branches[1], 2);
+            assert_eq!(branches[2], 7);
+        }
+        else {
+            assert!(false);
+        }
+    }
+
+
+
+
+
+
     use abitvin::Rule;
 
-    struct NoShared {}
+    //struct NoShared {}
 
     #[test]
     fn all()
@@ -1436,7 +1489,7 @@ mod tests
         let mut dummy = 80085; 
         let code = "abcdefg";
         
-        let f = |_: &Vec<bool>, l: &str, _: &mut i32| {
+        let f = |_: Vec<bool>, l: &str, _: &mut i32| {
             assert_eq!(l, "abcdefg");
             vec![true, false, false, true]
         };
@@ -1461,7 +1514,7 @@ mod tests
         let mut dummy = false; 
         let code = "abc";
         
-        let f = |_: &Vec<u32>, l: &str, _: &mut bool| {
+        let f = |_: Vec<u32>, l: &str, _: &mut bool| {
             assert_eq!(l, "abc");
             vec![0u32, 1u32, 2u32, 3u32]
         };
@@ -1487,24 +1540,26 @@ mod tests
     fn alter()
     {
         let mut dummy = 0f64;
-        let code = "aaabbbccc";
+        let code = "\\<東\\<💝\\>中\\>"; // There are gonna be 7 replacements.
         
         let alterations = vec![
-            ("aaa", "AAA"),
-            ("bbb", "BBB"),
-            ("ccc", "CCC"),
+            ("\\<", "<"),
+            ("\\>", ">"),
+            ("東", "AAA"),
+            ("💝", "BBB"),
+            ("中", "CCC"),
         ];
         
         let mut a = Rule::new(None);
         a.alter(alterations);
 
-        let f = |_: &Vec<i32>, l: &str, _: &mut f64| {
-            assert_eq!(l, "AAABBBCCC");
+        let f = |_: Vec<i32>, l: &str, _: &mut f64| {
+            assert_eq!(l, "<AAA<BBB>CCC>");
             vec![111, 222]
         }; 
         
         let mut r: Rule<i32, f64> = Rule::new(Some(Box::new(f)));
-        r.exact_owned(3, a);
+        r.exact_owned(7, a);
         
         if let Ok(branches) = r.scan(&code, &mut dummy) {
             assert_eq!(branches[0], 111);
@@ -1521,17 +1576,17 @@ mod tests
         let mut dummy = false;
         let code = "aaabbbccc";
         
-        let aaa_fn = |_: &Vec<i32>, l: &str, _: &mut bool| {
+        let aaa_fn = |_: Vec<i32>, l: &str, _: &mut bool| {
             assert_eq!(l, "aaa");
             vec![111]
         }; 
         
-        let bbb_fn = |_: &Vec<i32>, l: &str, _: &mut bool| {
+        let bbb_fn = |_: Vec<i32>, l: &str, _: &mut bool| {
             assert_eq!(l, "bbb");
             vec![222]
         };
         
-        let ccc_fn = |_: &Vec<i32>, l: &str, _: &mut bool| {
+        let ccc_fn = |_: Vec<i32>, l: &str, _: &mut bool| {
             assert_eq!(l, "ccc");
             vec![333]
         };
@@ -2026,25 +2081,25 @@ mod tests
             number: 0 
         };
 
-        let mut a: Rule<i32, Shared> = Rule::new(Some(Box::new(|_: &Vec<i32>, _: &str, s: &mut Shared| {
+        let mut a: Rule<i32, Shared> = Rule::new(Some(Box::new(|_: Vec<i32>, _: &str, s: &mut Shared| {
             s.number = 123; 
             Vec::new()
         })));
         a.literal("a");
 
-        let mut b: Rule<i32, Shared> = Rule::new(Some(Box::new(|_: &Vec<i32>, _: &str, s: &mut Shared| {
+        let mut b: Rule<i32, Shared> = Rule::new(Some(Box::new(|_: Vec<i32>, _: &str, s: &mut Shared| {
             s.number = 456777; 
             Vec::new() 
         })));
         b.literal("b");
         
-        let mut c: Rule<i32, Shared> = Rule::new(Some(Box::new(|_: &Vec<i32>, _: &str, s: &mut Shared| { 
+        let mut c: Rule<i32, Shared> = Rule::new(Some(Box::new(|_: Vec<i32>, _: &str, s: &mut Shared| { 
             s.number = -999;
             Vec::new()
         })));
         c.literal("c");
 
-        let mut failed: Rule<i32, Shared> = Rule::new(Some(Box::new(|_: &Vec<i32>, _: &str, s: &mut Shared| { 
+        let mut failed: Rule<i32, Shared> = Rule::new(Some(Box::new(|_: Vec<i32>, _: &str, s: &mut Shared| { 
             s.number = 123456;
             Vec::new()
         })));
