@@ -554,7 +554,7 @@ pub mod abitvin
             for r in rules {
                 let new_ctx = self.branch(&ctx, false);
 
-                if let Progress::Some(progress, new_ctx) = r.run(new_ctx, &mut state) {
+                if let Progress::Some(_, new_ctx) = r.run(new_ctx, &mut state) {
                     return self.merge(ctx, new_ctx, false, &mut state);
                 } 
             }
@@ -562,12 +562,12 @@ pub mod abitvin
             Progress::No(ctx)
         }
         
-        fn scan_any_of_raw<'b>(&'b self, rules: &Vec<*const Rule<T, S>>, mut ctx: ScanCtx<'b, T>, mut state: &mut S) -> Progress<T>
+        fn scan_any_of_raw<'b>(&'b self, rules: &Vec<*const Rule<T, S>>, ctx: ScanCtx<'b, T>, mut state: &mut S) -> Progress<T>
         {
             for r in rules {
-                let mut new_ctx = self.branch(&ctx, false);
+                let new_ctx = self.branch(&ctx, false);
 
-                if let Progress::Some(progress, new_ctx) = unsafe { (**r).run(new_ctx, &mut state) } {
+                if let Progress::Some(_, new_ctx) = unsafe { (**r).run(new_ctx, &mut state) } {
                     return self.merge(ctx, new_ctx, false, &mut state);
                 } 
             }
@@ -737,7 +737,7 @@ pub mod abitvin
     
     // TODO Note: This was IRule, remove this comment later after porting.
     struct RuleExpr<T> {
-        id: &'static str,
+        //TODO Maybe remove? id: &'static str,
         is_defined: bool,
         rule: Rule<T, NoShared>
     }
@@ -786,8 +786,8 @@ pub mod abitvin
                 }
             };
 
-            let mut boxed_ranges = Box::new(R::new(None));  // Allocate memory for the "ranges" rule.
-            let mut ranges = Box::into_raw(boxed_ranges);   // Transform it into a raw pointer to be used by other rules.
+            let boxed_ranges = Box::new(R::new(None));  // Allocate memory for the "ranges" rule.
+            let ranges = Box::into_raw(boxed_ranges);   // Transform it into a raw pointer to be used by other rules.
 
             let mut statement = R::new(Some(Box::new(statement_fn)));
             
@@ -829,8 +829,8 @@ pub mod abitvin
             };
 
             let mut digit = R::new(None); digit.char_in('0', '9');
-            let mut boxed_integer = Box::new(R::new(Some(Box::new(integer_fn))));
-            let mut integer = Box::into_raw(boxed_integer); 
+            let boxed_integer = Box::new(R::new(Some(Box::new(integer_fn))));
+            let integer = Box::into_raw(boxed_integer); 
             unsafe { (*integer).at_least_owned(1, digit); } 
             
             // Literal
@@ -854,7 +854,7 @@ pub mod abitvin
             let mut literal_text: R<T> = Rule::new(Some(Box::new(literal_text_fn)));
             literal_text.at_least_owned(1, literal_char);
 
-            let literal_fn = |b: Vec<ParseContext<T>>, l: &str, _: &mut GrammerShared<T>|
+            let literal_fn = |b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
             {
                 let mut rule = Rule::new(None);
                 rule.literal_string(b[0].arg3.clone().unwrap());
@@ -1329,7 +1329,7 @@ pub mod abitvin
                 keep_ws: &self.keep_ws,
             };
 
-            let mut result = self.grammer.scan(&expr, &mut shared); 
+            let result = self.grammer.scan(&expr, &mut shared); 
 
             match result {
                 Err(_) => {
@@ -1349,7 +1349,7 @@ pub mod abitvin
                             }
 
                             Some(RuleExpr {
-                                id: id,
+                                // TODO Maybe remove? id: id,
                                 is_defined: true,
                                 rule: compiled,
                             })
@@ -1382,7 +1382,7 @@ pub mod abitvin
                 }
                 
                 self.rule_exps.insert(id, RuleExpr {
-                    id: id,
+                    // TODO Maybe remove? id: id,
                     is_defined: false,
                     rule: Rule::new(None),
                 });
@@ -1545,14 +1545,14 @@ mod tests
         let mut grammer: Grammer<i32> = Grammer::new();
         grammer.add("root", "monkey{2,}", Some(Box::new(f)));
 
-        if let Ok(branches) = grammer.scan("root", "") {
+        if let Ok(_) = grammer.scan("root", "") {
             assert!(false);
         }
         else {
             assert!(true);
         }
 
-        if let Ok(branches) = grammer.scan("root", "monkey") {
+        if let Ok(_) = grammer.scan("root", "monkey") {
             assert!(false);
         }
         else {
@@ -1584,7 +1584,7 @@ mod tests
         let mut grammer: Grammer<i32> = Grammer::new();
         grammer.add("root", "monkey+", Some(Box::new(f)));
 
-        if let Ok(branches) = grammer.scan("root", "") {
+        if let Ok(_) = grammer.scan("root", "") {
             assert!(false);
         }
         else {
@@ -1676,7 +1676,7 @@ mod tests
             assert!(false);
         }
 
-        if let Ok(branches) = grammer.scan("root", "twicetwice") {
+        if let Ok(_) = grammer.scan("root", "twicetwice") {
             assert!(false);
         }
         else {
@@ -1737,7 +1737,7 @@ mod tests
         grammer.add("test-d", "<monkey>*", None);
         grammer.add("monkey", "monkey", Some(Box::new(f)));
 
-        if let Ok(branches) = grammer.scan("test-a", "ape") {
+        if let Ok(_) = grammer.scan("test-a", "ape") {
             assert!(false);
         }
         else {
@@ -1761,7 +1761,7 @@ mod tests
             assert!(false);
         }
 
-        if let Ok(branches) = grammer.scan("test-c", "") {
+        if let Ok(_) = grammer.scan("test-c", "") {
             assert!(false);
         }
         else {
@@ -2451,28 +2451,28 @@ mod tests
         })));
         failed.literal("---");
 
-        if let Ok(branches) = a.scan("a", &mut shared) {
+        if let Ok(_) = a.scan("a", &mut shared) {
             assert_eq!(shared.number, 123);
         }
         else {
             assert!(false);
         }
 
-        if let Ok(branches) = b.scan("b", &mut shared) {
+        if let Ok(_) = b.scan("b", &mut shared) {
             assert_eq!(shared.number, 456777);
         }
         else {
             assert!(false);
         }
 
-        if let Ok(branches) = c.scan("c", &mut shared) {
+        if let Ok(_) = c.scan("c", &mut shared) {
             assert_eq!(shared.number, -999);
         }
         else {
             assert!(false);
         }
 
-        if let Ok(branches) = failed.scan("xxx", &mut shared) {
+        if let Ok(_) = failed.scan("xxx", &mut shared) {
             assert!(false);
         }
         else {
