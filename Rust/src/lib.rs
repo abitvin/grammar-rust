@@ -12,14 +12,14 @@ pub mod abitvin
     pub type BranchFn<T, S> = Option<Box<Fn(Vec<T>, &str, &mut S) -> Vec<T>>>;
     
     // TODO Better name
-    enum Progress<'a, T: 'a> {
-        Some(usize, ScanCtx<'a, T>),
-        No(ScanCtx<'a, T>), // TODO We can do without the ScanCtx but we need to clone the errors.
+    enum Progress<'b, T> {
+        Some(usize, ScanCtx<'b, T>),
+        No(ScanCtx<'b, T>), // TODO We can do without the ScanCtx but we need to clone the errors.
     }
 
-    pub struct Rule<'a, T: 'a, S: 'a> {
+    pub struct Rule<T, S> {
         branch_fn: BranchFn<T, S>,
-        parts: Vec<ScanFn<'a, T, S>>,
+        parts: Vec<ScanFn<T, S>>,
     }
     
     pub struct RuleError {
@@ -39,28 +39,53 @@ pub mod abitvin
         }
     }
     
-    enum ScanFn<'a, T: 'a, S: 'a> {
+    enum ScanFn<T, S> {
         All,
         AllExcept(Vec<char>),
         Alter(Vec<(&'static str, &'static str)>),
-        AnyOf(Vec<&'a Rule<'a, T, S>>),
-        AnyOfOwned(Vec<Rule<'a, T, S>>),
-        AnyOfRaw(Vec<*const Rule<'a, T, S>>),
+        //AnyOf(Vec<&'a Rule<'a, T, S>>),
+        AnyOfOwned(Vec<Rule<T, S>>),
+        AnyOfRaw(Vec<*const Rule<T, S>>),
         CharIn(char, char),
         Eof,
         Literal(&'static str),
         LiteralString(String),
-        Not(&'a Rule<'a, T, S>),
-        NotOwned(Rule<'a, T, S>),
-        NotRaw(*const Rule<'a, T, S>),
-        Range(u64, u64, &'a Rule<'a, T, S>),
-        RangeOwned(u64, u64, Rule<'a, T, S>),
-        RangeRaw(u64, u64, *const Rule<'a, T, S>),
+        //Not(&'a Rule<'a, T, S>),
+        NotOwned(Rule<T, S>),
+        NotRaw(*const Rule<T, S>),
+        //Range(u64, u64, &'a Rule<'a, T, S>),
+        RangeOwned(u64, u64, Rule<T, S>),
+        RangeRaw(u64, u64, *const Rule<T, S>),
     }
 
-    struct ScanCtx<'a, T> {
+    impl<T, S> ScanFn<T, S> 
+    {
+        // TODO It's not really a shallow_clone...
+        fn shallow_clone(&self) -> Self 
+        {
+            println!("ScanFn::shallow_clone");
+
+            match *self {
+                ScanFn::All => ScanFn::All,
+                ScanFn::AllExcept(ref v) => ScanFn::AllExcept(v.clone()),
+                ScanFn::Alter(ref v) => ScanFn::Alter(v.clone()),
+                ScanFn::AnyOfOwned(ref v) => ScanFn::AnyOfOwned(v.iter().map(|r| r.shallow_clone(None)).collect()),
+                ScanFn::AnyOfRaw(ref v) => ScanFn::AnyOfRaw(v.clone()),
+                ScanFn::CharIn(min, max) => ScanFn::CharIn(min, max),
+                ScanFn::Eof => ScanFn::Eof,
+                ScanFn::Literal(ref s) => ScanFn::Literal(s),
+                ScanFn::LiteralString(ref s) => ScanFn::LiteralString(s.clone()),
+                ScanFn::NotOwned(ref r) => ScanFn::NotOwned(r.shallow_clone(None)),
+                ScanFn::NotRaw(r) => ScanFn::NotRaw(r),
+                ScanFn::RangeOwned(min, max, ref rule) => ScanFn::RangeOwned(min, max, rule.shallow_clone(None)), 
+                ScanFn::RangeRaw(min, max, rule) => ScanFn::RangeRaw(min, max, rule),
+            }
+        }
+    }
+
+    struct ScanCtx<'b, T> {
         branches: Vec<T>,
-        code_iter: Chars<'a>,
+        code_iter: Chars<'b>,
         errors: Vec<RuleError>,
         index: i64,    // TODO Change to usize? No, because we use an iterator now. Or yes if we don't use Chars.
         lexeme: String,
@@ -68,7 +93,7 @@ pub mod abitvin
         // TODO trail: TMeta[];
     }
 
-    impl<'a, T, S> Rule<'a, T, S>
+    impl<T, S> Rule<T, S>
     {
         pub fn new(branch_fn: BranchFn<T, S>) -> Self
         {
@@ -107,7 +132,7 @@ pub mod abitvin
             self.parts.push(ScanFn::Alter(list));
             self
         }
-        
+        /*
         pub fn any_of(&mut self, rules: Vec<&'a Rule<'a, T, S>>) -> &mut Self
         {
             if rules.len() == 0 {
@@ -117,8 +142,8 @@ pub mod abitvin
             self.parts.push(ScanFn::AnyOf(rules));
             self
         }
-
-        pub fn any_of_owned(&mut self, rules: Vec<Rule<'a, T, S>>) -> &mut Self
+        */
+        pub fn any_of_owned(&mut self, rules: Vec<Rule<T, S>>) -> &mut Self
         {
             if rules.len() == 0 {
                 panic!("You must specify rules.");
@@ -127,8 +152,8 @@ pub mod abitvin
             self.parts.push(ScanFn::AnyOfOwned(rules));
             self
         }
-
-        pub unsafe fn any_of_raw(&mut self, rules: Vec<*const Rule<'a, T, S>>) -> &mut Self
+        
+        pub unsafe fn any_of_raw(&mut self, rules: Vec<*const Rule<T, S>>) -> &mut Self
         {
             if rules.len() == 0 {
                 panic!("You must specify rules.");
@@ -137,56 +162,56 @@ pub mod abitvin
             self.parts.push(ScanFn::AnyOfRaw(rules));
             self
         }
-        
+        /*
         pub fn at_least(&mut self, count: u64, rule: &'a Rule<'a, T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::Range(count, u64::max_value(), &rule));
             self
         }
-
-        pub fn at_least_owned(&mut self, count: u64, rule: Rule<'a, T, S>) -> &mut Self
+        */
+        pub fn at_least_owned(&mut self, count: u64, rule: Rule<T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::RangeOwned(count, u64::max_value(), rule));
             self
         }
         
-        pub unsafe fn at_least_raw(&mut self, count: u64, rule: *const Rule<'a, T, S>) -> &mut Self
+        pub unsafe fn at_least_raw(&mut self, count: u64, rule: *const Rule<T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::RangeRaw(count, u64::max_value(), rule));
             self
         }
-        
+        /*
         pub fn at_most(&mut self, count: u64, rule: &'a Rule<'a, T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::Range(0, count, &rule));
             self
         }
-        
-        pub fn at_most_owned(&mut self, count: u64, rule: Rule<'a, T, S>) -> &mut Self
+        */
+        pub fn at_most_owned(&mut self, count: u64, rule: Rule<T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::RangeOwned(0, count, rule));
             self
         }
         
-        pub unsafe fn at_most_raw(&mut self, count: u64, rule: *const Rule<'a, T, S>) -> &mut Self
+        pub unsafe fn at_most_raw(&mut self, count: u64, rule: *const Rule<T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::RangeRaw(0, count, rule));
             self
         }
-        
+        /*
         pub fn between(&mut self, min: u64, max: u64, rule: &'a Rule<'a, T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::Range(min, max, &rule));
             self
         }
-        
-        pub fn between_owned(&mut self, min: u64, max: u64, rule: Rule<'a, T, S>) -> &mut Self
+        */
+        pub fn between_owned(&mut self, min: u64, max: u64, rule: Rule<T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::RangeOwned(min, max, rule));
             self
         }
         
-        pub unsafe fn between_raw(&mut self, min: u64, max: u64, rule: *const Rule<'a, T, S>) -> &mut Self
+        pub unsafe fn between_raw(&mut self, min: u64, max: u64, rule: *const Rule<T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::RangeRaw(min, max, rule));
             self
@@ -209,20 +234,20 @@ pub mod abitvin
             self.parts.push(ScanFn::Eof);
             self
         }
-        
+        /*
         pub fn exact(&mut self, count: u64, rule: &'a Rule<'a, T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::Range(count, count, &rule));
             self
         }
-
-        pub fn exact_owned(&mut self, count: u64, rule: Rule<'a, T, S>) -> &mut Self
+        */
+        pub fn exact_owned(&mut self, count: u64, rule: Rule<T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::RangeOwned(count, count, rule));
             self
         }
-
-        pub unsafe fn exact_raw(&mut self, count: u64, rule: *const Rule<'a, T, S>) -> &mut Self
+        
+        pub unsafe fn exact_raw(&mut self, count: u64, rule: *const Rule<T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::RangeRaw(count, count, rule));
             self
@@ -247,80 +272,80 @@ pub mod abitvin
             self.parts.push(ScanFn::LiteralString(text));
             self
         }
-
+        /*
         pub fn maybe(&mut self, rule: &'a Rule<'a, T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::Range(0, 1, &rule));
             self
         }
-        
-        pub fn maybe_owned(&mut self, rule: Rule<'a, T, S>) -> &mut Self
+        */
+        pub fn maybe_owned(&mut self, rule: Rule<T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::RangeOwned(0, 1, rule));
             self
         }
         
-        pub unsafe fn maybe_raw(&mut self, rule: *const Rule<'a, T, S>) -> &mut Self
+        pub unsafe fn maybe_raw(&mut self, rule: *const Rule<T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::RangeRaw(0, 1, rule));
             self
         }
-        
+        /*
         pub fn none_or_many(&mut self, rule: &'a Rule<'a, T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::Range(0, u64::max_value(), &rule));
             self
         }
-        
-        pub fn none_or_many_owned(&mut self, rule: Rule<'a, T, S>) -> &mut Self
+        */
+        pub fn none_or_many_owned(&mut self, rule: Rule<T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::RangeOwned(0, u64::max_value(), rule));
             self
         }
         
-        pub unsafe fn none_or_many_raw(&mut self, rule: *const Rule<'a, T, S>) -> &mut Self
+        pub unsafe fn none_or_many_raw(&mut self, rule: *const Rule<T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::RangeRaw(0, u64::max_value(), rule));
             self
         }
-        
+        /*
         pub fn not(&mut self, rule: &'a Rule<'a, T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::Not(&rule));
             self
         }
-        
-        pub fn not_owned(&mut self, rule: Rule<'a, T, S>) -> &mut Self
+        */
+        pub fn not_owned(&mut self, rule: Rule<T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::NotOwned(rule));
             self
         }
-
-        pub unsafe fn not_raw(&mut self, rule: *const Rule<'a, T, S>) -> &mut Self
+        
+        pub unsafe fn not_raw(&mut self, rule: *const Rule<T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::NotRaw(rule));
             self
         }
-        
+        /*
         pub fn one(&mut self, rule: &'a Rule<'a, T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::Range(1, 1, &rule));
             self
         }
-        
-        pub fn one_owned(&mut self, rule: Rule<'a, T, S>) -> &mut Self
+        */
+        pub fn one_owned(&mut self, rule: Rule<T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::RangeOwned(1, 1, rule));
             self
         }
-
-        pub unsafe fn one_raw(&mut self, rule: *const Rule<'a, T, S>) -> &mut Self
+        
+        pub unsafe fn one_raw(&mut self, rule: *const Rule<T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::RangeRaw(1, 1, rule));
             self
         }
-
-        // TODO I think `code` needs to be a String 
+        
+        // TODO I think `code` needs to be a String, no, I think we can make it just `&str`. 
         pub fn scan(&self, code: &'static str, mut shared: &mut S) -> Result<Vec<T>, Vec<RuleError>>
         {
             let mut ctx = ScanCtx {
@@ -352,6 +377,17 @@ pub mod abitvin
             }
             else {
                 Ok(ctx.branches)
+            }
+        }
+
+        // TODO It's not really a shallow_clone...
+        pub fn shallow_clone(&self, branch_fn: BranchFn<T, S>) -> Self
+        {
+            println!("Rule::shallow_clone");
+
+            Rule {
+                branch_fn: branch_fn,
+                parts: self.parts.iter().map(|p| p.shallow_clone()).collect(),
             }
         }
 
@@ -423,17 +459,17 @@ pub mod abitvin
                     ScanFn::All => self.scan_all_leaf(new_ctx),
                     ScanFn::AllExcept(ref exclude) => self.scan_all_except_leaf(&exclude, new_ctx),
                     ScanFn::Alter(ref alter) => self.scan_alter_leaf(&alter, new_ctx),
-                    ScanFn::AnyOf(ref rules) => self.scan_any_of(rules, new_ctx, &mut shared),
+                    //ScanFn::AnyOf(ref rules) => self.scan_any_of(rules, new_ctx, &mut shared),
                     ScanFn::AnyOfOwned(ref rules) => self.scan_any_of_owned(rules, new_ctx, &mut shared),
                     ScanFn::AnyOfRaw(ref rules) => self.scan_any_of_raw(rules, new_ctx, &mut shared),
                     ScanFn::CharIn(min, max) => self.scan_char_in_leaf(min, max, new_ctx),
                     ScanFn::Eof => self.scan_eof_leaf(new_ctx),
                     ScanFn::Literal(find) => self.scan_literal_leaf(&find, new_ctx),
                     ScanFn::LiteralString(ref text) => self.scan_literal_leaf(&text, new_ctx),
-                    ScanFn::Not(r) => self.scan_not(r as *const Rule<T, S>, new_ctx, &mut shared),
+                    //ScanFn::Not(r) => self.scan_not(r as *const Rule<T, S>, new_ctx, &mut shared),
                     ScanFn::NotOwned(ref r) => self.scan_not(r as *const Rule<T, S>, new_ctx, &mut shared),
                     ScanFn::NotRaw(r) => self.scan_not(r, new_ctx, &mut shared),
-                    ScanFn::Range(min, max, r) => self.scan_rule_range(min, max, r as *const Rule<T, S>, new_ctx, &mut shared),
+                    //ScanFn::Range(min, max, r) => self.scan_rule_range(min, max, r as *const Rule<T, S>, new_ctx, &mut shared),
                     ScanFn::RangeOwned(min, max, ref r) => self.scan_rule_range(min, max, r as *const Rule<T, S>, new_ctx, &mut shared),
                     ScanFn::RangeRaw(min, max, r) => self.scan_rule_range(min, max, r, new_ctx, &mut shared),
                 };
@@ -446,7 +482,7 @@ pub mod abitvin
             
             self.merge(ctx, new_ctx, true, &mut shared)
         }
-
+        
         // TODO What about a char with more codepoints?
         fn scan_all_except_leaf<'b>(&'b self, exclude: &Vec<char>, mut ctx: ScanCtx<'b, T>) -> Progress<T>
         {
@@ -465,7 +501,7 @@ pub mod abitvin
                 self.update_error(ctx, String::from("End of code while checking for not allowed character."))
             }
         }
-
+        
         // TODO What about a char with more codepoints?
         fn scan_all_leaf<'b>(&'b self, mut ctx: ScanCtx<'b, T>) -> Progress<T> 
         {
@@ -498,7 +534,7 @@ pub mod abitvin
 
             self.update_error(ctx, String::from("Alter characters not found on this position."))
         }
-        
+        /*
         fn scan_any_of<'b>(&'b self, rules: &Vec<&'a Rule<T, S>>, mut ctx: ScanCtx<'b, T>, mut state: &mut S) -> Progress<T>
         {
             for r in rules {
@@ -511,21 +547,21 @@ pub mod abitvin
 
             Progress::No(ctx)
         }
-        
-        fn scan_any_of_owned<'b>(&'b self, rules: &'b Vec<Rule<T, S>>, mut ctx: ScanCtx<'b, T>, mut state: &mut S) -> Progress<T>
+        */
+        fn scan_any_of_owned<'b>(&'b self, rules: &'b Vec<Rule<T, S>>, ctx: ScanCtx<'b, T>, mut state: &mut S) -> Progress<T>
         {
             for r in rules {
-                let mut new_ctx = self.branch(&ctx, false);
+                let new_ctx = self.branch(&ctx, false);
 
-                if let Progress::Some(progress, new_ctx) = unsafe { r.run(new_ctx, &mut state) } {
+                if let Progress::Some(progress, new_ctx) = r.run(new_ctx, &mut state) {
                     return self.merge(ctx, new_ctx, false, &mut state);
                 } 
             }
 
             Progress::No(ctx)
         }
-
-        fn scan_any_of_raw<'b>(&'b self, rules: &Vec<*const Rule<'b, T, S>>, mut ctx: ScanCtx<'b, T>, mut state: &mut S) -> Progress<T>
+        
+        fn scan_any_of_raw<'b>(&'b self, rules: &Vec<*const Rule<T, S>>, mut ctx: ScanCtx<'b, T>, mut state: &mut S) -> Progress<T>
         {
             for r in rules {
                 let mut new_ctx = self.branch(&ctx, false);
@@ -595,7 +631,7 @@ pub mod abitvin
             Progress::Some(step as usize, ctx)
         }
         
-        fn scan_not<'b>(&'b self, rule: *const Rule<'b, T, S>, mut ctx: ScanCtx<'b, T>, mut state: &mut S) -> Progress<T>
+        fn scan_not<'b>(&'b self, rule: *const Rule<T, S>, ctx: ScanCtx<'b, T>, mut state: &mut S) -> Progress<T>
         {
             match unsafe { (*rule).run(self.branch(&ctx, false), &mut state) } {
                 Progress::Some(_, _) => Progress::No(ctx),
@@ -603,7 +639,7 @@ pub mod abitvin
             }
         }
         
-        fn scan_rule_range<'b>(&'b self, min: u64, max: u64, rule: *const Rule<'a, T, S>, ctx: ScanCtx<'b, T>, mut state: &mut S) -> Progress<T>
+        fn scan_rule_range<'b>(&'b self, min: u64, max: u64, rule: *const Rule<T, S>, ctx: ScanCtx<'b, T>, mut state: &mut S) -> Progress<T>
         {
             let mut new_ctx = self.branch(&ctx, false);
             let mut count = 0u64;
@@ -680,51 +716,56 @@ pub mod abitvin
     
     pub struct NoShared {} 
 
-    struct ParseContext<'a, T: 'a> {
+    struct ParseContext<T> {
         arg1: u64,
         arg2: u64,
         arg3: Option<String>,
         range_type: RangeType,
-        rule: Option<Rule<'a, T, NoShared>>,
+        rule: Option<Rule<T, NoShared>>,
     }
 
-    type RuleExprMap<'a, T> = BTreeMap<&'static str, RuleExpr<'a, T>>;
+    type RuleExprMap<T> = BTreeMap<&'static str, RuleExpr<T>>;
+
+    struct GrammerShared<T> {
+        rule_exps: *const RuleExprMap<T>,
+        keep_ws: *const Rule<T, NoShared>,
+    }
 
     // TODO TMeta class R<TB, TM> extends Rule<IParseContext<TB, TM>, IEmpty> {}
-    type R<'a, T> = Rule<'a, ParseContext<'a, T>, RuleExprMap<'a, T>>;
+    type R<T> = Rule<ParseContext<T>, GrammerShared<T>>;
     
     // TODO Note: This was IRule, remove this comment later after porting.
-    struct RuleExpr<'a, T: 'a> {
+    struct RuleExpr<T> {
         id: &'static str,
         is_defined: bool,
-        rule: Rule<'a, T, NoShared>
+        rule: Rule<T, NoShared>
     }
     
-    pub struct Grammer<'a, T: 'a> /* <TBranch, TMeta> */
+    pub struct Grammer<T> /* <TBranch, TMeta> */
     {
-        grammer: R<'a, T>,
-        rule_exps: RuleExprMap<'a, T>,
+        grammer: R<T>,
+        rule_exps: RuleExprMap<T>,
         
-        keep_integer: Box<R<'a, T>>,            // We need to keep rules defined in the `new` function alive. 
-        keep_ranges: Box<R<'a, T>>,             // ..
-        keep_ws: Box<Rule<'a, T, NoShared>>,    // ..
+        keep_integer: Box<R<T>>,            // We need to keep rules defined in the `new` function alive. 
+        keep_ranges: Box<R<T>>,             // ..
+        keep_ws: Box<Rule<T, NoShared>>,    // ..
     }
 
-    impl<'a, T> Grammer<'a, T>
+    impl<T> Grammer<T>
     {
         pub fn new() -> Self
         {
             let rule_exps = RuleExprMap::new();
 
             let mut space = Rule::new(None); space.literal(" ");
-            let mut tab = Rule::new(None); space.literal("\t");
-            let mut new_line = Rule::new(None); space.literal("\n");
-            let mut carriage_return = Rule::new(None); space.literal("\r");
+            let mut tab = Rule::new(None); tab.literal("\t");
+            let mut new_line = Rule::new(None); new_line.literal("\n");
+            let mut carriage_return = Rule::new(None); carriage_return.literal("\r");
             let mut boxed_ws = Box::new(Rule::new(None));
             let mut ws = Box::into_raw(boxed_ws);
             unsafe { (*ws).any_of_owned(vec![space, tab, new_line, carriage_return]); }
 
-            let statement_fn = |mut b: Vec<ParseContext<'a, T>>, _: &str, _: &mut RuleExprMap<T>|
+            let statement_fn = |mut b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
             {
                 match b[0].range_type {
                     RangeType::Not => {
@@ -750,7 +791,7 @@ pub mod abitvin
 
             let mut statement = R::new(Some(Box::new(statement_fn)));
             
-            let mut escaped_ctrl_chars: R<'a, T> = Rule::new(None);
+            let mut escaped_ctrl_chars: R<T> = Rule::new(None);
             escaped_ctrl_chars.alter(vec![
                 ("\\<", "<"), 
                 ("\\>", ">"), 
@@ -776,7 +817,7 @@ pub mod abitvin
             ]);
 
             // Integer
-            let integer_fn = |_: Vec<ParseContext<T>>, l: &str, _: &mut RuleExprMap<T>|
+            let integer_fn = |_: Vec<ParseContext<T>>, l: &str, _: &mut GrammerShared<T>|
             {
                 vec![ParseContext { 
                     arg1: l.parse::<u64>().unwrap(),
@@ -793,7 +834,7 @@ pub mod abitvin
             unsafe { (*integer).at_least_owned(1, digit); } 
             
             // Literal
-            let literal_text_fn = |_: Vec<ParseContext<T>>, l: &str, _: &mut RuleExprMap<T>|
+            let literal_text_fn = |_: Vec<ParseContext<T>>, l: &str, _: &mut GrammerShared<T>|
             {
                 vec![ParseContext { 
                     arg1: 0,
@@ -804,16 +845,16 @@ pub mod abitvin
                 }]
             };
 
-            let mut literal_all_except: R<'a, T> = Rule::new(None);
+            let mut literal_all_except: R<T> = Rule::new(None);
             literal_all_except.all_except(vec!['<', '{', '(', ')', '|', '[', '+', '?', '*', '.', '$', ' ', '_', '!']);
 
-            let mut literal_char: R<'a, T> = Rule::new(None);
-            literal_char.any_of_owned(vec![escaped_ctrl_chars, literal_all_except]);
+            let mut literal_char: R<T> = Rule::new(None);
+            literal_char.any_of_owned(vec![escaped_ctrl_chars.shallow_clone(None), literal_all_except]);
             
-            let mut literal_text: R<'a, T> = Rule::new(Some(Box::new(literal_text_fn)));
+            let mut literal_text: R<T> = Rule::new(Some(Box::new(literal_text_fn)));
             literal_text.at_least_owned(1, literal_char);
 
-            let literal_fn = |b: Vec<ParseContext<T>>, l: &str, _: &mut RuleExprMap<T>|
+            let literal_fn = |b: Vec<ParseContext<T>>, l: &str, _: &mut GrammerShared<T>|
             {
                 let mut rule = Rule::new(None);
                 rule.literal_string(b[0].arg3.clone().unwrap());
@@ -831,7 +872,7 @@ pub mod abitvin
                 }]
             };
 
-            let mut literal: R<'a, T> = Rule::new(Some(Box::new(literal_fn)));
+            let mut literal: R<T> = Rule::new(Some(Box::new(literal_fn)));
             unsafe { literal.one_owned(literal_text).maybe_raw(ranges); }
             
             /*
@@ -981,8 +1022,111 @@ pub mod abitvin
              
             const rule = new R<TBranch, TMeta>(ruleFn).literal("<").one(ruleName).literal(">").maybe(ranges);
             */
+            
+            // Rule
+            let rule_name_fn = |_: Vec<ParseContext<T>>, l: &str, _: &mut GrammerShared<T>|
+            {
+                vec![ParseContext { 
+                    arg1: 0,
+                    arg2: 0,
+                    arg3: Some(String::from(l)),
+                    range_type: RangeType::NoRangeType,
+                    rule: None,
+                }]
+            };
+
+            let mut rule_name_all_except = R::new(None);
+            rule_name_all_except.all_except(vec!['>']);
+
+            let mut rule_name_char = R::new(None);
+            rule_name_char.any_of_owned(vec![escaped_ctrl_chars, rule_name_all_except]);
+
+            let mut rule_name = R::new(Some(Box::new(rule_name_fn)));
+            rule_name.at_least_owned(1, rule_name_char);
+
+            let rule_fn = |mut b: Vec<ParseContext<T>>, _: &str, s: &mut GrammerShared<T>|
+            {
+                // TODO What if a rule is not defined yet?
+
+                if b.len() == 1 {
+                    let id = b.pop().unwrap().arg3.unwrap();
+                    
+                    match unsafe { (*s.rule_exps).get(id.as_str()) } {
+                        None => {
+                            panic!("Rule \"{}\" not found", id)
+                        },
+                        Some(r) => {
+                            let mut rule = Rule::new(None);
+                            unsafe { rule.one_raw(&r.rule) };
+
+                            vec![ParseContext { 
+                                arg1: 0,
+                                arg2: 0,
+                                arg3: None,
+                                range_type: RangeType::NoRangeType,
+                                rule: Some(rule),
+                            }]
+                        },
+                    }
+                }
+                else {
+                    let range = b.pop().unwrap();
+                    let id = b.pop().unwrap().arg3.unwrap();
+                    
+                    match unsafe { (*s.rule_exps).get(id.as_str()) } {
+                        None => {
+                            panic!("Rule \"{}\" not found", id)
+                        },
+                        Some(r) => {
+                            vec![ParseContext { 
+                                arg1: 0,
+                                arg2: 0,
+                                arg3: None,
+                                range_type: RangeType::NoRangeType,
+                                rule: Some(Grammer::add_range_raw(&r.rule, &range)),
+                            }]
+                        },
+                    }
+                }
+
+                
+                /*
+                let id = b[0].arg3.unwrap();
+                let r = unsafe { (*s.rule_exps).get(id.as_str()) };
+
+                if let None = r {
+                    panic!("Rule \"{}\" not found", id);
+                }
+
+                if b.len() == 1 {
+                    let mut rule = Rule::new(None);
+                    rule.one_owned(r.unwrap().rule);
+
+                    vec![ParseContext { 
+                        arg1: 0,
+                        arg2: 0,
+                        arg3: None,
+                        range_type: RangeType::NoRangeType,
+                        rule: Some(rule),
+                    }]
+                }
+                else {
+                    vec![ParseContext { 
+                        arg1: 0,
+                        arg2: 0,
+                        arg3: None,
+                        range_type: RangeType::NoRangeType,
+                        rule: Some(Grammer::add_range(r.unwrap().rule, &b[1])),
+                    }]
+                }
+                */
+            };
+
+            let mut rule = R::new(Some(Box::new(rule_fn)));
+            unsafe { rule.literal("<").one_owned(rule_name).literal(">").maybe_raw(ranges) };
+            
             // At least
-            let at_least_fn = |b: Vec<ParseContext<T>>, _: &str, _: &mut RuleExprMap<T>|
+            let at_least_fn = |b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
             {
                 vec![ParseContext { 
                     arg1: b[0].arg1,
@@ -997,7 +1141,7 @@ pub mod abitvin
             unsafe { at_least.literal("{").one_raw(integer).literal(",}"); }
 
             // At least one
-            let at_least_one_fn = |_: Vec<ParseContext<T>>, _: &str, _: &mut RuleExprMap<T>|
+            let at_least_one_fn = |_: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
             {
                 vec![ParseContext { 
                     arg1: 1,
@@ -1046,7 +1190,7 @@ pub mod abitvin
             const exact = new R<TBranch, TMeta>(exactFn).literal("{").one(integer).literal("}");
             */
             // Maybe
-            let maybe_fn = |_: Vec<ParseContext<T>>, _: &str, _: &mut RuleExprMap<T>|
+            let maybe_fn = |_: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
             {
                 vec![ParseContext { 
                     arg1: 0,
@@ -1061,7 +1205,7 @@ pub mod abitvin
             maybe.literal("?");
 
             // None or many
-            let none_or_many_fn = |_: Vec<ParseContext<T>>, _: &str, _: &mut RuleExprMap<T>|
+            let none_or_many_fn = |_: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
             {
                 vec![ParseContext { 
                     arg1: 0,
@@ -1076,7 +1220,7 @@ pub mod abitvin
             none_or_many.literal("*");
             
             // Not
-            let not_fn = |_: Vec<ParseContext<T>>, _: &str, _: &mut RuleExprMap<T>|
+            let not_fn = |_: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
             {
                 vec![ParseContext { 
                     arg1: 0,
@@ -1189,18 +1333,30 @@ pub mod abitvin
             const noneOrManyWs = new R<TBranch, TMeta>(noneOrManyWsFs).literal(" ");
             */
 
-            // TODO let xxx = ws;
-
-            let at_least_one_ws_fn = move |_: Vec<ParseContext<T>>, _: &str, _: &mut RuleExprMap<T>|
+            let at_least_one_ws_fn = |_: Vec<ParseContext<T>>, _: &str, s: &mut GrammerShared<T>|
             {
-                let r = Rule::new(None);
-                // TODO unsafe { r.at_least_raw(1, xxx); }
+                let mut r = Rule::new(None);
+                unsafe { r.at_least_raw(1, s.keep_ws); }
 
                 vec![ParseContext { 
                     arg1: 0,
                     arg2: 0,
                     arg3: None,
-                    range_type: RangeType::Not,
+                    range_type: RangeType::NoRangeType,
+                    rule: Some(r),
+                }]
+            };
+
+            let none_or_many_ws_fn = |_: Vec<ParseContext<T>>, _: &str, s: &mut GrammerShared<T>|
+            {
+                let mut r = Rule::new(None);
+                unsafe { r.none_or_many_raw(s.keep_ws); }
+
+                vec![ParseContext { 
+                    arg1: 0,
+                    arg2: 0,
+                    arg3: None,
+                    range_type: RangeType::NoRangeType,
                     rule: Some(r),
                 }]
             };
@@ -1208,11 +1364,15 @@ pub mod abitvin
             let mut at_least_one_ws = R::new(Some(Box::new(at_least_one_ws_fn)));
             at_least_one_ws.literal("_");
 
+            let mut none_or_many_ws = R::new(Some(Box::new(none_or_many_ws_fn)));
+            none_or_many_ws.literal(" ");
+
             // Ranges and statements definitions
             //ranges.anyOf(atLeast, atLeastOne, atMost, between, exact, maybe, noneOrMany);
             unsafe { (*ranges).any_of_owned(vec![at_least, at_least_one/*, atMost, between, exact*/, maybe, none_or_many]); }
             //statement.maybe(not).anyOf(anyChar, noneOrManyWs, atLeastOneWs, eof, alter, allExcept, charRanges, rule, anyOf, literal);
-            statement.maybe_owned(not).any_of_owned(vec![/*anyChar, noneOrManyWs,*/ at_least_one_ws, /*eof, alter, allExcept, charRanges, rule, anyOf,*/ literal]);
+            statement.maybe_owned(not).any_of_owned(vec![/*anyChar,*/ none_or_many_ws, at_least_one_ws, /*eof, alter, allExcept, charRanges,*/ rule, /*anyOf,*/ literal]);
+            //statement.any_of_owned(vec![/*anyChar,*/ at_least_one_ws, /*eof, alter, allExcept, charRanges, rule, anyOf,*/]);
             
             let mut grammer = R::new(None);
             grammer.none_or_many_owned(statement);
@@ -1237,7 +1397,12 @@ pub mod abitvin
                 }
             }
 
-            let mut result = self.grammer.scan(&expr, &mut self.rule_exps); 
+            let mut shared = GrammerShared {
+                rule_exps: &self.rule_exps,
+                keep_ws: &*self.keep_ws,
+            };
+
+            let mut result = self.grammer.scan(&expr, &mut shared); 
 
             match result {
                 Err(_) => {
@@ -1245,6 +1410,23 @@ pub mod abitvin
                 },
                 Ok(mut branches) => {
                     let new_ruleexp = match self.rule_exps.get_mut(id) {
+                        None => {
+                            let rest = branches.split_off(1);
+                            let mut compiled = branches.pop().unwrap().rule.unwrap();
+                            
+                            compiled.branch_fn = branch_fn;
+                            // TODO compiled.meta = meta;
+                            
+                            for r in rest {
+                                compiled.one_owned(r.rule.unwrap());
+                            }
+
+                            Some(RuleExpr {
+                                id: id,
+                                is_defined: true,
+                                rule: compiled,
+                            })
+                        },
                         Some(rulexp) => {
                             rulexp.is_defined = true;
                             rulexp.rule.branch_fn = branch_fn;
@@ -1255,47 +1437,7 @@ pub mod abitvin
                             }
 
                             None
-                        }
-                        None => {
-                            // TODO because I couldn't find a way to pop the first item of an vec.
-                            // I reversed the vec two times, I hope we can do this better.
-
-                            let mut reversed = Vec::new();
-
-                            loop {
-                                if let Some(r) = branches.pop() {
-                                    reversed.push(r);
-                                }
-                                else {
-                                    break;
-                                }
-                            }
-
-                            let mut compiled = reversed.pop().unwrap().rule.unwrap();
-                            let mut reversed_again = Vec::new();
-
-                            loop {
-                                if let Some(r) = reversed.pop() {
-                                    reversed_again.push(r);
-                                }
-                                else {
-                                    break;
-                                }
-                            }
-
-                            compiled.branch_fn = branch_fn;
-                            // TODO compiled.meta = meta;
-
-                            for r in reversed_again {
-                                compiled.one_owned(r.rule.unwrap());
-                            }
-
-                            Some(RuleExpr {
-                                id: id,
-                                is_defined: true,
-                                rule: compiled,
-                            })
-                        }
+                        },
                     };
 
                     if let Some(r) = new_ruleexp {
@@ -1346,7 +1488,9 @@ pub mod abitvin
             }
         }
         */
-        fn add_range<'b>(rule: Rule<'b, T, NoShared>, ctx: &ParseContext<T>) -> Rule<'b, T, NoShared>
+
+        // TODO Replace with add_range_raw.
+        fn add_range(rule: Rule<T, NoShared>, ctx: &ParseContext<T>) -> Rule<T, NoShared>
         {
             match ctx.range_type {
                 RangeType::AtLeast => {
@@ -1378,31 +1522,39 @@ pub mod abitvin
             }
         }
 
-        /*
-        private addRange(rule: Rule<TBranch, TMeta>, context: IParseContext<TBranch, TBranch>): Rule<TBranch, TMeta>
+        fn add_range_raw(rule: *const Rule<T, NoShared>, ctx: &ParseContext<T>) -> Rule<T, NoShared>
         {
-            switch (context.rangeType)
-            {
-                case RangeType.AtLeast:
-                    return new Rule<TBranch, TMeta>().atLeast(context.arg1, rule);
-                
-                case RangeType.AtMost:
-                    return new Rule<TBranch, TMeta>().atMost(context.arg1, rule);
-                
-                case RangeType.Between:
-                    return new Rule<TBranch, TMeta>().between(context.arg1, context.arg2, rule);
-                
-                case RangeType.Exact:
-                    return new Rule<TBranch, TMeta>().exact(context.arg1, rule);
-                
-                case RangeType.NoRangeType:
-                    return rule;
-                
-                default:
-                    throw new Error("Not implemented.");
+            match ctx.range_type {
+                RangeType::AtLeast => {
+                    let mut r = Rule::new(None);
+                    unsafe { r.at_least_raw(ctx.arg1, rule); }
+                    r
+                },
+                RangeType::AtMost => {
+                    let mut r = Rule::new(None);
+                    unsafe { r.at_most_raw(ctx.arg1, rule); }
+                    r
+                },
+                RangeType::Between => {
+                    let mut r = Rule::new(None);
+                    unsafe { r.between_raw(ctx.arg1, ctx.arg2, rule); }
+                    r
+                },
+                RangeType::Exact => {
+                    let mut r = Rule::new(None);
+                    unsafe { r.exact_raw(ctx.arg1, rule); }
+                    r
+                },
+                RangeType::NoRangeType => {
+                    let mut r = Rule::new(None);
+                    unsafe { r.one_raw(rule); }
+                    r
+                },
+                RangeType::Not => {
+                    panic!("Application error")     // TODO Fix this
+                },
             }
         }
-        */
     }
 }
 
@@ -1579,11 +1731,104 @@ mod tests
         }
     }
 
+    #[test]
+    fn grammer_rule()
+    {
+        let f = |_: Vec<i32>, _: &str, _: &mut NoShared| {
+            vec![7777]
+        };
+
+        let mut grammer: Grammer<i32> = Grammer::new();
+        grammer.add("monkey", "monkey", Some(Box::new(f)));
+        grammer.add("test-a", "<monkey>", None);
+        grammer.add("test-b", "<monkey><monkey><monkey>", None);
+        grammer.add("test-c", "<monkey>+", None);
+        grammer.add("test-d", "<monkey>*", None);
+
+        if let Ok(branches) = grammer.scan("test-a", "ape") {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+
+        if let Ok(branches) = grammer.scan("test-a", "monkey") {
+            assert_eq!(branches[0], 7777);
+        }
+        else {
+            assert!(false);
+        }
+
+        if let Ok(branches) = grammer.scan("test-b", "monkeymonkeymonkey") {
+            assert_eq!(branches.len(), 3);
+            assert_eq!(branches[0], 7777);
+            assert_eq!(branches[1], 7777);
+            assert_eq!(branches[2], 7777);
+        }
+        else {
+            assert!(false);
+        }
+
+        if let Ok(branches) = grammer.scan("test-c", "") {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+
+        if let Ok(branches) = grammer.scan("test-c", "monkeymonkeymonkeymonkey") {
+            assert_eq!(branches.len(), 4);
+            assert_eq!(branches[0], 7777);
+            assert_eq!(branches[1], 7777);
+            assert_eq!(branches[2], 7777);
+            assert_eq!(branches[3], 7777);
+        }
+        else {
+            assert!(false);
+        }
+
+        if let Ok(branches) = grammer.scan("test-d", "") {
+            assert_eq!(branches.len(), 0);
+        }
+        else {
+            assert!(false);
+        }
+
+        if let Ok(branches) = grammer.scan("test-d", "monkeymonkeymonkeymonkey") {
+            assert_eq!(branches.len(), 4);
+            assert_eq!(branches[0], 7777);
+            assert_eq!(branches[1], 7777);
+            assert_eq!(branches[2], 7777);
+            assert_eq!(branches[3], 7777);
+        }
+        else {
+            assert!(false);
+        }
+    }
+
+    #[test]
+    fn grammer_spaces()
+    {
+        let mut grammer: Grammer<i32> = Grammer::new();
+        grammer.add("test-a", "_", None);
+        grammer.add("test-b", " ", None);
+        grammer.add("test-c", "monkey monkey_monkey", None);
+
+        assert!(grammer.scan("test-a", "").is_err());
+        assert!(grammer.scan("test-a", "   ").is_ok());
+        assert!(grammer.scan("test-b", "").is_ok());
+        assert!(grammer.scan("test-b", "   ").is_ok());
+        assert!(grammer.scan("test-c", "monkey     monkey                      monkey").is_ok());
+        assert!(grammer.scan("test-c", "monkeymonkey monkey").is_ok());
+        assert!(grammer.scan("test-c", "monkey monkeymonkey").is_err());
+    }
+    
 
 
     
     use abitvin::Rule;
 
+    // TODO Remove me later.
     //struct NoShared {}
 
     #[test]
@@ -1719,18 +1964,24 @@ mod tests
         }
     }
     
+    fn x10(_: Vec<i32>, _: &str, _: &mut bool) -> Vec<i32>
+    {
+        vec![10]
+    }
+
     #[test]
     fn at_least()
     {
         let mut dummy = false;
         let code = "xxxx";
         
-        let mut x = Rule::new(Some(Box::new(|_, _, _| vec![10])));
+        //let mut x = Rule::new(Some(Box::new(|_, _, _| vec![10])));
+        let mut x = Rule::new(None);
         x.literal("x");
         
         let mut root: Rule<i32, bool> = Rule::new(None);
         
-        if let Ok(branches) = root.at_least(3, &x).scan(&code, &mut dummy) {
+        if let Ok(branches) = root.at_least_owned(3, x.shallow_clone(Some(Box::new(x10)))).scan(&code, &mut dummy) {
             assert_eq!(branches[0], 10);
             assert_eq!(branches[1], 10);
             assert_eq!(branches[2], 10);
@@ -1740,7 +1991,7 @@ mod tests
             assert!(false);
         }
         
-        if let Ok(branches) = root.clear().at_least(4, &x).scan(&code, &mut dummy) {
+        if let Ok(branches) = root.clear().at_least_owned(4, x.shallow_clone(Some(Box::new(x10)))).scan(&code, &mut dummy) {
             assert_eq!(branches[0], 10);
             assert_eq!(branches[1], 10);
             assert_eq!(branches[2], 10);
@@ -1750,14 +2001,14 @@ mod tests
             assert!(false);
         }
         
-        if let Ok(_) = root.clear().at_least(5, &x).scan(&code, &mut dummy) {
+        if let Ok(_) = root.clear().at_least_owned(5, x.shallow_clone(Some(Box::new(x10)))).scan(&code, &mut dummy) {
             assert!(false);
         }
         else {
             assert!(true);
         }
     }
-    
+    /*
     #[test]
     fn at_most()
     {
@@ -1831,7 +2082,7 @@ mod tests
             assert!(true);
         }
     }
-    
+    */
     #[test]
     fn char_in()
     {
@@ -1943,7 +2194,7 @@ mod tests
             assert!(false);
         }
     }
-    
+    /*
     #[test]
     fn exact()
     {
@@ -1986,7 +2237,7 @@ mod tests
             assert!(false);
         }
     }
-    
+    */
     #[test]
     fn literal()
     {
@@ -2010,7 +2261,7 @@ mod tests
             assert!(false);
         }
     }
-    
+    /*
     #[test]
     fn maybe()
     {
@@ -2118,7 +2369,7 @@ mod tests
             assert!(false);
         }
     }
-    
+    */
     #[test]
     fn not()
     {
