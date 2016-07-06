@@ -103,12 +103,14 @@ pub mod abitvin
             }
         }
 
+        // TODO Rename to `any_char`, also in TypeScript
         pub fn all(&mut self) -> &mut Self
         {
             self.parts.push(ScanFn::All);
             self
         }
         
+        // TODO Rename to `any_char_except`, also in TypeScript
         pub fn all_except(&mut self, exclude: Vec<char>) -> &mut Self
         {
             if exclude.len() == 0 {
@@ -747,7 +749,7 @@ pub mod abitvin
         
         keep_integer: Box<R<T>>,            // We need to keep rules defined in the `new` function alive. 
         keep_ranges: Box<R<T>>,             // ..
-        keep_ws: Box<Rule<T, NoShared>>,    // ..
+        keep_ws: Rule<T, NoShared>,         // ..
     }
 
     impl<T> Grammer<T>
@@ -760,9 +762,8 @@ pub mod abitvin
             let mut tab = Rule::new(None); tab.literal("\t");
             let mut new_line = Rule::new(None); new_line.literal("\n");
             let mut carriage_return = Rule::new(None); carriage_return.literal("\r");
-            let mut boxed_ws = Box::new(Rule::new(None));
-            let mut ws = Box::into_raw(boxed_ws);
-            unsafe { (*ws).any_of_owned(vec![space, tab, new_line, carriage_return]); }
+            let mut ws = Rule::new(None);
+            ws.any_of_owned(vec![space, tab, new_line, carriage_return]);
 
             let statement_fn = |mut b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
             {
@@ -790,7 +791,7 @@ pub mod abitvin
 
             let mut statement = R::new(Some(Box::new(statement_fn)));
             
-            let mut escaped_ctrl_chars: R<T> = Rule::new(None);
+            let mut escaped_ctrl_chars: R<T> = R::new(None);
             escaped_ctrl_chars.alter(vec![
                 ("\\<", "<"), 
                 ("\\>", ">"), 
@@ -896,39 +897,53 @@ pub mod abitvin
             let mut any_char = R::new(Some(Box::new(any_char_fn)));
             unsafe { any_char.literal(".").maybe_raw(ranges); }
 
-
-            /*
-            
-            // All except
-            const allExceptCharsFn = (b, l) => ({
-                arg1: null,
-                arg2: null,
-                arg3: l,
-                rangeType: RangeType.NoRangeType,
-                rule: null
-            });
-            
-            const allExceptFn = (b, l) =>
+            // Any char except
+            let any_char_except_chars_fn = |_: Vec<ParseContext<T>>, l: &str, _: &mut GrammerShared<T>|
             {
-                let rule = new Rule<TBranch, TMeta>().allExcept(b[0].arg3.split(""));
-                const last = b[b.length - 1];
-                
-                if (last.rangeType !== RangeType.NoRangeType)
-                    rule = this.addRange(rule, last);
-                
-                return { 
-                    arg1: null,
-                    arg2: null,
-                    arg3: null,
-                    rangeType: RangeType.NoRangeType,
-                    rule: rule 
-                };
+                vec![ParseContext { 
+                    arg1: 0,
+                    arg2: 0,
+                    arg3: Some(String::from(l)),
+                    range_type: RangeType::NoRangeType,
+                    rule: None,
+                }]
+            };
+
+            let any_char_except_fn = |mut b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
+            {
+                let mut rule = Rule::new(None);
+
+                if b.len() == 1 {
+                    rule.all_except(b.pop().unwrap().arg3.unwrap().chars().map(|c| c).collect());
+                } 
+                else {
+                    let last = b.pop().unwrap();
+                    rule.all_except(b.pop().unwrap().arg3.unwrap().chars().map(|c| c).collect());
+                    rule = Grammer::add_range(rule, &last);
+                }
+
+                vec![ParseContext { 
+                    arg1: 0,
+                    arg2: 0,
+                    arg3: None,
+                    range_type: RangeType::NoRangeType,
+                    rule: Some(rule),
+                }]
             };
             
-            const allExceptAnyOther = new R<TBranch, TMeta>().allExcept("]");
-            const allExceptChar = new R<TBranch, TMeta>().anyOf(escapedCtrlChars, allExceptAnyOther);
-            const allExceptChars = new R<TBranch, TMeta>(allExceptCharsFn).atLeast(1, allExceptChar);
-            const allExcept = new R<TBranch, TMeta>(allExceptFn).literal("[^").one(allExceptChars).literal("]").maybe(ranges);
+            let mut any_char_except_any_other = R::new(None); 
+            any_char_except_any_other.all_except(vec![']']);
+
+            let mut any_char_except_char = R::new(None); 
+            any_char_except_char.any_of_owned(vec![escaped_ctrl_chars.shallow_clone(None), any_char_except_any_other]);
+
+            let mut any_char_except_chars = R::new(Some(Box::new(any_char_except_chars_fn))); 
+            any_char_except_chars.at_least_owned(1, any_char_except_char);
+
+            let mut any_char_except = R::new(Some(Box::new(any_char_except_fn))); 
+            unsafe { any_char_except.literal("[^").one_owned(any_char_except_chars).literal("]").maybe_raw(ranges); }
+            
+            /*
             
             // Match character range
             const charRangeFn = (b, l) => l.split("-").map(c => ({
@@ -1283,7 +1298,7 @@ pub mod abitvin
             //ranges.anyOf(atLeast, atLeastOne, atMost, between, exact, maybe, noneOrMany);
             unsafe { (*ranges).any_of_owned(vec![at_least, at_least_one/*, atMost, between, exact*/, maybe, none_or_many]); }
             //statement.maybe(not).anyOf(anyChar, noneOrManyWs, atLeastOneWs, eof, alter, allExcept, charRanges, rule, anyOf, literal);
-            statement.maybe_owned(not).any_of_owned(vec![any_char, none_or_many_ws, at_least_one_ws, /*eof, alter, allExcept, charRanges,*/ rule, /*anyOf,*/ literal]);
+            statement.maybe_owned(not).any_of_owned(vec![any_char, none_or_many_ws, at_least_one_ws, /*eof, alter,*/ any_char_except, /*charRanges,*/ rule, /*anyOf,*/ literal]);
             //statement.any_of_owned(vec![/*anyChar,*/ at_least_one_ws, /*eof, alter, allExcept, charRanges, rule, anyOf,*/]);
             
             let mut grammer = R::new(None);
@@ -1295,7 +1310,7 @@ pub mod abitvin
 
                 keep_integer: unsafe { Box::from_raw(integer) },    // We need to keep these rules alive because they are used in other rules.
                 keep_ranges: unsafe { Box::from_raw(ranges) },      // ..
-                keep_ws: unsafe { Box::from_raw(ws) },              // ..
+                keep_ws: ws,                                        // ..
             }
         }
         
@@ -1311,7 +1326,7 @@ pub mod abitvin
 
             let mut shared = GrammerShared {
                 rule_exps: &self.rule_exps,
-                keep_ws: &*self.keep_ws,
+                keep_ws: &self.keep_ws,
             };
 
             let mut result = self.grammer.scan(&expr, &mut shared); 
@@ -1389,7 +1404,7 @@ pub mod abitvin
         {
             let mut shared = GrammerShared {
                 rule_exps: &self.rule_exps,
-                keep_ws: &*self.keep_ws,
+                keep_ws: &self.keep_ws,
             };
 
             match self.grammer.scan(expr, &mut shared) {
@@ -1399,7 +1414,7 @@ pub mod abitvin
                     }
                     
                     let r = b.pop().unwrap().rule.unwrap();
-                    (*self.keep_ws).clear().one_owned(r);
+                    self.keep_ws.clear().one_owned(r);
                 },
                 Err(_) => panic!("Error compiling rule expression."),
             }
@@ -1501,6 +1516,23 @@ mod tests
         assert!(grammer.scan("test-c", "💝💝").is_ok());
         assert!(grammer.scan("test-d", "A").is_err());
         assert!(grammer.scan("test-d", ".").is_ok());
+    }
+
+    #[test]
+    fn grammer_any_char_except()
+    {
+        let mut grammer: Grammer<i32> = Grammer::new();
+        grammer.add("test-a", "[^ABC💝]", None);
+        grammer.add("test-b", "[^ABC💝]*", None);
+        
+        assert!(grammer.scan("test-a", "").is_err());
+        assert!(grammer.scan("test-a", "a").is_ok());
+        assert!(grammer.scan("test-a", "A").is_err());
+        assert!(grammer.scan("test-a", "💝").is_err());
+        assert!(grammer.scan("test-b", "").is_ok());
+        assert!(grammer.scan("test-b", "banana is love!").is_ok());
+        assert!(grammer.scan("test-b", "BANANA IS LOVE!").is_err());
+        assert!(grammer.scan("test-b", "banana is 💝!").is_err());
     }
 
     #[test]

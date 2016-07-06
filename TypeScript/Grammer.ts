@@ -162,8 +162,9 @@ namespace Abitvin
             const allExceptFn = (b, l) =>
             {
                 let rule = new Rule<TBranch, TMeta>().allExcept(b[0].arg3.split(""));
-                const last = b[b.length - 1];
+                const last = b[b.length - 1]; 
                 
+                // TODO Isn't this is a bug? Shoudn't we be checking if `last == null`?
                 if (last.rangeType !== RangeType.NoRangeType)
                     rule = this.addRange(rule, last);
                 
