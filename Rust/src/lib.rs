@@ -874,25 +874,30 @@ pub mod abitvin
             let mut literal: R<T> = Rule::new(Some(Box::new(literal_fn)));
             unsafe { literal.one_owned(literal_text).maybe_raw(ranges); }
             
-            /*
             // Any char
-            const anyCharFn = (b, l) =>
+            let any_char_fn = |b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
             {
-                let rule = new Rule<TBranch, TMeta>().all();
-                
-                if (b.length === 1)
-                    rule = this.addRange(rule, b[0]);
-                
-                return {
-                    arg1: null,
-                    arg2: null,
-                    arg3: null,
-                    rangeType: RangeType.NoRangeType,
-                    rule: rule 
-                };
+                let mut rule = Rule::new(None);
+                rule.all();
+
+                if b.len() == 1 {
+                    rule = Grammer::add_range(rule, &b[0]);
+                }
+
+                vec![ParseContext { 
+                    arg1: 0,
+                    arg2: 0,
+                    arg3: None,
+                    range_type: RangeType::NoRangeType,
+                    rule: Some(rule),
+                }]
             };
-             
-            const anyChar = new R<TBranch, TMeta>(anyCharFn).literal(".").maybe(ranges);
+
+            let mut any_char = R::new(Some(Box::new(any_char_fn)));
+            unsafe { any_char.literal(".").maybe_raw(ranges); }
+
+
+            /*
             
             // All except
             const allExceptCharsFn = (b, l) => ({
@@ -981,48 +986,9 @@ pub mod abitvin
             });
             
             const eof = new R<TBranch, TMeta>(eofFn).literal("$");
-            
-            // One rule
-            const ruleNameFn = (b, l) => ({
-                arg1: null, 
-                arg2: null,
-                arg3: l, 
-                rangeType: RangeType.NoRangeType, 
-                rule: null 
-            });
-            
-            const ruleNameAllExcept = new R<TBranch, TMeta>().allExcept(">");
-            const ruleNameChar = new R<TBranch, TMeta>().anyOf(escapedCtrlChars, ruleNameAllExcept);
-            const ruleName = new R<TBranch, TMeta>(ruleNameFn).atLeast(1, ruleNameChar);
-            
-            const ruleFn = (b, l) =>
-            {
-                const id = b[0].arg3;
-                const r = this._rulexps[id];
-                
-                if (r == null)
-                    throw new Error(`Rule "${id}" not found.`);
-                
-                let rule = null;
-                
-                if (b.length === 1)
-                    rule = new Rule<TBranch, TMeta>().one(r.rule);
-                else
-                    rule = this.addRange(r.rule, b[1]);
-                
-                return {
-                    arg1: null,
-                    arg2: null,
-                    arg3: null,
-                    rangeType: RangeType.NoRangeType,
-                    rule: rule 
-                };
-            };
-             
-            const rule = new R<TBranch, TMeta>(ruleFn).literal("<").one(ruleName).literal(">").maybe(ranges);
             */
             
-            // Rule
+            // One rule
             let rule_name_fn = |_: Vec<ParseContext<T>>, l: &str, _: &mut GrammerShared<T>|
             {
                 vec![ParseContext { 
@@ -1045,8 +1011,6 @@ pub mod abitvin
 
             let rule_fn = |mut b: Vec<ParseContext<T>>, _: &str, s: &mut GrammerShared<T>|
             {
-                // TODO What if a rule is not defined yet?
-
                 if b.len() == 1 {
                     let id = b.pop().unwrap().arg3.unwrap();
                     
@@ -1087,38 +1051,6 @@ pub mod abitvin
                         },
                     }
                 }
-
-                
-                /*
-                let id = b[0].arg3.unwrap();
-                let r = unsafe { (*s.rule_exps).get(id.as_str()) };
-
-                if let None = r {
-                    panic!("Rule \"{}\" not found", id);
-                }
-
-                if b.len() == 1 {
-                    let mut rule = Rule::new(None);
-                    rule.one_owned(r.unwrap().rule);
-
-                    vec![ParseContext { 
-                        arg1: 0,
-                        arg2: 0,
-                        arg3: None,
-                        range_type: RangeType::NoRangeType,
-                        rule: Some(rule),
-                    }]
-                }
-                else {
-                    vec![ParseContext { 
-                        arg1: 0,
-                        arg2: 0,
-                        arg3: None,
-                        range_type: RangeType::NoRangeType,
-                        rule: Some(Grammer::add_range(r.unwrap().rule, &b[1])),
-                    }]
-                }
-                */
             };
 
             let mut rule = R::new(Some(Box::new(rule_fn)));
@@ -1310,28 +1242,9 @@ pub mod abitvin
             const alterText = new R<TBranch, TMeta>().one(alterLeftText).literal(",").one(alterRightText);
             const alterMore = new R<TBranch, TMeta>().literal("|").one(alterText);
             const alter = new R<TBranch, TMeta>(alterFn).literal("(~").one(alterText).noneOrMany(alterMore).literal(")").maybe(ranges);
-            
-            // Whitespace
-            const atLeastOneWsFn = () => ({
-                arg1: null,
-                arg2: null,
-                arg3: null,
-                rangeType: RangeType.NoRangeType,
-                rule: new Rule<TBranch, TMeta>().atLeast(1, this._ws)
-            });
-            
-            const noneOrManyWsFs = () => ({
-                arg1: null,
-                arg2: null,
-                arg3: null,
-                rangeType: RangeType.NoRangeType,
-                rule: new Rule<TBranch, TMeta>().noneOrMany(this._ws)
-            });
-            
-            const atLeastOneWs = new R<TBranch, TMeta>(atLeastOneWsFn).literal("_");
-            const noneOrManyWs = new R<TBranch, TMeta>(noneOrManyWsFs).literal(" ");
             */
 
+            // Whitespace
             let at_least_one_ws_fn = |_: Vec<ParseContext<T>>, _: &str, s: &mut GrammerShared<T>|
             {
                 let mut r = Rule::new(None);
@@ -1370,7 +1283,7 @@ pub mod abitvin
             //ranges.anyOf(atLeast, atLeastOne, atMost, between, exact, maybe, noneOrMany);
             unsafe { (*ranges).any_of_owned(vec![at_least, at_least_one/*, atMost, between, exact*/, maybe, none_or_many]); }
             //statement.maybe(not).anyOf(anyChar, noneOrManyWs, atLeastOneWs, eof, alter, allExcept, charRanges, rule, anyOf, literal);
-            statement.maybe_owned(not).any_of_owned(vec![/*anyChar,*/ none_or_many_ws, at_least_one_ws, /*eof, alter, allExcept, charRanges,*/ rule, /*anyOf,*/ literal]);
+            statement.maybe_owned(not).any_of_owned(vec![any_char, none_or_many_ws, at_least_one_ws, /*eof, alter, allExcept, charRanges,*/ rule, /*anyOf,*/ literal]);
             //statement.any_of_owned(vec![/*anyChar,*/ at_least_one_ws, /*eof, alter, allExcept, charRanges, rule, anyOf,*/]);
             
             let mut grammer = R::new(None);
@@ -1568,6 +1481,29 @@ mod tests
     use abitvin::NoShared;
 
     #[test]
+    fn grammer_any_char()
+    {
+        let mut grammer: Grammer<i32> = Grammer::new();
+        grammer.add("test-a", ".", None);
+        grammer.add("test-b", ".?", None);
+        grammer.add("test-c", ".+", None);
+        grammer.add("test-d", "\\.", None);
+        
+        assert!(grammer.scan("test-a", "").is_err());
+        assert!(grammer.scan("test-a", "A").is_ok());
+        assert!(grammer.scan("test-a", "💝").is_ok());
+        assert!(grammer.scan("test-a", "💝💝").is_err());
+        assert!(grammer.scan("test-b", "").is_ok());
+        assert!(grammer.scan("test-b", "💝").is_ok());
+        assert!(grammer.scan("test-b", "💝💝").is_err());
+        assert!(grammer.scan("test-c", "").is_err());
+        assert!(grammer.scan("test-c", "💝").is_ok());
+        assert!(grammer.scan("test-c", "💝💝").is_ok());
+        assert!(grammer.scan("test-d", "A").is_err());
+        assert!(grammer.scan("test-d", ".").is_ok());
+    }
+
+    #[test]
     fn grammer_at_least()
     {
         let f = |_: Vec<i32>, _: &str, _: &mut NoShared| {
@@ -1762,11 +1698,12 @@ mod tests
         };
 
         let mut grammer: Grammer<i32> = Grammer::new();
-        grammer.add("monkey", "monkey", Some(Box::new(f)));
+        grammer.declare(vec!["monkey"]);    // Also testing `declare` here.
         grammer.add("test-a", "<monkey>", None);
         grammer.add("test-b", "<monkey><monkey><monkey>", None);
         grammer.add("test-c", "<monkey>+", None);
         grammer.add("test-d", "<monkey>*", None);
+        grammer.add("monkey", "monkey", Some(Box::new(f)));
 
         if let Ok(branches) = grammer.scan("test-a", "ape") {
             assert!(false);
