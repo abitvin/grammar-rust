@@ -345,8 +345,7 @@ pub mod abitvin
             self
         }
         
-        // TODO I think `code` needs to be a String, no, I think we can make it just `&str`. 
-        pub fn scan(&self, code: &'static str, mut shared: &mut S) -> Result<Vec<T>, Vec<RuleError>>
+        pub fn scan(&self, code: &str, mut shared: &mut S) -> Result<Vec<T>, Vec<RuleError>>
         {
             let mut ctx = ScanCtx {
                 branches: Vec::new(),
@@ -1463,7 +1462,7 @@ pub mod abitvin
         }
         
         // TODO Make a type of this return type.
-        pub fn scan(&self, root_id: &'static str, code: &'static str) -> Result<Vec<T>, Vec<RuleError>>
+        pub fn scan(&self, root_id: &str, code: &str) -> Result<Vec<T>, Vec<RuleError>>
         {
             let mut dummy = NoShared {};
 
@@ -1472,23 +1471,27 @@ pub mod abitvin
                 None => panic!("Rule with id \"{}\" not found.", root_id),
             }
         }
-        /* TODO
-        pub fn ws(&mut self, expr: &'static str) 
+        
+        pub fn ws(&mut self, expr: &str) 
         {
-            match self.grammer.scan(expr, &mut self.rule_exps) {
+            let mut shared = GrammerShared {
+                rule_exps: &self.rule_exps,
+                keep_ws: &*self.keep_ws,
+            };
+
+            match self.grammer.scan(expr, &mut shared) {
                 Ok(mut b) => {
                     if b.len() != 1 {
                         panic!("Error compiling rule expression.");
                     }
                     
                     let r = b.pop().unwrap().rule.unwrap();
-                    self.ws.clear().one_owned(r);
+                    (*self.keep_ws).clear().one_owned(r);
                 },
                 Err(_) => panic!("Error compiling rule expression."),
             }
         }
-        */
-
+        
         // TODO Replace with add_range_raw.
         fn add_range(rule: Rule<T, NoShared>, ctx: &ParseContext<T>) -> Rule<T, NoShared>
         {
@@ -1633,6 +1636,26 @@ mod tests
         else {
             assert!(false);
         }
+    }
+
+    #[test]
+    fn grammer_custom_spaces()
+    {
+        let mut grammer: Grammer<i32> = Grammer::new();
+        grammer.add("test-a", "_", None);
+        grammer.add("test-b", " ", None);
+        grammer.add("test-c", "monkey monkey_monkey", None);
+        
+        // It's better practice to add the whitespace declaration at the beginning.
+        grammer.ws("\\*");    // TODO Make a more advanced whitespace rule.
+
+        assert!(grammer.scan("test-a", "").is_err());
+        assert!(grammer.scan("test-a", "***").is_ok());
+        assert!(grammer.scan("test-b", "").is_ok());
+        assert!(grammer.scan("test-b", "***").is_ok());
+        assert!(grammer.scan("test-c", "monkey*****monkey*************monkey").is_ok());
+        assert!(grammer.scan("test-c", "monkeymonkey*monkey").is_ok());
+        assert!(grammer.scan("test-c", "monkey*monkeymonkey").is_err());
     }
 
     #[test]
