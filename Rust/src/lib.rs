@@ -63,8 +63,6 @@ pub mod abitvin
         // TODO It's not really a shallow_clone...
         fn shallow_clone(&self) -> Self 
         {
-            println!("ScanFn::shallow_clone");
-
             match *self {
                 ScanFn::All => ScanFn::All,
                 ScanFn::AllExcept(ref v) => ScanFn::AllExcept(v.clone()),
@@ -384,8 +382,6 @@ pub mod abitvin
         // TODO It's not really a shallow_clone...
         pub fn shallow_clone(&self, branch_fn: BranchFn<T, S>) -> Self
         {
-            println!("Rule::shallow_clone");
-
             Rule {
                 branch_fn: branch_fn,
                 parts: self.parts.iter().map(|p| p.shallow_clone()).collect(),
@@ -1101,40 +1097,51 @@ pub mod abitvin
             let mut at_least_one = R::new(Some(Box::new(at_least_one_fn))); 
             at_least_one.literal("+");
 
-            /*
             // At most
-            const atMostFn = (b, l) => ({
-                arg1: b[0].arg1,
-                arg2: null,
-                arg3: null,
-                rangeType: RangeType.AtMost,
-                rule: null
-            });
-            
-            const atMost = new R<TBranch, TMeta>(atMostFn).literal("{,").one(integer).literal("}");
-            
+            let at_most_fn = |b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
+            {
+                vec![ParseContext { 
+                    arg1: b[0].arg1,
+                    arg2: 0,
+                    arg3: None,
+                    range_type: RangeType::AtMost,
+                    rule: None,
+                }]
+            };
+
+            let mut at_most = R::new(Some(Box::new(at_most_fn))); 
+            unsafe { at_most.literal("{,").one_raw(integer).literal("}"); }
+
             // Between
-            const betweenFn = (b, l) => ({
-                arg1: b[0].arg1,
-                arg2: b[1].arg1,
-                arg3: null,
-                rangeType: RangeType.Between,
-                rule: null
-            });
-            
-            const between = new R<TBranch, TMeta>(betweenFn).literal("{").one(integer).literal(",").one(integer).literal("}");
-            
+            let between_fn = |b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
+            {
+                vec![ParseContext { 
+                    arg1: b[0].arg1,
+                    arg2: b[1].arg1,
+                    arg3: None,
+                    range_type: RangeType::Between,
+                    rule: None,
+                }]
+            };
+
+            let mut between = R::new(Some(Box::new(between_fn))); 
+            unsafe { between.literal("{").one_raw(integer).literal(",").one_raw(integer).literal("}"); }
+
             // Exact
-            const exactFn = (b, l) => ({
-                arg1: b[0].arg1,
-                arg2: null,
-                arg3: null,
-                rangeType: RangeType.Exact,
-                rule: null
-            });
-            
-            const exact = new R<TBranch, TMeta>(exactFn).literal("{").one(integer).literal("}");
-            */
+            let exact_fn = |b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
+            {
+                vec![ParseContext { 
+                    arg1: b[0].arg1,
+                    arg2: 0,
+                    arg3: None,
+                    range_type: RangeType::Exact,
+                    rule: None,
+                }]
+            };
+
+            let mut exact = R::new(Some(Box::new(exact_fn))); 
+            unsafe { exact.literal("{").one_raw(integer).literal("}"); }
+
             // Maybe
             let maybe_fn = |_: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
             {
@@ -1295,8 +1302,7 @@ pub mod abitvin
             none_or_many_ws.literal(" ");
 
             // Ranges and statements definitions
-            //ranges.anyOf(atLeast, atLeastOne, atMost, between, exact, maybe, noneOrMany);
-            unsafe { (*ranges).any_of_owned(vec![at_least, at_least_one/*, atMost, between, exact*/, maybe, none_or_many]); }
+            unsafe { (*ranges).any_of_owned(vec![at_least, at_least_one, at_most, between, exact, maybe, none_or_many]); }
             //statement.maybe(not).anyOf(anyChar, noneOrManyWs, atLeastOneWs, eof, alter, allExcept, charRanges, rule, anyOf, literal);
             statement.maybe_owned(not).any_of_owned(vec![any_char, none_or_many_ws, at_least_one_ws, /*eof, alter,*/ any_char_except, /*charRanges,*/ rule, /*anyOf,*/ literal]);
             //statement.any_of_owned(vec![/*anyChar,*/ at_least_one_ws, /*eof, alter, allExcept, charRanges, rule, anyOf,*/]);
@@ -1607,6 +1613,95 @@ mod tests
     }
 
     #[test]
+    fn grammer_at_most()
+    {
+        let f = |_: Vec<i32>, _: &str, _: &mut NoShared| {
+            vec![1234]
+        };
+
+        let mut grammer: Grammer<i32> = Grammer::new();
+        grammer.add("root", "monkey{,2}", Some(Box::new(f)));
+
+        if let Ok(branches) = grammer.scan("root", "") {
+            assert_eq!(branches[0], 1234);
+        }
+        else {
+            assert!(false);
+        }
+
+        if let Ok(branches) = grammer.scan("root", "monkey") {
+            assert_eq!(branches.len(), 1);
+            assert_eq!(branches[0], 1234);
+        }
+        else {
+            assert!(false);
+        }
+
+        if let Ok(branches) = grammer.scan("root", "monkeymonkey") {
+            assert_eq!(branches.len(), 1);
+            assert_eq!(branches[0], 1234);
+        }
+        else {
+            assert!(false);
+        }
+
+        if let Ok(_) = grammer.scan("root", "monkeymonkeymonkeymonkeymonkeymonkey") {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+    }
+
+    #[test]
+    fn grammer_between()
+    {
+        let f = |_: Vec<i32>, _: &str, _: &mut NoShared| {
+            vec![1234]
+        };
+
+        let mut grammer: Grammer<i32> = Grammer::new();
+        grammer.add("root", "monkey{2,4}", Some(Box::new(f)));
+
+        if let Ok(_) = grammer.scan("root", "") {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+
+        if let Ok(_) = grammer.scan("root", "monkey") {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+
+        if let Ok(branches) = grammer.scan("root", "monkeymonkey") {
+            assert_eq!(branches.len(), 1);
+            assert_eq!(branches[0], 1234);
+        }
+        else {
+            assert!(false);
+        }
+
+        if let Ok(branches) = grammer.scan("root", "monkeymonkeymonkeymonkey") {
+            assert_eq!(branches.len(), 1);
+            assert_eq!(branches[0], 1234);
+        }
+        else {
+            assert!(false);
+        }
+
+        if let Ok(_) = grammer.scan("root", "monkeymonkeymonkeymonkeymonkey") {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+    }
+
+    #[test]
     fn grammer_custom_spaces()
     {
         let mut grammer: Grammer<i32> = Grammer::new();
@@ -1624,6 +1719,46 @@ mod tests
         assert!(grammer.scan("test-c", "monkey*****monkey*************monkey").is_ok());
         assert!(grammer.scan("test-c", "monkeymonkey*monkey").is_ok());
         assert!(grammer.scan("test-c", "monkey*monkeymonkey").is_err());
+    }
+
+    #[test]
+    fn grammer_exact()
+    {
+        let f = |_: Vec<i32>, _: &str, _: &mut NoShared| {
+            vec![1234]
+        };
+
+        let mut grammer: Grammer<i32> = Grammer::new();
+        grammer.add("root", "monkey{2}", Some(Box::new(f)));
+
+        if let Ok(_) = grammer.scan("root", "") {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+
+        if let Ok(_) = grammer.scan("root", "monkey") {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
+
+        if let Ok(branches) = grammer.scan("root", "monkeymonkey") {
+            assert_eq!(branches.len(), 1);
+            assert_eq!(branches[0], 1234);
+        }
+        else {
+            assert!(false);
+        }
+
+        if let Ok(_) = grammer.scan("root", "monkeymonkeymonkeymonkeymonkeymonkey") {
+            assert!(false);
+        }
+        else {
+            assert!(true);
+        }
     }
 
     #[test]
@@ -2091,8 +2226,6 @@ mod tests
 
         let mut parser: Rule<u32, i32> = Rule::new(Some(Box::new(|b, _, _| 
         {
-            println!("parser len: {}", b.len());
-
             let mut m = 1u32;
             let mut n = 0u32;
             
