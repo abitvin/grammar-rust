@@ -571,6 +571,7 @@ pub mod abitvin
             Progress::No(ctx)
         }
         
+        // TODO We need to fix some unicode issues. See grammer_char_in() unit test. 
         fn scan_char_in_leaf<'b>(&'b self, min: char, max: char, mut ctx: ScanCtx<'b, T>) -> Progress<T>
         {
             let c = ctx.code_iter.next();
@@ -939,54 +940,83 @@ pub mod abitvin
             let mut any_char_except = R::new(Some(Box::new(any_char_except_fn))); 
             unsafe { any_char_except.literal("[^").one_owned(any_char_except_chars).literal("]").maybe_raw(ranges); }
             
-            /*
-            
             // Match character range
-            const charRangeFn = (b, l) => l.split("-").map(c => ({
-                arg1: null,
-                arg2: null,
-                arg3: c,
-                rangeType: RangeType.NoRangeType,
-                rule: null
-            }));
-            
-            const charRangesFn = (b, l) =>
+            let char_range_fn = |_: Vec<ParseContext<T>>, l: &str, _: &mut GrammerShared<T>|
             {
-                let rule = new Rule<TBranch, TMeta>();
-                
-                if (b.length > 2)
-                {
-                    const ranges: Rule<TBranch, TMeta>[] = [];
-                    
-                    for (let i: number = 0; i < b.length - 1; i += 2)
-                        ranges.push(new Rule<TBranch, TMeta>().between(b[i].arg3, b[i + 1].arg3));
-                    
-                    rule.anyOf(ranges);
-                }
-                else
-                {
-                    rule.between(b[0].arg3, b[1].arg3);
-                }
-                
-                const last = b[b.length - 1];
-                
-                if (last.rangeType !== RangeType.NoRangeType)
-                    rule = this.addRange(rule, last);
-                
-                return {
-                    arg1: null,
-                    arg2: null,
-                    arg3: null,
-                    rangeType: RangeType.NoRangeType,
-                    rule: rule 
-                };
+                let lower = l.chars().next().unwrap();
+                let upper = l.chars().skip(2).next().unwrap();
+
+                vec![ParseContext { 
+                    arg1: 0,
+                    arg2: 0,
+                    arg3: Some(char::to_string(&lower)),
+                    range_type: RangeType::NoRangeType,
+                    rule: None,
+                },
+                ParseContext { 
+                    arg1: 0,
+                    arg2: 0,
+                    arg3: Some(char::to_string(&upper)),
+                    range_type: RangeType::NoRangeType,
+                    rule: None,
+                }]
             };
-            
-            const charRangeAllExcept = new R<TBranch, TMeta>().allExcept("-", "]");
-            const charRangeChar = new R<TBranch, TMeta>().anyOf(escapedCtrlChars, charRangeAllExcept);
-            const charRange = new R<TBranch, TMeta>(charRangeFn).one(charRangeChar).literal("-").one(charRangeChar);
-            const charRanges = new R<TBranch, TMeta>(charRangesFn).literal("[").atLeast(1, charRange).literal("]").maybe(ranges);
-            
+
+            let char_ranges_fn = |mut b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
+            {
+                let mut rule = Rule::new(None);
+                
+                if b.len() > 2 {
+                    let mut ranges = Vec::new();
+                    
+                    while b.len() > 1 {
+                        let rest = b.split_off(2);
+                        
+                        let upper = b.pop().unwrap().arg3.unwrap().chars().next().unwrap();
+                        let lower = b.pop().unwrap().arg3.unwrap().chars().next().unwrap();
+
+                        let mut r = Rule::new(None);
+                        r.char_in(lower, upper);
+
+                        ranges.push(r);
+
+                        b = rest; 
+                    }
+
+                    rule.any_of_owned(ranges);
+                }
+                else {
+                    let upper = b.pop().unwrap().arg3.unwrap().chars().next().unwrap();
+                    let lower = b.pop().unwrap().arg3.unwrap().chars().next().unwrap();
+                    rule.char_in(lower, upper);
+                }
+
+                if let Some(ctx) = b.pop() {
+                    rule = Grammer::add_range(rule, &ctx);
+                }
+
+                vec![ParseContext { 
+                    arg1: 0,
+                    arg2: 0,
+                    arg3: None,
+                    range_type: RangeType::NoRangeType,
+                    rule: Some(rule),
+                }]
+            };
+
+            let mut char_range_all_except = R::new(None);
+            char_range_all_except.all_except(vec!['-', ']']);
+
+            let mut char_range_char = R::new(None);
+            char_range_char.any_of_owned(vec![escaped_ctrl_chars.shallow_clone(None), char_range_all_except]);
+
+            let mut char_range = R::new(Some(Box::new(char_range_fn)));
+            char_range.one_owned(char_range_char.shallow_clone(None)).literal("-").one_owned(char_range_char);
+
+            let mut char_ranges = R::new(Some(Box::new(char_ranges_fn)));
+            unsafe { char_ranges.literal("[").at_least_owned(1, char_range).literal("]").maybe_raw(ranges); }
+
+            /*
             // EOF
             const eofFn = (b, l) => ({
                 arg1: null,
@@ -1304,7 +1334,7 @@ pub mod abitvin
             // Ranges and statements definitions
             unsafe { (*ranges).any_of_owned(vec![at_least, at_least_one, at_most, between, exact, maybe, none_or_many]); }
             //statement.maybe(not).anyOf(anyChar, noneOrManyWs, atLeastOneWs, eof, alter, allExcept, charRanges, rule, anyOf, literal);
-            statement.maybe_owned(not).any_of_owned(vec![any_char, none_or_many_ws, at_least_one_ws, /*eof, alter,*/ any_char_except, /*charRanges,*/ rule, /*anyOf,*/ literal]);
+            statement.maybe_owned(not).any_of_owned(vec![any_char, none_or_many_ws, at_least_one_ws, /*eof, alter,*/ any_char_except, char_ranges, rule, /*anyOf,*/ literal]);
             //statement.any_of_owned(vec![/*anyChar,*/ at_least_one_ws, /*eof, alter, allExcept, charRanges, rule, anyOf,*/]);
             
             let mut grammer = R::new(None);
@@ -1454,7 +1484,7 @@ pub mod abitvin
                     rule
                 },
                 RangeType::Not => {
-                    panic!("Application error")     // TODO Fix this
+                    panic!("Application error")     // TODO Fix this, this is `unreachable!()`
                 },
             }
         }
@@ -1488,7 +1518,7 @@ pub mod abitvin
                     r
                 },
                 RangeType::Not => {
-                    panic!("Application error")     // TODO Fix this
+                    panic!("Application error")     // TODO Fix this, this is `unreachable!()`
                 },
             }
         }
@@ -1699,6 +1729,25 @@ mod tests
         else {
             assert!(true);
         }
+    }
+
+    #[test]
+    fn grammer_char_in()
+    {
+        let mut grammer: Grammer<i32> = Grammer::new();
+        grammer.add("test-a", "[a-z]", None);
+        grammer.add("test-b", "[☺-😷]", None);
+        grammer.add("test-c", "[a-zA-Z0-9]+", None);
+        
+        assert!(grammer.scan("test-a", "").is_err());
+        assert!(grammer.scan("test-a", "x").is_ok());
+        assert!(grammer.scan("test-a", "A").is_err());
+        // assert!(grammer.scan("test-b", "💝").is_err());      TODO We need to fix some Unicode issues.
+        assert!(grammer.scan("test-b", "☺").is_ok());
+        assert!(grammer.scan("test-b", "😍").is_ok());
+        assert!(grammer.scan("test-b", "😷").is_ok());
+        assert!(grammer.scan("test-c", "Banana304").is_ok());
+        assert!(grammer.scan("test-c", "Monkey80085").is_ok());
     }
 
     #[test]
