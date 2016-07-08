@@ -41,7 +41,7 @@ namespace Abitvin.Tests
     test.add("alter-test", "(~\\n,\n|asdasd,asdasxd|aa,DD|yyy,ZZZ)+", (b, l) => l);
     //console.log(test.scan("alter-test", "yyy\\n\\nasdasdaaasdasd\\naaasdasdyyy"));
     
-    debugger;
+    //debugger;
     
     
     const calc = new Grammer<number, IEmpty>();
@@ -154,4 +154,29 @@ namespace Abitvin.Tests
     showTabbed("\tbla");
     showTabbed("    \t    \tbla\n\t\tbar");
     showTabbed("    \t    \tbla\n\t\tbar\r\n        bar");
+
+
+
+
+
+
+    const anyOfTest = new Grammer<number, IEmpty>();
+    anyOfTest.add("new-line", "a");
+    anyOfTest.add("line", "line(<new-line>|b)");
+    console.log("AnyOf", anyOfTest.scan("line", "linea").isSuccess);
+    console.log("AnyOf", anyOfTest.scan("line", "lineb").isSuccess);
+    console.log("AnyOf", !anyOfTest.scan("line", "linec").isSuccess);
+
+
+
+    const eofTest = new Grammer<number, IEmpty>();
+    eofTest.add("new-line", "\r?\n");
+    eofTest.add("line", "line(<new-line>|$)");
+    eofTest.add("root", "<line>*");
+
+    console.log("EOF", eofTest.scan("root", "").isSuccess);
+    console.log("EOF", eofTest.scan("root", "line").isSuccess);
+    console.log("EOF", eofTest.scan("root", "line\n").isSuccess);
+    console.log("EOF", eofTest.scan("root", "line\nline").isSuccess);
+    console.log("EOF", eofTest.scan("root", "line\r\nline\n").isSuccess);
 }
