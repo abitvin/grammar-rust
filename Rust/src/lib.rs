@@ -43,6 +43,7 @@ pub mod abitvin
         All,
         AllExcept(Vec<char>),
         Alter(Vec<(&'static str, &'static str)>),
+        AlterString(Vec<(String, String)>),
         //AnyOf(Vec<&'a Rule<'a, T, S>>),
         AnyOfOwned(Vec<Rule<T, S>>),
         AnyOfRaw(Vec<*const Rule<T, S>>),
@@ -67,6 +68,7 @@ pub mod abitvin
                 ScanFn::All => ScanFn::All,
                 ScanFn::AllExcept(ref v) => ScanFn::AllExcept(v.clone()),
                 ScanFn::Alter(ref v) => ScanFn::Alter(v.clone()),
+                ScanFn::AlterString(ref v) => ScanFn::AlterString(v.clone()),
                 ScanFn::AnyOfOwned(ref v) => ScanFn::AnyOfOwned(v.iter().map(|r| r.shallow_clone_b()).collect()),
                 ScanFn::AnyOfRaw(ref v) => ScanFn::AnyOfRaw(v.clone()),
                 ScanFn::CharIn(min, max) => ScanFn::CharIn(min, max),
@@ -125,11 +127,25 @@ pub mod abitvin
                 panic!("List is empty.");
             }
             
-            if !list.iter().any(|&t| { t.0.len() > 0 && t.1.len() > 0 }) {
+            if !list.iter().any(|t| { t.0.len() > 0 && t.1.len() > 0 }) {
                 panic!("The strings in the list must be minimal one character long.");
             }
             
             self.parts.push(ScanFn::Alter(list));
+            self
+        }
+
+        pub fn alter_string(&mut self, list: Vec<(String, String)>) -> &mut Self
+        {
+            if list.len() == 0 {
+                panic!("List is empty.");
+            }
+            
+            if !list.iter().any(|ref t| { t.0.len() > 0 && t.1.len() > 0 }) {
+                panic!("The strings in the list must be minimal one character long.");
+            }
+            
+            self.parts.push(ScanFn::AlterString(list));
             self
         }
         /*
@@ -456,6 +472,7 @@ pub mod abitvin
                     ScanFn::All => self.scan_all_leaf(new_ctx),
                     ScanFn::AllExcept(ref exclude) => self.scan_all_except_leaf(&exclude, new_ctx),
                     ScanFn::Alter(ref alter) => self.scan_alter_leaf(&alter, new_ctx),
+                    ScanFn::AlterString(ref alter) => self.scan_alter_string_leaf(&alter, new_ctx),
                     //ScanFn::AnyOf(ref rules) => self.scan_any_of(rules, new_ctx, &mut shared),
                     ScanFn::AnyOfOwned(ref rules) => self.scan_any_of_owned(rules, new_ctx, &mut shared),
                     ScanFn::AnyOfRaw(ref rules) => self.scan_any_of_raw(rules, new_ctx, &mut shared),
@@ -524,6 +541,24 @@ pub mod abitvin
                 if find == compare {
                     ctx.code_iter.nth(len - 1);
                     ctx.lexeme.push_str(alter.1);
+                    ctx.index += len as i64;    // TODO As usize instead of i64
+                    return Progress::Some(len as usize, ctx);
+                }
+            }
+
+            self.update_error(ctx, String::from("Alter characters not found on this position."))
+        }
+
+        fn scan_alter_string_leaf<'b>(&'b self, list: &Vec<(String, String)>, mut ctx: ScanCtx<'b, T>) -> Progress<T>
+        {
+            for alter in list {
+                let find = &alter.0;
+                let len = find.chars().count();
+                let compare: String = ctx.code_iter.clone().take(len).collect();
+
+                if *find == compare {
+                    ctx.code_iter.nth(len - 1);
+                    ctx.lexeme.push_str(&alter.1);
                     ctx.index += len as i64;    // TODO As usize instead of i64
                     return Progress::Some(len as usize, ctx);
                 }
@@ -729,8 +764,9 @@ pub mod abitvin
 
     struct ParseContext<T> {
         arg1: u64,
-        arg2: u64,
+        arg2: u64, 
         arg3: Option<String>,
+        arg4: Option<(String, String)>,
         range_type: RangeType,
         rule: Option<Rule<T, NoShared>>,
     }
@@ -769,7 +805,8 @@ pub mod abitvin
         grammer: R<T>,
         rule_exps: RuleExprMap<T>,
         
-        keep_integer: Box<R<T>>,            // We need to keep rules defined in the `new` function alive. 
+        keep_alter_tuple: Box<R<T>>,        // We need to keep rules defined in the `new` function alive.
+        keep_integer: Box<R<T>>,            // ..
         keep_ranges: Box<R<T>>,             // ..
         keep_statement: Box<R<T>>,          // ..
         keep_ws: Rule<T, NoShared>,         // ..
@@ -800,6 +837,7 @@ pub mod abitvin
                             arg1: 0,
                             arg2: 0,
                             arg3: None,
+                            arg4: None,
                             range_type: RangeType::NoRangeType,
                             rule: Some(r), 
                         }]
@@ -848,6 +886,7 @@ pub mod abitvin
                     arg1: l.parse::<u64>().unwrap(),
                     arg2: 0,
                     arg3: None,
+                    arg4: None,
                     range_type: RangeType::NoRangeType,
                     rule: None, 
                 }]
@@ -865,6 +904,7 @@ pub mod abitvin
                     arg1: 0,
                     arg2: 0,
                     arg3: Some(String::from(l)),
+                    arg4: None,
                     range_type: RangeType::NoRangeType,
                     rule: None, 
                 }]
@@ -892,6 +932,7 @@ pub mod abitvin
                     arg1: 0,
                     arg2: 0,
                     arg3: None,
+                    arg4: None,
                     range_type: RangeType::NoRangeType,
                     rule: Some(rule),
                 }]
@@ -914,6 +955,7 @@ pub mod abitvin
                     arg1: 0,
                     arg2: 0,
                     arg3: None,
+                    arg4: None,
                     range_type: RangeType::NoRangeType,
                     rule: Some(rule),
                 }]
@@ -929,6 +971,7 @@ pub mod abitvin
                     arg1: 0,
                     arg2: 0,
                     arg3: Some(String::from(l)),
+                    arg4: None,
                     range_type: RangeType::NoRangeType,
                     rule: None,
                 }]
@@ -951,6 +994,7 @@ pub mod abitvin
                     arg1: 0,
                     arg2: 0,
                     arg3: None,
+                    arg4: None,
                     range_type: RangeType::NoRangeType,
                     rule: Some(rule),
                 }]
@@ -978,6 +1022,7 @@ pub mod abitvin
                     arg1: 0,
                     arg2: 0,
                     arg3: Some(char::to_string(&lower)),
+                    arg4: None,
                     range_type: RangeType::NoRangeType,
                     rule: None,
                 },
@@ -985,6 +1030,7 @@ pub mod abitvin
                     arg1: 0,
                     arg2: 0,
                     arg3: Some(char::to_string(&upper)),
+                    arg4: None,
                     range_type: RangeType::NoRangeType,
                     rule: None,
                 }]
@@ -1027,6 +1073,7 @@ pub mod abitvin
                     arg1: 0,
                     arg2: 0,
                     arg3: None,
+                    arg4: None,
                     range_type: RangeType::NoRangeType,
                     rule: Some(rule),
                 }]
@@ -1054,6 +1101,7 @@ pub mod abitvin
                     arg1: 0,
                     arg2: 0,
                     arg3: None,
+                    arg4: None,
                     range_type: RangeType::NoRangeType,
                     rule: Some(rule),
                 }]
@@ -1069,6 +1117,7 @@ pub mod abitvin
                     arg1: 0,
                     arg2: 0,
                     arg3: Some(String::from(l)),
+                    arg4: None,
                     range_type: RangeType::NoRangeType,
                     rule: None,
                 }]
@@ -1078,7 +1127,7 @@ pub mod abitvin
             rule_name_all_except.all_except(vec!['>']);
 
             let mut rule_name_char = R::new(None);
-            rule_name_char.any_of_owned(vec![escaped_ctrl_chars, rule_name_all_except]);
+            unsafe { rule_name_char.any_of_owned(vec![escaped_ctrl_chars.shallow_clone(None), rule_name_all_except]); }
 
             let mut rule_name = R::new(Some(Box::new(rule_name_fn)));
             rule_name.at_least_owned(1, rule_name_char);
@@ -1101,6 +1150,7 @@ pub mod abitvin
                                 arg1: 0,
                                 arg2: 0,
                                 arg3: None,
+                                arg4: None,
                                 range_type: RangeType::NoRangeType,
                                 rule: Some(rule),
                             }]
@@ -1120,6 +1170,7 @@ pub mod abitvin
                                 arg1: 0,
                                 arg2: 0,
                                 arg3: None,
+                                arg4: None,
                                 range_type: RangeType::NoRangeType,
                                 rule: Some(Grammer::add_range_raw(r.rule, &range)),
                             }]
@@ -1138,6 +1189,7 @@ pub mod abitvin
                     arg1: b[0].arg1,
                     arg2: 0,
                     arg3: None,
+                    arg4: None,
                     range_type: RangeType::AtLeast,
                     rule: None,
                 }]
@@ -1153,6 +1205,7 @@ pub mod abitvin
                     arg1: 1,
                     arg2: 0,
                     arg3: None,
+                    arg4: None,
                     range_type: RangeType::AtLeast,
                     rule: None,
                 }]
@@ -1168,6 +1221,7 @@ pub mod abitvin
                     arg1: b[0].arg1,
                     arg2: 0,
                     arg3: None,
+                    arg4: None,
                     range_type: RangeType::AtMost,
                     rule: None,
                 }]
@@ -1183,6 +1237,7 @@ pub mod abitvin
                     arg1: b[0].arg1,
                     arg2: b[1].arg1,
                     arg3: None,
+                    arg4: None,
                     range_type: RangeType::Between,
                     rule: None,
                 }]
@@ -1198,6 +1253,7 @@ pub mod abitvin
                     arg1: b[0].arg1,
                     arg2: 0,
                     arg3: None,
+                    arg4: None,
                     range_type: RangeType::Exact,
                     rule: None,
                 }]
@@ -1213,6 +1269,7 @@ pub mod abitvin
                     arg1: 0,
                     arg2: 1,
                     arg3: None,
+                    arg4: None,
                     range_type: RangeType::Between,
                     rule: None,
                 }]
@@ -1228,6 +1285,7 @@ pub mod abitvin
                     arg1: 0,
                     arg2: 0,
                     arg3: None,
+                    arg4: None,
                     range_type: RangeType::AtLeast,
                     rule: None,
                 }]
@@ -1243,6 +1301,7 @@ pub mod abitvin
                     arg1: 0,
                     arg2: 0,
                     arg3: None,
+                    arg4: None,
                     range_type: RangeType::Not,
                     rule: None,
                 }]
@@ -1276,6 +1335,7 @@ pub mod abitvin
                     arg1: 0,
                     arg2: 0,
                     arg3: None,
+                    arg4: None,
                     range_type: RangeType::NoRangeType,
                     rule: Some(rule),
                 }]
@@ -1297,6 +1357,7 @@ pub mod abitvin
                         arg1: 0,
                         arg2: 0,
                         arg3: None,
+                        arg4: None,
                         range_type: RangeType::NoRangeType,
                         rule: Some(rule),
                     }]
@@ -1312,42 +1373,122 @@ pub mod abitvin
             let mut any_of = R::new(Some(Box::new(any_of_fn)));
             unsafe { any_of.literal("(").one_owned(statements).none_or_many_owned(more).literal(")").maybe_raw(ranges); }
 
-            /*
             // Alter
-            const alterFn = (b, l) => 
+            let alter_fn = |mut b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
             {
-                const last = b[b.length - 1];
-                
-                if (last.rangeType !== RangeType.NoRangeType)
-                    b = b.slice(0, -1);
-                
-                return {
-                    arg1: null,
-                    arg2: null,
-                    arg3: null,
-                    rangeType: RangeType.NoRangeType,
-                    rule: this.addRange(new Rule<TBranch, TMeta>().alter(b.map(i => i.arg3)), last)
-                };
+                // TODO Can we use `ref` instead of pop and pushing?
+                let last = b.pop().unwrap();
+
+                match last.range_type {
+                    RangeType::NoRangeType => {
+                        b.push(last);
+
+                        let mut rule = Rule::new(None);
+                        let mut v = Vec::new();
+
+                        for i in b {
+                            v.push(i.arg4.unwrap().clone());
+                        }
+
+                        rule.alter_string(v);
+
+                        vec![ParseContext { 
+                            arg1: 0,
+                            arg2: 0,
+                            arg3: None,
+                            arg4: None,
+                            range_type: RangeType::NoRangeType,
+                            rule: Some(rule),
+                        }]
+                    },
+                    _ => {
+                        let mut rule = Rule::new(None);
+                        let mut v = Vec::new();
+
+                        for i in b {
+                            v.push(i.arg4.unwrap().clone());
+                        }
+
+                        rule.alter_string(v);
+
+                        vec![ParseContext { 
+                            arg1: 0,
+                            arg2: 0,
+                            arg3: None,
+                            arg4: None,
+                            range_type: RangeType::NoRangeType,
+                            rule: Some(Grammer::add_range(rule, &last)),
+                        }]
+                    },
+                }        
             };
+
+            let alter_left_text_fn = |_: Vec<ParseContext<T>>, l: &str, _: &mut GrammerShared<T>|
+            {
+                vec![ParseContext { 
+                    arg1: 0,
+                    arg2: 0,
+                    arg3: Some(String::from(l)),
+                    arg4: None,
+                    range_type: RangeType::NoRangeType,
+                    rule: None,
+                }]
+            };
+
+            let alter_right_text_fn = |_: Vec<ParseContext<T>>, l: &str, _: &mut GrammerShared<T>|
+            {
+                vec![ParseContext { 
+                    arg1: 0,
+                    arg2: 0,
+                    arg3: Some(String::from(l)),
+                    arg4: None,
+                    range_type: RangeType::NoRangeType,
+                    rule: None,
+                }]
+            };
+
+            let alter_tuple_fn = |mut b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
+            {
+                let to = b.pop().unwrap().arg3.unwrap();
+                let from = b.pop().unwrap().arg3.unwrap();
+
+                vec![ParseContext { 
+                    arg1: 0,
+                    arg2: 0,
+                    arg3: None,
+                    arg4: Some((from, to)),
+                    range_type: RangeType::NoRangeType,
+                    rule: None,
+                }]
+            };
+
+            let mut alter_all_except_left_char = R::new(None);
+            alter_all_except_left_char.all_except(vec![',']);
             
-            const alterTextFn = (b, l) => ({
-                arg1: null,
-                arg2: null,
-                arg3: l,
-                rangeType: RangeType.NoRangeType,
-                rule: null
-            });
+            let mut alter_left_char = R::new(None);
+            unsafe { alter_left_char.any_of_owned(vec![escaped_ctrl_chars.shallow_clone(None), alter_all_except_left_char]); }
+
+            let mut alter_left_text = R::new(Some(Box::new(alter_left_text_fn)));
+            alter_left_text.at_least_owned(1, alter_left_char);
+
+            let mut alter_all_except_right_char = R::new(None);
+            alter_all_except_right_char.all_except(vec!['|', ')']);
             
-            const alterAllExceptLeftChar = new R<TBranch, TMeta>().allExcept(",");
-            const alterLeftChar = new R<TBranch, TMeta>().anyOf(escapedCtrlChars, alterAllExceptLeftChar);
-            const alterLeftText = new R<TBranch, TMeta>(alterTextFn).atLeast(1, alterLeftChar);
-            const alterAllExceptRightChar = new R<TBranch, TMeta>().allExcept("|", ")");
-            const alterRightChar = new R<TBranch, TMeta>().anyOf(escapedCtrlChars, alterAllExceptRightChar);
-            const alterRightText = new R<TBranch, TMeta>(alterTextFn).atLeast(1, alterRightChar);
-            const alterText = new R<TBranch, TMeta>().one(alterLeftText).literal(",").one(alterRightText);
-            const alterMore = new R<TBranch, TMeta>().literal("|").one(alterText);
-            const alter = new R<TBranch, TMeta>(alterFn).literal("(~").one(alterText).noneOrMany(alterMore).literal(")").maybe(ranges);
-            */
+            let mut alter_right_char = R::new(None);
+            alter_right_char.any_of_owned(vec![escaped_ctrl_chars, alter_all_except_right_char]);
+
+            let mut alter_right_text = R::new(Some(Box::new(alter_right_text_fn)));
+            alter_right_text.at_least_owned(1, alter_right_char);
+
+            let mut alter_tuple = R::new(Some(Box::new(alter_tuple_fn)));
+            alter_tuple.one_owned(alter_left_text).literal(",").one_owned(alter_right_text);
+            let alter_tuple = Box::into_raw(Box::new(alter_tuple));
+
+            let mut alter_more = R::new(None);
+            unsafe { alter_more.literal("|").one_raw(alter_tuple); }
+
+            let mut alter = R::new(Some(Box::new(alter_fn)));
+            unsafe { alter.literal("(~").one_raw(alter_tuple).none_or_many_owned(alter_more).literal(")").maybe_raw(ranges); }
 
             // Whitespace
             let at_least_one_ws_fn = |_: Vec<ParseContext<T>>, _: &str, s: &mut GrammerShared<T>|
@@ -1359,6 +1500,7 @@ pub mod abitvin
                     arg1: 0,
                     arg2: 0,
                     arg3: None,
+                    arg4: None,
                     range_type: RangeType::NoRangeType,
                     rule: Some(r),
                 }]
@@ -1373,6 +1515,7 @@ pub mod abitvin
                     arg1: 0,
                     arg2: 0,
                     arg3: None,
+                    arg4: None,
                     range_type: RangeType::NoRangeType,
                     rule: Some(r),
                 }]
@@ -1385,11 +1528,9 @@ pub mod abitvin
             none_or_many_ws.literal(" ");
 
             // Ranges and statements definitions
-            unsafe { 
+            unsafe {
                 (*ranges).any_of_owned(vec![at_least, at_least_one, at_most, between, exact, maybe, none_or_many]);
-                //statement.maybe(not).anyOf(anyChar, noneOrManyWs, atLeastOneWs, eof, alter, allExcept, charRanges, rule, anyOf, literal);
-                (*statement).maybe_owned(not).any_of_owned(vec![any_char, none_or_many_ws, at_least_one_ws, eof, /*alter,*/ any_char_except, char_ranges, rule, any_of, literal]);
-                //statement.any_of_owned(vec![/*anyChar,*/ at_least_one_ws, /*eof, alter, allExcept, charRanges, rule, anyOf,*/]);
+                (*statement).maybe_owned(not).any_of_owned(vec![any_char, none_or_many_ws, at_least_one_ws, eof, alter, any_char_except, char_ranges, rule, any_of, literal]);
             }
             
             let mut grammer = R::new(None);
@@ -1399,10 +1540,11 @@ pub mod abitvin
                 grammer: grammer, 
                 rule_exps: rule_exps,
 
-                keep_integer: unsafe { Box::from_raw(integer) },        // We need to keep these rules alive because they are used in other rules.
-                keep_ranges: unsafe { Box::from_raw(ranges) },          // ..
-                keep_statement: unsafe { Box::from_raw(statement) },    // ..
-                keep_ws: ws,                                            // ..
+                keep_alter_tuple: unsafe { Box::from_raw(alter_tuple) },    // We need to keep these rules alive because they are used in other rules.
+                keep_integer: unsafe { Box::from_raw(integer) },            // ..
+                keep_ranges: unsafe { Box::from_raw(ranges) },              // ..
+                keep_statement: unsafe { Box::from_raw(statement) },        // ..
+                keep_ws: ws,                                                // ..
             }
         }
         
@@ -1598,7 +1740,31 @@ mod tests
     use abitvin::Grammer;
     use abitvin::NoShared;
 
-    $[test]
+    #[test]
+    fn grammer_alter()
+    {
+        let code = "\\<東\\<💝\\>中\\>"; // There are gonna be 7 replacements.
+        
+        let f = |_: Vec<i32>, l: &str, _: &mut NoShared| {
+            assert_eq!(l, "<AAA<BBB>CCC>");
+            vec![111, 222]
+        };
+
+        let mut grammer: Grammer<i32> = Grammer::new();
+        grammer.add("alter", "(~\\\\<,<|\\\\>,>|東,AAA|💝,BBB|中,CCC)", None);
+        grammer.add("root", "<alter>{7}", Some(Box::new(f)));
+        
+        if let Ok(b) = grammer.scan("root", code) {
+            assert_eq!(b.len(), 2);
+            assert_eq!(b[0], 111);
+            assert_eq!(b[1], 222);
+        }
+        else {
+            assert!(false);
+        }
+    }
+
+    #[test]
     fn grammer_any_char()
     {
         let mut grammer: Grammer<i32> = Grammer::new();
