@@ -532,15 +532,14 @@ pub mod abitvin
             Progress::No(ctx)
         }
         
-        // TODO We need to fix some unicode issues. See grammer_char_in() unit test. 
         fn scan_char_in_leaf<'b>(&'b self, min: char, max: char, mut ctx: ScanCtx<'b, T>) -> Progress<T>
         {
             let c = ctx.code_iter.next();
-            
+
             match c {
                 Some(c) => {
                     if c < min || c > max {
-                       self.update_error(ctx, format!("Expected a character between '{}' and '{}'; got a {}.", min, max, c))
+                        self.update_error(ctx, format!("Expected a character between '{}' and '{}'; got a {}.", min, max, c))
                     }
                     else {
                         ctx.lexeme.push(c);
@@ -1642,7 +1641,6 @@ pub mod abitvin
 #[cfg(test)]
 mod tests 
 {
-    
     use abitvin::Grammer;
     use abitvin::NoShared;
 
@@ -1919,14 +1917,13 @@ mod tests
     {
         let mut grammer: Grammer<i32> = Grammer::new();
         grammer.add("test-a", "[a-z]", None);
-        grammer.add("test-b", "[☺-😷]", None);
+        grammer.add("test-b", "[😀-🙏]", None);         // Emoticons (Emoji) U+1F600 — U+1F64F
         grammer.add("test-c", "[a-zA-Z0-9]+", None);
         
         assert!(grammer.scan("test-a", "").is_err());
         assert!(grammer.scan("test-a", "x").is_ok());
         assert!(grammer.scan("test-a", "A").is_err());
-        assert!(grammer.scan("test-b", "💝").is_err());      // TODO We need to fix some Unicode issues.
-        assert!(grammer.scan("test-b", "☺").is_ok());
+        assert!(grammer.scan("test-b", "☺").is_err());  // Alhough a smiley (emoji), this char (U+263A) is not in the range we given. 
         assert!(grammer.scan("test-b", "😍").is_ok());
         assert!(grammer.scan("test-b", "😷").is_ok());
         assert!(grammer.scan("test-c", "Banana304").is_ok());
@@ -2488,7 +2485,7 @@ mod tests
             }
         }
     }
-    
+
     #[test]
     fn char_in()
     {
