@@ -44,17 +44,14 @@ pub mod abitvin
         AllExcept(Vec<char>),
         Alter(Vec<(&'static str, &'static str)>),
         AlterString(Vec<(String, String)>),
-        //AnyOf(Vec<&'a Rule<'a, T, S>>),
         AnyOfOwned(Vec<Rule<T, S>>),
         AnyOfRaw(Vec<*const Rule<T, S>>),
         CharIn(char, char),
         Eof,
         Literal(&'static str),
         LiteralString(String),
-        //Not(&'a Rule<'a, T, S>),
         NotOwned(Rule<T, S>),
         NotRaw(*const Rule<T, S>),
-        //Range(u64, u64, &'a Rule<'a, T, S>),
         RangeOwned(u64, u64, Rule<T, S>),
         RangeRaw(u64, u64, *const Rule<T, S>),
     }
@@ -148,44 +145,30 @@ pub mod abitvin
             self.parts.push(ScanFn::AlterString(list));
             self
         }
-        /*
-        pub fn any_of(&mut self, rules: Vec<&'a Rule<'a, T, S>>) -> &mut Self
+        
+        pub fn any_of(&mut self, mut rules: Vec<Rule<T, S>>) -> &mut Self
         {
-            if rules.len() == 0 {
-                panic!("You must specify rules.");
-            }
+            match rules.len() {
+                0 => panic!("You must specify rules."),
+                1 => self.parts.push(ScanFn::RangeOwned(1, 1, rules.pop().unwrap())),
+                _ => self.parts.push(ScanFn::AnyOfOwned(rules)),
+            };
             
-            self.parts.push(ScanFn::AnyOf(rules));
-            self
-        }
-        */
-        pub fn any_of_owned(&mut self, rules: Vec<Rule<T, S>>) -> &mut Self
-        {
-            if rules.len() == 0 {
-                panic!("You must specify rules.");
-            }
-            
-            self.parts.push(ScanFn::AnyOfOwned(rules));
             self
         }
         
-        pub unsafe fn any_of_raw(&mut self, rules: Vec<*const Rule<T, S>>) -> &mut Self
+        pub unsafe fn any_of_raw(&mut self, mut rules: Vec<*const Rule<T, S>>) -> &mut Self
         {
-            if rules.len() == 0 {
-                panic!("You must specify rules.");
-            }
+            match rules.len() {
+                0 => panic!("You must specify rules."),
+                1 => self.parts.push(ScanFn::RangeRaw(1, 1, rules[0])),
+                _ => self.parts.push(ScanFn::AnyOfRaw(rules)),  
+            };
             
-            self.parts.push(ScanFn::AnyOfRaw(rules));
             self
         }
-        /*
-        pub fn at_least(&mut self, count: u64, rule: &'a Rule<'a, T, S>) -> &mut Self
-        {
-            self.parts.push(ScanFn::Range(count, u64::max_value(), &rule));
-            self
-        }
-        */
-        pub fn at_least_owned(&mut self, count: u64, rule: Rule<T, S>) -> &mut Self
+        
+        pub fn at_least(&mut self, count: u64, rule: Rule<T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::RangeOwned(count, u64::max_value(), rule));
             self
@@ -196,14 +179,8 @@ pub mod abitvin
             self.parts.push(ScanFn::RangeRaw(count, u64::max_value(), rule));
             self
         }
-        /*
-        pub fn at_most(&mut self, count: u64, rule: &'a Rule<'a, T, S>) -> &mut Self
-        {
-            self.parts.push(ScanFn::Range(0, count, &rule));
-            self
-        }
-        */
-        pub fn at_most_owned(&mut self, count: u64, rule: Rule<T, S>) -> &mut Self
+        
+        pub fn at_most(&mut self, count: u64, rule: Rule<T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::RangeOwned(0, count, rule));
             self
@@ -214,14 +191,8 @@ pub mod abitvin
             self.parts.push(ScanFn::RangeRaw(0, count, rule));
             self
         }
-        /*
-        pub fn between(&mut self, min: u64, max: u64, rule: &'a Rule<'a, T, S>) -> &mut Self
-        {
-            self.parts.push(ScanFn::Range(min, max, &rule));
-            self
-        }
-        */
-        pub fn between_owned(&mut self, min: u64, max: u64, rule: Rule<T, S>) -> &mut Self
+        
+        pub fn between(&mut self, min: u64, max: u64, rule: Rule<T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::RangeOwned(min, max, rule));
             self
@@ -250,14 +221,8 @@ pub mod abitvin
             self.parts.push(ScanFn::Eof);
             self
         }
-        /*
-        pub fn exact(&mut self, count: u64, rule: &'a Rule<'a, T, S>) -> &mut Self
-        {
-            self.parts.push(ScanFn::Range(count, count, &rule));
-            self
-        }
-        */
-        pub fn exact_owned(&mut self, count: u64, rule: Rule<T, S>) -> &mut Self
+        
+        pub fn exact(&mut self, count: u64, rule: Rule<T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::RangeOwned(count, count, rule));
             self
@@ -288,14 +253,8 @@ pub mod abitvin
             self.parts.push(ScanFn::LiteralString(text));
             self
         }
-        /*
-        pub fn maybe(&mut self, rule: &'a Rule<'a, T, S>) -> &mut Self
-        {
-            self.parts.push(ScanFn::Range(0, 1, &rule));
-            self
-        }
-        */
-        pub fn maybe_owned(&mut self, rule: Rule<T, S>) -> &mut Self
+        
+        pub fn maybe(&mut self, rule: Rule<T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::RangeOwned(0, 1, rule));
             self
@@ -306,14 +265,8 @@ pub mod abitvin
             self.parts.push(ScanFn::RangeRaw(0, 1, rule));
             self
         }
-        /*
-        pub fn none_or_many(&mut self, rule: &'a Rule<'a, T, S>) -> &mut Self
-        {
-            self.parts.push(ScanFn::Range(0, u64::max_value(), &rule));
-            self
-        }
-        */
-        pub fn none_or_many_owned(&mut self, rule: Rule<T, S>) -> &mut Self
+        
+        pub fn none_or_many(&mut self, rule: Rule<T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::RangeOwned(0, u64::max_value(), rule));
             self
@@ -324,14 +277,8 @@ pub mod abitvin
             self.parts.push(ScanFn::RangeRaw(0, u64::max_value(), rule));
             self
         }
-        /*
-        pub fn not(&mut self, rule: &'a Rule<'a, T, S>) -> &mut Self
-        {
-            self.parts.push(ScanFn::Not(&rule));
-            self
-        }
-        */
-        pub fn not_owned(&mut self, rule: Rule<T, S>) -> &mut Self
+        
+        pub fn not(&mut self, rule: Rule<T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::NotOwned(rule));
             self
@@ -342,14 +289,8 @@ pub mod abitvin
             self.parts.push(ScanFn::NotRaw(rule));
             self
         }
-        /*
-        pub fn one(&mut self, rule: &'a Rule<'a, T, S>) -> &mut Self
-        {
-            self.parts.push(ScanFn::Range(1, 1, &rule));
-            self
-        }
-        */
-        pub fn one_owned(&mut self, rule: Rule<T, S>) -> &mut Self
+        
+        pub fn one(&mut self, rule: Rule<T, S>) -> &mut Self
         {
             self.parts.push(ScanFn::RangeOwned(1, 1, rule));
             self
@@ -361,6 +302,7 @@ pub mod abitvin
             self
         }
         
+        // TODO If we can add raw Rules then by defenition this `scan` function is unsafe.
         pub fn scan(&self, code: &str, mut shared: &mut S) -> Result<Vec<T>, Vec<RuleError>>
         {
             let mut ctx = ScanCtx {
@@ -370,7 +312,7 @@ pub mod abitvin
                 index: 0,
                 lexeme: String::new(),
             };
-            
+        
             match self.run(ctx, &mut shared) {
                 Progress::Some(_, new_ctx) => ctx = new_ctx,
                 Progress::No(new_ctx) => return Err(new_ctx.errors),
@@ -418,7 +360,7 @@ pub mod abitvin
                 // TODO metaPushed: isRootOfRule ? 0 : ctx.metaPushed,
                 // TODO trail: ctx.trail.slice(0)
             };
-            
+
             /* TODO
             if (isRootOfRule && this._meta)
             {
@@ -453,9 +395,9 @@ pub mod abitvin
                 },
                 _ => {
                     target.branches.append(&mut source.branches);
-                }
+                },
             }
-                
+            
             Progress::Some(step as usize, target)
         }
         
@@ -473,21 +415,18 @@ pub mod abitvin
                     ScanFn::AllExcept(ref exclude) => self.scan_all_except_leaf(&exclude, new_ctx),
                     ScanFn::Alter(ref alter) => self.scan_alter_leaf(&alter, new_ctx),
                     ScanFn::AlterString(ref alter) => self.scan_alter_string_leaf(&alter, new_ctx),
-                    //ScanFn::AnyOf(ref rules) => self.scan_any_of(rules, new_ctx, &mut shared),
                     ScanFn::AnyOfOwned(ref rules) => self.scan_any_of_owned(rules, new_ctx, &mut shared),
                     ScanFn::AnyOfRaw(ref rules) => self.scan_any_of_raw(rules, new_ctx, &mut shared),
                     ScanFn::CharIn(min, max) => self.scan_char_in_leaf(min, max, new_ctx),
                     ScanFn::Eof => self.scan_eof_leaf(new_ctx),
                     ScanFn::Literal(find) => self.scan_literal_leaf(&find, new_ctx),
                     ScanFn::LiteralString(ref text) => self.scan_literal_leaf(&text, new_ctx),
-                    //ScanFn::Not(r) => self.scan_not(r as *const Rule<T, S>, new_ctx, &mut shared),
                     ScanFn::NotOwned(ref r) => self.scan_not(r as *const Rule<T, S>, new_ctx, &mut shared),
                     ScanFn::NotRaw(r) => self.scan_not(r, new_ctx, &mut shared),
-                    //ScanFn::Range(min, max, r) => self.scan_rule_range(min, max, r as *const Rule<T, S>, new_ctx, &mut shared),
                     ScanFn::RangeOwned(min, max, ref r) => self.scan_rule_range(min, max, r as *const Rule<T, S>, new_ctx, &mut shared),
                     ScanFn::RangeRaw(min, max, r) => self.scan_rule_range(min, max, r, new_ctx, &mut shared),
                 };
-                
+
                 match progress {
                     Progress::Some(_, newer_ctx) => new_ctx = newer_ctx,
                     Progress::No(_) => return Progress::No(ctx),
@@ -566,20 +505,7 @@ pub mod abitvin
 
             self.update_error(ctx, String::from("Alter characters not found on this position."))
         }
-        /*
-        fn scan_any_of<'b>(&'b self, rules: &Vec<&'a Rule<T, S>>, mut ctx: ScanCtx<'b, T>, mut state: &mut S) -> Progress<T>
-        {
-            for r in rules {
-                let mut new_ctx = self.branch(&ctx, false);
-
-                if let Progress::Some(progress, new_ctx) = unsafe { (*r).run(new_ctx, &mut state) } {
-                    return self.merge(ctx, new_ctx, false, &mut state);
-                } 
-            }
-
-            Progress::No(ctx)
-        }
-        */
+        
         fn scan_any_of_owned<'b>(&'b self, rules: &'b Vec<Rule<T, S>>, ctx: ScanCtx<'b, T>, mut state: &mut S) -> Progress<T>
         {
             for r in rules {
@@ -676,23 +602,23 @@ pub mod abitvin
         {
             let mut new_ctx = self.branch(&ctx, false);
             let mut count = 0u64;
-            
+
             loop {
                 match unsafe { (*rule).run(new_ctx, &mut state) } {
-                    Progress::Some(progress, ctx) => {
+                    Progress::Some(progress, newer_ctx) => {
                         if progress == 0 {
                             return Progress::Some(0, ctx);
                         }
 
-                        new_ctx = ctx;
+                        new_ctx = newer_ctx;
                         count += 1;
 
                         if count == max {
                             break;
                         }
                     },
-                    Progress::No(ctx) => {
-                        new_ctx = ctx;
+                    Progress::No(initial_ctx) => {
+                        new_ctx = initial_ctx;
                         break;
                     }
                 }
@@ -823,14 +749,14 @@ pub mod abitvin
             let mut new_line = Rule::new(None); new_line.literal("\n");
             let mut carriage_return = Rule::new(None); carriage_return.literal("\r");
             let mut ws = Rule::new(None);
-            ws.any_of_owned(vec![space, tab, new_line, carriage_return]);
+            ws.any_of(vec![space, tab, new_line, carriage_return]);
 
             let statement_fn = |mut b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
             {
                 match b[0].range_type {
                     RangeType::Not => {
                         let mut r: Rule<T, NoShared> = Rule::new(None);
-                        r.not_owned(b.pop().unwrap().rule.unwrap());    // TODO Test this, originally it was b[1]
+                        r.not(b.pop().unwrap().rule.unwrap());    // TODO Test this, originally it was b[1]
                                                                         // Does this goes well together with ranges? 
 
                         vec![ParseContext{ 
@@ -895,7 +821,7 @@ pub mod abitvin
             let mut digit = R::new(None); digit.char_in('0', '9');
             let boxed_integer = Box::new(R::new(Some(Box::new(integer_fn))));
             let integer = Box::into_raw(boxed_integer); 
-            unsafe { (*integer).at_least_owned(1, digit); } 
+            unsafe { (*integer).at_least(1, digit); } 
             
             // Literal
             let literal_text_fn = |_: Vec<ParseContext<T>>, l: &str, _: &mut GrammerShared<T>|
@@ -914,10 +840,10 @@ pub mod abitvin
             literal_all_except.all_except(vec!['<', '{', '(', ')', '|', '[', '+', '?', '*', '.', '$', ' ', '_', '!']);
 
             let mut literal_char: R<T> = R::new(None);
-            unsafe { literal_char.any_of_owned(vec![escaped_ctrl_chars.shallow_clone(None), literal_all_except]); }
+            unsafe { literal_char.any_of(vec![escaped_ctrl_chars.shallow_clone(None), literal_all_except]); }
             
             let mut literal_text: R<T> = R::new(Some(Box::new(literal_text_fn)));
-            literal_text.at_least_owned(1, literal_char);
+            literal_text.at_least(1, literal_char);
 
             let literal_fn = |b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
             {
@@ -939,7 +865,7 @@ pub mod abitvin
             };
 
             let mut literal: R<T> = R::new(Some(Box::new(literal_fn)));
-            unsafe { literal.one_owned(literal_text).maybe_raw(ranges); }
+            unsafe { literal.one(literal_text).maybe_raw(ranges); }
             
             // Any char
             let any_char_fn = |b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
@@ -1004,13 +930,13 @@ pub mod abitvin
             any_char_except_any_other.all_except(vec![']']);
 
             let mut any_char_except_char = R::new(None); 
-            unsafe { any_char_except_char.any_of_owned(vec![escaped_ctrl_chars.shallow_clone(None), any_char_except_any_other]); }
+            unsafe { any_char_except_char.any_of(vec![escaped_ctrl_chars.shallow_clone(None), any_char_except_any_other]); }
 
             let mut any_char_except_chars = R::new(Some(Box::new(any_char_except_chars_fn))); 
-            any_char_except_chars.at_least_owned(1, any_char_except_char);
+            any_char_except_chars.at_least(1, any_char_except_char);
 
             let mut any_char_except = R::new(Some(Box::new(any_char_except_fn))); 
-            unsafe { any_char_except.literal("[^").one_owned(any_char_except_chars).literal("]").maybe_raw(ranges); }
+            unsafe { any_char_except.literal("[^").one(any_char_except_chars).literal("]").maybe_raw(ranges); }
             
             // Match character range
             let char_range_fn = |_: Vec<ParseContext<T>>, l: &str, _: &mut GrammerShared<T>|
@@ -1057,7 +983,7 @@ pub mod abitvin
                         b = rest; 
                     }
 
-                    rule.any_of_owned(ranges);
+                    rule.any_of(ranges);
                 }
                 else {
                     let upper = b.pop().unwrap().arg3.unwrap().chars().next().unwrap();
@@ -1083,13 +1009,13 @@ pub mod abitvin
             char_range_all_except.all_except(vec!['-', ']']);
 
             let mut char_range_char = R::new(None);
-            unsafe { char_range_char.any_of_owned(vec![escaped_ctrl_chars.shallow_clone(None), char_range_all_except]); }
+            unsafe { char_range_char.any_of(vec![escaped_ctrl_chars.shallow_clone(None), char_range_all_except]); }
 
             let mut char_range = R::new(Some(Box::new(char_range_fn)));
-            unsafe { char_range.one_owned(char_range_char.shallow_clone(None)).literal("-").one_owned(char_range_char); }
+            unsafe { char_range.one(char_range_char.shallow_clone(None)).literal("-").one(char_range_char); }
 
             let mut char_ranges = R::new(Some(Box::new(char_ranges_fn)));
-            unsafe { char_ranges.literal("[").at_least_owned(1, char_range).literal("]").maybe_raw(ranges); }
+            unsafe { char_ranges.literal("[").at_least(1, char_range).literal("]").maybe_raw(ranges); }
 
             // EOF
             let eof_fn = |_: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
@@ -1127,10 +1053,10 @@ pub mod abitvin
             rule_name_all_except.all_except(vec!['>']);
 
             let mut rule_name_char = R::new(None);
-            unsafe { rule_name_char.any_of_owned(vec![escaped_ctrl_chars.shallow_clone(None), rule_name_all_except]); }
+            unsafe { rule_name_char.any_of(vec![escaped_ctrl_chars.shallow_clone(None), rule_name_all_except]); }
 
             let mut rule_name = R::new(Some(Box::new(rule_name_fn)));
-            rule_name.at_least_owned(1, rule_name_char);
+            rule_name.at_least(1, rule_name_char);
 
             let rule_fn = |mut b: Vec<ParseContext<T>>, _: &str, s: &mut GrammerShared<T>|
             {
@@ -1180,7 +1106,7 @@ pub mod abitvin
             };
 
             let mut rule = R::new(Some(Box::new(rule_fn)));
-            unsafe { rule.literal("<").one_owned(rule_name).literal(">").maybe_raw(ranges) };
+            unsafe { rule.literal("<").one(rule_name).literal(">").maybe_raw(ranges) };
             
             // At least
             let at_least_fn = |b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
@@ -1315,18 +1241,15 @@ pub mod abitvin
             {
                 let last = b.pop().unwrap();
                 let mut rule = Rule::new(None);
-                let mut rules = Vec::new();
-
-                for ctx in b {
-                    rules.push(ctx.rule.unwrap());
-                }
+                let mut rules: Vec<Rule<T, NoShared>> = b.into_iter().map(|c| c.rule.unwrap()).collect();
 
                 match last.range_type {
                     RangeType::NoRangeType => {
                         rules.push(last.rule.unwrap());
-                        rule.any_of_owned(rules);
+                        rule.any_of(rules);
                     },
                     _ => {
+                        rule.any_of(rules);
                         rule = Grammer::add_range(rule, &last);
                     },
                 }
@@ -1350,7 +1273,7 @@ pub mod abitvin
                     let mut rule = Rule::new(None);
 
                     for ctx in b {
-                        rule.one_owned(ctx.rule.unwrap());
+                        rule.one(ctx.rule.unwrap());
                     }
 
                     vec![ParseContext { 
@@ -1368,10 +1291,10 @@ pub mod abitvin
             unsafe { statements.at_least_raw(1, statement); }
 
             let mut more = R::new(None);
-            unsafe { more.literal("|").one_owned(statements.shallow_clone(None)); }
+            unsafe { more.literal("|").one(statements.shallow_clone(None)); }
 
             let mut any_of = R::new(Some(Box::new(any_of_fn)));
-            unsafe { any_of.literal("(").one_owned(statements).none_or_many_owned(more).literal(")").maybe_raw(ranges); }
+            unsafe { any_of.literal("(").one(statements).none_or_many(more).literal(")").maybe_raw(ranges); }
 
             // Alter
             let alter_fn = |mut b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
@@ -1384,14 +1307,8 @@ pub mod abitvin
                         b.push(last);
 
                         let mut rule = Rule::new(None);
-                        let mut v = Vec::new();
-
-                        for i in b {
-                            v.push(i.arg4.unwrap().clone());
-                        }
-
-                        rule.alter_string(v);
-
+                        rule.alter_string(b.into_iter().map(|i| i.arg4.unwrap()).collect());
+                        
                         vec![ParseContext { 
                             arg1: 0,
                             arg2: 0,
@@ -1403,13 +1320,7 @@ pub mod abitvin
                     },
                     _ => {
                         let mut rule = Rule::new(None);
-                        let mut v = Vec::new();
-
-                        for i in b {
-                            v.push(i.arg4.unwrap().clone());
-                        }
-
-                        rule.alter_string(v);
+                        rule.alter_string(b.into_iter().map(|i| i.arg4.unwrap()).collect());
 
                         vec![ParseContext { 
                             arg1: 0,
@@ -1466,29 +1377,29 @@ pub mod abitvin
             alter_all_except_left_char.all_except(vec![',']);
             
             let mut alter_left_char = R::new(None);
-            unsafe { alter_left_char.any_of_owned(vec![escaped_ctrl_chars.shallow_clone(None), alter_all_except_left_char]); }
+            unsafe { alter_left_char.any_of(vec![escaped_ctrl_chars.shallow_clone(None), alter_all_except_left_char]); }
 
             let mut alter_left_text = R::new(Some(Box::new(alter_left_text_fn)));
-            alter_left_text.at_least_owned(1, alter_left_char);
+            alter_left_text.at_least(1, alter_left_char);
 
             let mut alter_all_except_right_char = R::new(None);
             alter_all_except_right_char.all_except(vec!['|', ')']);
             
             let mut alter_right_char = R::new(None);
-            alter_right_char.any_of_owned(vec![escaped_ctrl_chars, alter_all_except_right_char]);
+            alter_right_char.any_of(vec![escaped_ctrl_chars, alter_all_except_right_char]);
 
             let mut alter_right_text = R::new(Some(Box::new(alter_right_text_fn)));
-            alter_right_text.at_least_owned(1, alter_right_char);
+            alter_right_text.at_least(1, alter_right_char);
 
             let mut alter_tuple = R::new(Some(Box::new(alter_tuple_fn)));
-            alter_tuple.one_owned(alter_left_text).literal(",").one_owned(alter_right_text);
+            alter_tuple.one(alter_left_text).literal(",").one(alter_right_text);
             let alter_tuple = Box::into_raw(Box::new(alter_tuple));
 
             let mut alter_more = R::new(None);
             unsafe { alter_more.literal("|").one_raw(alter_tuple); }
 
             let mut alter = R::new(Some(Box::new(alter_fn)));
-            unsafe { alter.literal("(~").one_raw(alter_tuple).none_or_many_owned(alter_more).literal(")").maybe_raw(ranges); }
+            unsafe { alter.literal("(~").one_raw(alter_tuple).none_or_many(alter_more).literal(")").maybe_raw(ranges); }
 
             // Whitespace
             let at_least_one_ws_fn = |_: Vec<ParseContext<T>>, _: &str, s: &mut GrammerShared<T>|
@@ -1529,8 +1440,8 @@ pub mod abitvin
 
             // Ranges and statements definitions
             unsafe {
-                (*ranges).any_of_owned(vec![at_least, at_least_one, at_most, between, exact, maybe, none_or_many]);
-                (*statement).maybe_owned(not).any_of_owned(vec![any_char, none_or_many_ws, at_least_one_ws, eof, alter, any_char_except, char_ranges, rule, any_of, literal]);
+                (*ranges).any_of(vec![at_least, at_least_one, at_most, between, exact, maybe, none_or_many]);
+                (*statement).maybe(not).any_of(vec![any_char, none_or_many_ws, at_least_one_ws, eof, alter, any_char_except, char_ranges, rule, any_of, literal]);
             }
             
             let mut grammer = R::new(None);
@@ -1540,7 +1451,7 @@ pub mod abitvin
                 grammer: grammer, 
                 rule_exps: rule_exps,
 
-                keep_alter_tuple: unsafe { Box::from_raw(alter_tuple) },    // We need to keep these rules alive because they are used in other rules.
+                keep_alter_tuple: unsafe { Box::from_raw(alter_tuple) },    // We need to keep these rules alive because they are used in other rules as raw references.
                 keep_integer: unsafe { Box::from_raw(integer) },            // ..
                 keep_ranges: unsafe { Box::from_raw(ranges) },              // ..
                 keep_statement: unsafe { Box::from_raw(statement) },        // ..
@@ -1572,22 +1483,16 @@ pub mod abitvin
                 Ok(mut branches) => {
                     let new_ruleexp = match self.rule_exps.get_mut(id) {
                         None => {
-                            let rest = branches.split_off(1);
-                            let mut compiled = branches.pop().unwrap().rule.unwrap();
+                            let mut compiled = Rule::new(branch_fn);
                             
-                            compiled.branch_fn = branch_fn;
-                            // TODO compiled.meta = meta;
-                            
-                            for r in rest {
-                                compiled.one_owned(r.rule.unwrap());
+                            for r in branches {
+                                compiled.one(r.rule.unwrap());
                             }
-
-                            let compiled = Box::new(compiled);
 
                             Some(RuleExpr {
                                 // TODO Maybe remove? id: id,
                                 is_defined: true,
-                                rule: Box::into_raw(compiled),
+                                rule: Box::into_raw(Box::new(compiled)),
                             })
                         },
                         Some(rulexp) => {
@@ -1598,10 +1503,10 @@ pub mod abitvin
                                 (*rulexp.rule).branch_fn = branch_fn;
 
                                 for r in branches {
-                                    (*rulexp.rule).one_owned(r.rule.unwrap());
+                                    (*rulexp.rule).one(r.rule.unwrap());
                                 }
                             }
-                            
+
                             None
                         },
                     };
@@ -1659,7 +1564,7 @@ pub mod abitvin
                     }
                     
                     let r = b.pop().unwrap().rule.unwrap();
-                    self.keep_ws.clear().one_owned(r);
+                    self.keep_ws.clear().one(r);
                 },
                 Err(_) => panic!("Error compiling rule expression."),
             }
@@ -1671,22 +1576,22 @@ pub mod abitvin
             match ctx.range_type {
                 RangeType::AtLeast => {
                     let mut r = Rule::new(None);
-                    r.at_least_owned(ctx.arg1, rule);
+                    r.at_least(ctx.arg1, rule);
                     r
                 },
                 RangeType::AtMost => {
                     let mut r = Rule::new(None);
-                    r.at_most_owned(ctx.arg1, rule);
+                    r.at_most(ctx.arg1, rule);
                     r
                 },
                 RangeType::Between => {
                     let mut r = Rule::new(None);
-                    r.between_owned(ctx.arg1, ctx.arg2, rule);
+                    r.between(ctx.arg1, ctx.arg2, rule);
                     r
                 },
                 RangeType::Exact => {
                     let mut r = Rule::new(None);
-                    r.exact_owned(ctx.arg1, rule);
+                    r.exact(ctx.arg1, rule);
                     r
                 },
                 RangeType::NoRangeType => {
@@ -1737,6 +1642,7 @@ pub mod abitvin
 #[cfg(test)]
 mod tests 
 {
+    
     use abitvin::Grammer;
     use abitvin::NoShared;
 
@@ -2290,10 +2196,41 @@ mod tests
         assert!(grammer.scan("test-c", "monkeymonkey monkey").is_ok());
         assert!(grammer.scan("test-c", "monkey monkeymonkey").is_err());
     }
+
+    #[test]
+    fn grammer_misc_calc()
+    {
+        let mut grammer: Grammer<f64> = Grammer::new();
+        grammer.declare(vec!["add", "expr", "mul"]);
+        grammer.add("num", "[0-9]+", Some(Box::new(|_, l, _| vec![l.parse().unwrap()])));
+        grammer.add("brackets", "\\(<expr>\\)", None);
+        grammer.add("mul", "(<num>|<brackets>)(\\*<mul>)?", Some(Box::new(|b, _, _| if b.len() == 1 { vec![b[0]] } else { vec![b[0] * b[1]] } )));
+        grammer.add("add", "<mul>(\\+<add>)?", Some(Box::new(|b, _, _| if b.len() == 1 { vec![b[0]] } else { vec![b[0] + b[1]] } )));
+        grammer.add("expr", "(<add>|<brackets>)", None);
+
+        if let Ok(branches) = grammer.scan("expr", "2*(3*4*5)") {
+            assert_eq!(branches[0], 120f64);
+        }
+        else {
+            assert!(false);
+        }
+
+        if let Ok(branches) = grammer.scan("expr", "2*(3+4)*5") {
+            assert_eq!(branches[0], 70f64);
+        }
+        else {
+            assert!(false);
+        }
+
+        if let Ok(branches) = grammer.scan("expr", "((2+3*4+5))") {
+            assert_eq!(branches[0], 19f64);
+        }
+        else {
+            assert!(false);
+        }
+    }
     
 
-
-    /* TODO Make Rule unit tests work again. We don't have to ability to borrow rules anymore so some unit tests needs to be slightly rewritten.
 
     use abitvin::Rule;
 
@@ -2340,7 +2277,7 @@ mod tests
         c.all_except(vec!['A', 'B', 'C', 'D']);
         
         let mut r: Rule<u32, bool> = Rule::new(Some(Box::new(f)));
-        r.exact_owned(3, c);
+        r.exact(3, c);
         
         if let Ok(branches) = r.scan(&code, &mut dummy) {
             assert_eq!(branches[0], 0u32);
@@ -2376,7 +2313,7 @@ mod tests
         }; 
         
         let mut r: Rule<i32, f64> = Rule::new(Some(Box::new(f)));
-        r.exact_owned(7, a);
+        r.exact(7, a);
         
         if let Ok(branches) = r.scan(&code, &mut dummy) {
             assert_eq!(branches[0], 111);
@@ -2418,10 +2355,10 @@ mod tests
         ccc.literal("ccc");
         
         let mut any_of_these = Rule::new(None);
-        any_of_these.any_of_owned(vec![aaa, bbb, ccc]);
+        any_of_these.any_of(vec![aaa, bbb, ccc]);
         
         let mut root: Rule<i32, bool> = Rule::new(None);
-        root.exact_owned(3, any_of_these);
+        root.exact(3, any_of_these);
         
         if let Ok(branches) = root.scan(&code, &mut dummy) {
             assert_eq!(branches[0], 111);
@@ -2432,11 +2369,6 @@ mod tests
             assert!(false);
         }
     }
-    
-    fn x10(_: Vec<i32>, _: &str, _: &mut bool) -> Vec<i32>
-    {
-        vec![10]
-    }
 
     #[test]
     fn at_least()
@@ -2444,37 +2376,38 @@ mod tests
         let mut dummy = false;
         let code = "xxxx";
         
-        //let mut x = Rule::new(Some(Box::new(|_, _, _| vec![10])));
-        let mut x = Rule::new(None);
+        let mut x = Rule::new(Some(Box::new(|_, _, _| vec![10])));
         x.literal("x");
         
         let mut root: Rule<i32, bool> = Rule::new(None);
         
-        if let Ok(branches) = root.at_least_owned(3, x.shallow_clone(Some(Box::new(x10)))).scan(&code, &mut dummy) {
-            assert_eq!(branches[0], 10);
-            assert_eq!(branches[1], 10);
-            assert_eq!(branches[2], 10);
-            assert_eq!(branches[3], 10);
-        }
-        else {
-            assert!(false);
-        }
-        
-        if let Ok(branches) = root.clear().at_least_owned(4, x.shallow_clone(Some(Box::new(x10)))).scan(&code, &mut dummy) {
-            assert_eq!(branches[0], 10);
-            assert_eq!(branches[1], 10);
-            assert_eq!(branches[2], 10);
-            assert_eq!(branches[3], 10);
-        }
-        else {
-            assert!(false);
-        }
-        
-        if let Ok(_) = root.clear().at_least_owned(5, x.shallow_clone(Some(Box::new(x10)))).scan(&code, &mut dummy) {
-            assert!(false);
-        }
-        else {
-            assert!(true);
+        unsafe {
+            if let Ok(branches) = root.at_least_raw(3, &x).scan(&code, &mut dummy) {
+                assert_eq!(branches[0], 10);
+                assert_eq!(branches[1], 10);
+                assert_eq!(branches[2], 10);
+                assert_eq!(branches[3], 10);
+            }
+            else {
+                assert!(false);
+            }
+            
+            if let Ok(branches) = root.clear().at_least_raw(4, &x).scan(&code, &mut dummy) {
+                assert_eq!(branches[0], 10);
+                assert_eq!(branches[1], 10);
+                assert_eq!(branches[2], 10);
+                assert_eq!(branches[3], 10);
+            }
+            else {
+                assert!(false);
+            }
+            
+            if let Ok(_) = root.clear().at_least_raw(5, &x).scan(&code, &mut dummy) {
+                assert!(false);
+            }
+            else {
+                assert!(true);
+            }
         }
     }
     
@@ -2489,29 +2422,31 @@ mod tests
                
         let mut root: Rule<i32, i32> = Rule::new(None);
         
-        if let Ok(_) = root.at_most(2, &y).scan(&code, &mut dummy) {
-            assert!(false);
-        }
-        else {
-            assert!(true);
-        }
-        
-        if let Ok(branches) = root.clear().at_most(3, &y).scan(&code, &mut dummy) {
-            assert_eq!(branches[0], 14);
-            assert_eq!(branches[1], 14);
-            assert_eq!(branches[2], 14);
-        }
-        else {
-            assert!(false);
-        }
-        
-        if let Ok(branches) = root.clear().at_most(4, &y).scan(&code, &mut dummy) {
-            assert_eq!(branches[0], 14);
-            assert_eq!(branches[1], 14);
-            assert_eq!(branches[2], 14);
-        }
-        else {
-            assert!(false);
+        unsafe {
+            if let Ok(_) = root.at_most_raw(2, &y).scan(&code, &mut dummy) {
+                assert!(false);
+            }
+            else {
+                assert!(true);
+            }
+            
+            if let Ok(branches) = root.clear().at_most_raw(3, &y).scan(&code, &mut dummy) {
+                assert_eq!(branches[0], 14);
+                assert_eq!(branches[1], 14);
+                assert_eq!(branches[2], 14);
+            }
+            else {
+                assert!(false);
+            }
+            
+            if let Ok(branches) = root.clear().at_most_raw(4, &y).scan(&code, &mut dummy) {
+                assert_eq!(branches[0], 14);
+                assert_eq!(branches[1], 14);
+                assert_eq!(branches[2], 14);
+            }
+            else {
+                assert!(false);
+            }
         }
     }
     
@@ -2526,29 +2461,31 @@ mod tests
                
         let mut root: Rule<i32, i32> = Rule::new(None);
         
-        if let Ok(branches) = root.between(1, 3, &z).scan(&code, &mut dummy) {
-            assert_eq!(branches[0], 34);
-            assert_eq!(branches[1], 34);
-            assert_eq!(branches[2], 34);
-        }
-        else {
-            assert!(true);
-        }
-        
-        if let Ok(branches) = root.clear().between(0, 10, &z).scan(&code, &mut dummy) {
-            assert_eq!(branches[0], 34);
-            assert_eq!(branches[1], 34);
-            assert_eq!(branches[2], 34);
-        }
-        else {
-            assert!(false);
-        }
-        
-        if let Ok(_) = root.clear().between(4, 5, &z).scan(&code, &mut dummy) {
-            assert!(false);
-        }
-        else {
-            assert!(true);
+        unsafe {
+            if let Ok(branches) = root.between_raw(1, 3, &z).scan(&code, &mut dummy) {
+                assert_eq!(branches[0], 34);
+                assert_eq!(branches[1], 34);
+                assert_eq!(branches[2], 34);
+            }
+            else {
+                assert!(true);
+            }
+            
+            if let Ok(branches) = root.clear().between_raw(0, 10, &z).scan(&code, &mut dummy) {
+                assert_eq!(branches[0], 34);
+                assert_eq!(branches[1], 34);
+                assert_eq!(branches[2], 34);
+            }
+            else {
+                assert!(false);
+            }
+            
+            if let Ok(_) = root.clear().between_raw(4, 5, &z).scan(&code, &mut dummy) {
+                assert!(false);
+            }
+            else {
+                assert!(true);
+            }
         }
     }
     
@@ -2564,7 +2501,7 @@ mod tests
         af.char_in('A', 'F');
 
         let mut hex = Rule::new(None);
-        hex.any_of_owned(vec![digit, af]);
+        hex.any_of(vec![digit, af]);
 
         let mut parser: Rule<u32, i32> = Rule::new(Some(Box::new(|b, _, _| 
         {
@@ -2578,7 +2515,7 @@ mod tests
             
             vec![n]
         })));
-        parser.between_owned(1, 8, hex);
+        parser.between(1, 8, hex);
         
         if let Ok(branches) = parser.scan("A", &mut dummy) {
             assert_eq!(branches[0], 10);
@@ -2676,32 +2613,34 @@ mod tests
                 
         let mut root: Rule<char, bool> = Rule::new(None);
         
-        if let Ok(branches) = root.exact(10, &dot).scan(&code, &mut dummy) {
-            assert!(branches.len() == 10 && branches.into_iter().any(|c| c == '.'));
-        }
-        else {
-            assert!(false);
-        }
-        
-        if let Ok(_) = root.clear().exact(9, &dot).scan(&code, &mut dummy) {
-            assert!(false);
-        }
-        else {
-            assert!(true);
-        }
-        
-        if let Ok(_) = root.clear().exact(11, &dot).scan(&code, &mut dummy) {
-            assert!(false);
-        }
-        else {
-            assert!(true);
-        }
-        
-        if let Ok(branches) = root.clear().exact(0, &nope).exact(10, &dot).exact(0, &nope).scan(&code, &mut dummy) {
-            assert!(branches.len() == 10 && branches.into_iter().any(|c| c == '.'));
-        }
-        else {
-            assert!(false);
+        unsafe {
+            if let Ok(branches) = root.exact_raw(10, &dot).scan(&code, &mut dummy) {
+                assert!(branches.len() == 10 && branches.into_iter().any(|c| c == '.'));
+            }
+            else {
+                assert!(false);
+            }
+            
+            if let Ok(_) = root.clear().exact_raw(9, &dot).scan(&code, &mut dummy) {
+                assert!(false);
+            }
+            else {
+                assert!(true);
+            }
+            
+            if let Ok(_) = root.clear().exact_raw(11, &dot).scan(&code, &mut dummy) {
+                assert!(false);
+            }
+            else {
+                assert!(true);
+            }
+            
+            if let Ok(branches) = root.clear().exact_raw(0, &nope).exact_raw(10, &dot).exact_raw(0, &nope).scan(&code, &mut dummy) {
+                assert!(branches.len() == 10 && branches.into_iter().any(|c| c == '.'));
+            }
+            else {
+                assert!(false);
+            }
         }
     }
     
@@ -2748,7 +2687,7 @@ mod tests
         xxx.literal("xxx");
                 
         let mut root: Rule<char, bool> = Rule::new(None);
-        root.maybe(&dots).one_owned(xxx).maybe(&dots);
+        unsafe { root.maybe_raw(&dots).one(xxx).maybe_raw(&dots); }
         
         for c in codes {
             if let Ok(branches) = root.scan(&c, &mut dummy) {
@@ -2816,24 +2755,26 @@ mod tests
             Vec::new()
         })));
         
-        if let Err(_) = code1.none_or_many(&dot).none_or_many(&x).none_or_many(&dot).scan("", &mut dummy) {
-            assert!(false);
-        }
-        
-        if let Err(_) = code2.none_or_many(&dot).none_or_many(&x).none_or_many(&dot).scan("x", &mut dummy) {
-            assert!(false);
-        }
-        
-        if let Err(_) = code3.none_or_many(&dot).none_or_many(&x).none_or_many(&dot).scan("..", &mut dummy) {
-            assert!(false);
-        }
-        
-        if let Err(_) = code4.none_or_many(&dot).none_or_many(&x).none_or_many(&dot).scan("xx.", &mut dummy) {
-            assert!(false);
-        }
-        
-        if let Err(_) = code5.none_or_many(&dot).none_or_many(&x).none_or_many(&dot).scan("..xx", &mut dummy) {
-            assert!(false);
+        unsafe {
+            if let Err(_) = code1.none_or_many_raw(&dot).none_or_many_raw(&x).none_or_many_raw(&dot).scan("", &mut dummy) {
+                assert!(false);
+            }
+            
+            if let Err(_) = code2.none_or_many_raw(&dot).none_or_many_raw(&x).none_or_many_raw(&dot).scan("x", &mut dummy) {
+                assert!(false);
+            }
+            
+            if let Err(_) = code3.none_or_many_raw(&dot).none_or_many_raw(&x).none_or_many_raw(&dot).scan("..", &mut dummy) {
+                assert!(false);
+            }
+            
+            if let Err(_) = code4.none_or_many_raw(&dot).none_or_many_raw(&x).none_or_many_raw(&dot).scan("xx.", &mut dummy) {
+                assert!(false);
+            }
+            
+            if let Err(_) = code5.none_or_many_raw(&dot).none_or_many_raw(&x).none_or_many_raw(&dot).scan("..xx", &mut dummy) {
+                assert!(false);
+            }
         }
     }
     
@@ -2846,7 +2787,7 @@ mod tests
         not_this.literal("not this");
         
         let mut r: Rule<i32, i32> = Rule::new(None);
-        r.literal("aaa").not_owned(not_this).literal("bbb").literal("ccc");
+        r.literal("aaa").not(not_this).literal("bbb").literal("ccc");
         
         if let Ok(_) = r.scan("aaabbbccc", &mut dummy) {
             assert!(true);
@@ -2879,7 +2820,7 @@ mod tests
         three.literal("three");
         
         let mut root: Rule<i32, NoShared> = Rule::new(None);
-        root.one_owned(one).one_owned(two).one_owned(three);
+        root.one(one).one(two).one(three);
         
         if let Ok(branches) = root.scan(&code, &mut dummy) {
             assert_eq!(branches[0], 1);
@@ -2970,18 +2911,18 @@ mod tests
             digit.char_in('0', '9');
 
             let mut num = Rule::new(Some(Box::new(|_, l, _| vec![l.parse().unwrap()])));
-            num.at_least_owned(1, digit);
+            num.at_least(1, digit);
 
             let mut brackets = Rule::new(None);
             brackets.literal("(").one_raw(&expr).literal(")"); 
 
             let mut mul_right = Rule::new(None);
             mul_right.literal("*").one_raw(&mul);
-            mul.any_of_raw(vec![&num, &brackets]).maybe_owned(mul_right);
+            mul.any_of_raw(vec![&num, &brackets]).maybe(mul_right);
 
             let mut add_right = Rule::new(None);
             add_right.literal("+").one_raw(&add);
-            add.one_raw(&mul).maybe_owned(add_right);
+            add.one_raw(&mul).maybe(add_right);
 
             expr.any_of_raw(vec![&add, &brackets]);
 
@@ -3007,7 +2948,6 @@ mod tests
             }
         }
     }
-    */
 }
 
 /*
