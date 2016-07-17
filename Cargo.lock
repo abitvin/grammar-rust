@@ -1,0 +1,11 @@
+[root]
+name = "grammer"
+version = "0.5.11"
+dependencies = [
+ "rule 0.5.12",
+]
+
+[[package]]
+name = "rule"
+version = "0.5.12"
+

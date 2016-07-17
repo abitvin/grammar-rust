@@ -1,0 +1,7 @@
+[package]
+name = "grammer"
+version = "0.5.11"
+authors = ["Vincent Van Ingen <foss@abitvin.net>"]
+
+[dependencies.rule]
+path = "../rule-rust"
