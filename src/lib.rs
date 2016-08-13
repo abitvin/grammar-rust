@@ -70,6 +70,7 @@ pub struct Grammer<T> /* <TBranch, TMeta> */
     keep_integer: Box<R<T>>,            // ..
     keep_ranges: Box<R<T>>,             // ..
     keep_statement: Box<R<T>>,          // ..
+    keep_statements: Box<R<T>>,          // ..
     keep_ws: Rule<T, NoShared>,         // ..
 }
 
@@ -621,15 +622,16 @@ impl<T> Grammer<T>
                 }]
             }                
         };
-
-        let mut statements = R::new(Some(Box::new(statements_fn)));
-        unsafe { statements.at_least_raw(1, statement); }
+        
+        let boxed_statements = Box::new(R::new(Some(Box::new(statements_fn))));
+        let statements = Box::into_raw(boxed_statements);
+        unsafe { (*statements).at_least_raw(1, statement); }
 
         let mut more = R::new(None);
-        unsafe { more.literal("|").one(statements.shallow_clone(None)); }
+        unsafe { more.literal("|").one_raw(statements); }
 
         let mut any_of = R::new(Some(Box::new(any_of_fn)));
-        unsafe { any_of.literal("(").one(statements).none_or_many(more).literal(")").maybe_raw(ranges); }
+        unsafe { any_of.literal("(").one_raw(statements).none_or_many(more).literal(")").maybe_raw(ranges); }
 
         // Alter
         let alter_fn = |mut b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
@@ -790,6 +792,7 @@ impl<T> Grammer<T>
             keep_integer: unsafe { Box::from_raw(integer) },            // ..
             keep_ranges: unsafe { Box::from_raw(ranges) },              // ..
             keep_statement: unsafe { Box::from_raw(statement) },        // ..
+            keep_statements: unsafe { Box::from_raw(statements) },      // ..
             keep_ws: ws,                                                // ..
         }
     }
