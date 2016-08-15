@@ -2,14 +2,12 @@
 // Licensed under the MIT license <LICENSE.md or http://opensource.org/licenses/MIT>
 // This file may not be copied, modified, or distributed except according to those terms.
 
-// TODO Put Cargo.lock in the .gitignore and remove it from git. Also do this for the Rule API.
-
 extern crate rule;
 
 use rule::BranchFn;
 use rule::Rule;
 use rule::RuleError;
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 
 enum RangeType {
     NoRangeType = 0,
@@ -32,9 +30,7 @@ struct ParseContext<T> {
     rule: Option<Rule<T, NoShared>>,
 }
 
-// TODO Use HashMap. It's faster and maybe we can revert back from `*mut Rule` into `Rule` in the RuleExp struct.
-// https://doc.rust-lang.org/std/collections/
-type RuleExprMap<T> = BTreeMap<&'static str, RuleExpr<T>>;
+type RuleExprMap<T> = HashMap<&'static str, RuleExpr<T>>;
 
 struct GrammerShared<T> {
     rule_exps: *const RuleExprMap<T>,
@@ -44,11 +40,9 @@ struct GrammerShared<T> {
 // TODO TMeta class R<TB, TM> extends Rule<IParseContext<TB, TM>, IEmpty> {}
 type R<T> = Rule<ParseContext<T>, GrammerShared<T>>;
 
-// TODO Note: This was IRule, remove this comment later after porting.
 struct RuleExpr<T> {
-    //TODO Maybe remove? id: &'static str,
     is_defined: bool,
-    rule: *mut Rule<T, NoShared>,   
+    rule: *mut Rule<T, NoShared>,   // Since we're using HashMap now, can we revert it back to `Rule<T, NoShared>`?
 }
 
 impl<T> Drop for RuleExpr<T> 
@@ -56,22 +50,22 @@ impl<T> Drop for RuleExpr<T>
     fn drop(&mut self) 
     {
         unsafe {
-            let rule = Box::from_raw(self.rule);
+            Box::from_raw(self.rule);
         } 
     }
 }
 
-pub struct Grammer<T> /* <TBranch, TMeta> */
+pub struct Grammer<T> /* TODO <TBranch, TMeta> */
 {
     grammer: R<T>,
     rule_exps: RuleExprMap<T>,
     
-    keep_alter_tuple: Box<R<T>>,        // We need to keep rules defined in the `new` function alive.
-    keep_integer: Box<R<T>>,            // ..
-    keep_ranges: Box<R<T>>,             // ..
-    keep_statement: Box<R<T>>,          // ..
-    keep_statements: Box<R<T>>,          // ..
-    keep_ws: Rule<T, NoShared>,         // ..
+    #[allow(dead_code)] keep_alter_tuple: Box<R<T>>,    // We need to keep rules defined in the `new` function alive.
+    #[allow(dead_code)] keep_integer: Box<R<T>>,        // ..
+    #[allow(dead_code)] keep_ranges: Box<R<T>>,         // ..
+    #[allow(dead_code)] keep_statement: Box<R<T>>,      // ..
+    #[allow(dead_code)] keep_statements: Box<R<T>>,     // ..
+    #[allow(dead_code)] keep_ws: Rule<T, NoShared>,     // ..
 }
 
 impl<T> Grammer<T>
@@ -93,7 +87,7 @@ impl<T> Grammer<T>
                 RangeType::Not => {
                     let mut r: Rule<T, NoShared> = Rule::new(None);
                     r.not(b.pop().unwrap().rule.unwrap());    // TODO Test this, originally it was b[1]
-                                                                    // Does this goes well together with ranges? 
+                                                              // Does this goes well together with ranges? 
 
                     vec![ParseContext{ 
                         arg1: 0,
@@ -818,7 +812,7 @@ impl<T> Grammer<T>
             Err(_) => {
                 panic!("Error compiling rule expression.");    // TODO Return nice error
             },
-            Ok(mut branches) => {
+            Ok(branches) => {
                 let new_ruleexp = match self.rule_exps.get_mut(id) {
                     None => {
                         let mut compiled = Rule::new(branch_fn);
@@ -828,7 +822,6 @@ impl<T> Grammer<T>
                         }
 
                         Some(RuleExpr {
-                            // TODO Maybe remove? id: id,
                             is_defined: true,
                             rule: Box::into_raw(Box::new(compiled)),
                         })
@@ -866,7 +859,6 @@ impl<T> Grammer<T>
             let rule = Box::new(Rule::new(None));
             
             self.rule_exps.insert(id, RuleExpr {
-                // TODO Maybe remove? id: id,
                 is_defined: false,
                 rule: Box::into_raw(rule),
             });
@@ -936,7 +928,7 @@ impl<T> Grammer<T>
                 rule
             },
             RangeType::Not => {
-                panic!("Application error")     // TODO Fix this, this is `unreachable!()`
+                unreachable!()
             },
         }
     }
@@ -970,7 +962,7 @@ impl<T> Grammer<T>
                 r
             },
             RangeType::Not => {
-                panic!("Application error")     // TODO Fix this, this is `unreachable!()`
+                unreachable!()
             },
         }
     }
