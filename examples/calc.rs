@@ -1,11 +1,10 @@
 extern crate grammer;
 use grammer::Grammer;
-use grammer::NoShared;
 use std::env;
 
 fn main()
 {
-    let mut g: Grammer<f64> = Grammer::new();
+    let mut g: Grammer<f64, bool> = Grammer::new();
 
     g.declare(vec!["add", "base", "div", "mul", "neg", "pow", "sub"]);
     
@@ -54,7 +53,7 @@ fn main()
     let collected: Vec<String> = env::args().collect();
     let expr = &collected[1..].join("");
 
-    match g.scan("expr", expr) {
+    match g.scan("expr", expr, &mut false) {
         Ok(branches) => println!("{}", branches[0]),
         Err(_) => println!("Not a valid expression."),
     }

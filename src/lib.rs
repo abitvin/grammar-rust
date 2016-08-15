@@ -18,34 +18,31 @@ enum RangeType {
     Not
 }
 
-// TODO Remove NoShared and add shared state to the grammer API. 
-pub struct NoShared {} 
-
-struct ParseContext<T> {
+struct ParseContext<T, S> {
     arg1: u64,
     arg2: u64, 
     arg3: Option<String>,
     arg4: Option<(String, String)>,
     range_type: RangeType,
-    rule: Option<Rule<T, NoShared>>,
+    rule: Option<Rule<T, S>>,
 }
 
-type RuleExprMap<T> = HashMap<&'static str, RuleExpr<T>>;
+type RuleExprMap<T, S> = HashMap<&'static str, RuleExpr<T, S>>;
 
-struct GrammerShared<T> {
-    rule_exps: *const RuleExprMap<T>,
-    keep_ws: *const Rule<T, NoShared>,
+struct GrammerShared<T, S> {
+    rule_exps: *const RuleExprMap<T, S>,
+    keep_ws: *const Rule<T, S>,
 }
 
 // TODO TMeta class R<TB, TM> extends Rule<IParseContext<TB, TM>, IEmpty> {}
-type R<T> = Rule<ParseContext<T>, GrammerShared<T>>;
+type R<T, S> = Rule<ParseContext<T, S>, GrammerShared<T, S>>;
 
-struct RuleExpr<T> {
+struct RuleExpr<T, S> {
     is_defined: bool,
-    rule: *mut Rule<T, NoShared>,   // Since we're using HashMap now, can we revert it back to `Rule<T, NoShared>`?
+    rule: *mut Rule<T, S>,   // Since we're using HashMap now, can we revert it back to `Rule<T, S>`?
 }
 
-impl<T> Drop for RuleExpr<T> 
+impl<T, S> Drop for RuleExpr<T, S> 
 {
     fn drop(&mut self) 
     {
@@ -55,20 +52,20 @@ impl<T> Drop for RuleExpr<T>
     }
 }
 
-pub struct Grammer<T> /* TODO <TBranch, TMeta> */
+pub struct Grammer<T, S> /* TODO <TBranch, TMeta> */
 {
-    grammer: R<T>,
-    rule_exps: RuleExprMap<T>,
+    grammer: R<T, S>,
+    rule_exps: RuleExprMap<T, S>,
     
-    #[allow(dead_code)] keep_alter_tuple: Box<R<T>>,    // We need to keep rules defined in the `new` function alive.
-    #[allow(dead_code)] keep_integer: Box<R<T>>,        // ..
-    #[allow(dead_code)] keep_ranges: Box<R<T>>,         // ..
-    #[allow(dead_code)] keep_statement: Box<R<T>>,      // ..
-    #[allow(dead_code)] keep_statements: Box<R<T>>,     // ..
-    #[allow(dead_code)] keep_ws: Rule<T, NoShared>,     // ..
+    #[allow(dead_code)] keep_alter_tuple: Box<R<T, S>>,    // We need to keep rules defined in the `new` function alive.
+    #[allow(dead_code)] keep_integer: Box<R<T, S>>,        // ..
+    #[allow(dead_code)] keep_ranges: Box<R<T, S>>,         // ..
+    #[allow(dead_code)] keep_statement: Box<R<T, S>>,      // ..
+    #[allow(dead_code)] keep_statements: Box<R<T, S>>,     // ..
+    #[allow(dead_code)] keep_ws: Rule<T, S>,     // ..
 }
 
-impl<T> Grammer<T>
+impl<T, S> Grammer<T, S>
 {
     pub fn new() -> Self
     {
@@ -81,11 +78,11 @@ impl<T> Grammer<T>
         let mut ws = Rule::new(None);
         ws.any_of(vec![space, tab, new_line, carriage_return]);
 
-        let statement_fn = |mut b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
+        let statement_fn = |mut b: Vec<ParseContext<T, S>>, _: &str, _: &mut GrammerShared<T, S>|
         {
             match b[0].range_type {
                 RangeType::Not => {
-                    let mut r: Rule<T, NoShared> = Rule::new(None);
+                    let mut r: Rule<T, S> = Rule::new(None);
                     r.not(b.pop().unwrap().rule.unwrap());    // TODO Test this, originally it was b[1]
                                                               // Does this goes well together with ranges? 
 
@@ -110,7 +107,7 @@ impl<T> Grammer<T>
         let boxed_statement = Box::new(R::new(Some(Box::new(statement_fn))));
         let statement = Box::into_raw(boxed_statement);
         
-        let mut escaped_ctrl_chars: R<T> = R::new(None);
+        let mut escaped_ctrl_chars: R<T, S> = R::new(None);
         escaped_ctrl_chars.alter(vec![
             ("\\<", "<"), 
             ("\\>", ">"), 
@@ -136,7 +133,7 @@ impl<T> Grammer<T>
         ]);
 
         // Integer
-        let integer_fn = |_: Vec<ParseContext<T>>, l: &str, _: &mut GrammerShared<T>|
+        let integer_fn = |_: Vec<ParseContext<T, S>>, l: &str, _: &mut GrammerShared<T, S>|
         {
             vec![ParseContext { 
                 arg1: l.parse::<u64>().unwrap(),
@@ -154,7 +151,7 @@ impl<T> Grammer<T>
         unsafe { (*integer).at_least(1, digit); } 
         
         // Literal
-        let literal_text_fn = |_: Vec<ParseContext<T>>, l: &str, _: &mut GrammerShared<T>|
+        let literal_text_fn = |_: Vec<ParseContext<T, S>>, l: &str, _: &mut GrammerShared<T, S>|
         {
             vec![ParseContext { 
                 arg1: 0,
@@ -166,16 +163,16 @@ impl<T> Grammer<T>
             }]
         };
 
-        let mut literal_all_except: R<T> = R::new(None);
+        let mut literal_all_except: R<T, S> = R::new(None);
         literal_all_except.all_except(vec!['<', '{', '(', ')', '|', '[', '+', '?', '*', '.', '$', ' ', '_', '!']);
 
-        let mut literal_char: R<T> = R::new(None);
+        let mut literal_char: R<T, S> = R::new(None);
         unsafe { literal_char.any_of(vec![escaped_ctrl_chars.shallow_clone(None), literal_all_except]); }
         
-        let mut literal_text: R<T> = R::new(Some(Box::new(literal_text_fn)));
+        let mut literal_text: R<T, S> = R::new(Some(Box::new(literal_text_fn)));
         literal_text.at_least(1, literal_char);
 
-        let literal_fn = |b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
+        let literal_fn = |b: Vec<ParseContext<T, S>>, _: &str, _: &mut GrammerShared<T, S>|
         {
             let mut rule = Rule::new(None);
             rule.literal_string(b[0].arg3.clone().unwrap());
@@ -194,11 +191,11 @@ impl<T> Grammer<T>
             }]
         };
 
-        let mut literal: R<T> = R::new(Some(Box::new(literal_fn)));
+        let mut literal: R<T, S> = R::new(Some(Box::new(literal_fn)));
         unsafe { literal.one(literal_text).maybe_raw(ranges); }
         
         // Any char
-        let any_char_fn = |b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
+        let any_char_fn = |b: Vec<ParseContext<T, S>>, _: &str, _: &mut GrammerShared<T, S>|
         {
             let mut rule = Rule::new(None);
             rule.all();
@@ -221,7 +218,7 @@ impl<T> Grammer<T>
         unsafe { any_char.literal(".").maybe_raw(ranges); }
 
         // Any char except
-        let any_char_except_chars_fn = |_: Vec<ParseContext<T>>, l: &str, _: &mut GrammerShared<T>|
+        let any_char_except_chars_fn = |_: Vec<ParseContext<T, S>>, l: &str, _: &mut GrammerShared<T, S>|
         {
             vec![ParseContext { 
                 arg1: 0,
@@ -233,7 +230,7 @@ impl<T> Grammer<T>
             }]
         };
 
-        let any_char_except_fn = |mut b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
+        let any_char_except_fn = |mut b: Vec<ParseContext<T, S>>, _: &str, _: &mut GrammerShared<T, S>|
         {
             let mut rule = Rule::new(None);
 
@@ -269,7 +266,7 @@ impl<T> Grammer<T>
         unsafe { any_char_except.literal("[^").one(any_char_except_chars).literal("]").maybe_raw(ranges); }
         
         // Match character range
-        let char_range_fn = |_: Vec<ParseContext<T>>, l: &str, _: &mut GrammerShared<T>|
+        let char_range_fn = |_: Vec<ParseContext<T, S>>, l: &str, _: &mut GrammerShared<T, S>|
         {
             let lower = l.chars().next().unwrap();
             let upper = l.chars().skip(2).next().unwrap();
@@ -292,7 +289,7 @@ impl<T> Grammer<T>
             }]
         };
 
-        let char_ranges_fn = |mut b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
+        let char_ranges_fn = |mut b: Vec<ParseContext<T, S>>, _: &str, _: &mut GrammerShared<T, S>|
         {
             let mut rule = Rule::new(None);
             
@@ -348,7 +345,7 @@ impl<T> Grammer<T>
         unsafe { char_ranges.literal("[").at_least(1, char_range).literal("]").maybe_raw(ranges); }
 
         // EOF
-        let eof_fn = |_: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
+        let eof_fn = |_: Vec<ParseContext<T, S>>, _: &str, _: &mut GrammerShared<T, S>|
         {
             let mut rule = Rule::new(None);
             rule.eof();
@@ -367,7 +364,7 @@ impl<T> Grammer<T>
         eof.literal("$");
         
         // One rule
-        let rule_name_fn = |_: Vec<ParseContext<T>>, l: &str, _: &mut GrammerShared<T>|
+        let rule_name_fn = |_: Vec<ParseContext<T, S>>, l: &str, _: &mut GrammerShared<T, S>|
         {
             vec![ParseContext { 
                 arg1: 0,
@@ -388,7 +385,7 @@ impl<T> Grammer<T>
         let mut rule_name = R::new(Some(Box::new(rule_name_fn)));
         rule_name.at_least(1, rule_name_char);
 
-        let rule_fn = |mut b: Vec<ParseContext<T>>, _: &str, s: &mut GrammerShared<T>|
+        let rule_fn = |mut b: Vec<ParseContext<T, S>>, _: &str, s: &mut GrammerShared<T, S>|
         {
             if b.len() == 1 {
                 // TODO This note is not only meant for the code below, but could we just use `ref` instead of popping?
@@ -439,7 +436,7 @@ impl<T> Grammer<T>
         unsafe { rule.literal("<").one(rule_name).literal(">").maybe_raw(ranges) };
         
         // At least
-        let at_least_fn = |b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
+        let at_least_fn = |b: Vec<ParseContext<T, S>>, _: &str, _: &mut GrammerShared<T, S>|
         {
             vec![ParseContext { 
                 arg1: b[0].arg1,
@@ -455,7 +452,7 @@ impl<T> Grammer<T>
         unsafe { at_least.literal("{").one_raw(integer).literal(",}"); }
 
         // At least one
-        let at_least_one_fn = |_: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
+        let at_least_one_fn = |_: Vec<ParseContext<T, S>>, _: &str, _: &mut GrammerShared<T, S>|
         {
             vec![ParseContext { 
                 arg1: 1,
@@ -471,7 +468,7 @@ impl<T> Grammer<T>
         at_least_one.literal("+");
 
         // At most
-        let at_most_fn = |b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
+        let at_most_fn = |b: Vec<ParseContext<T, S>>, _: &str, _: &mut GrammerShared<T, S>|
         {
             vec![ParseContext { 
                 arg1: b[0].arg1,
@@ -487,7 +484,7 @@ impl<T> Grammer<T>
         unsafe { at_most.literal("{,").one_raw(integer).literal("}"); }
 
         // Between
-        let between_fn = |b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
+        let between_fn = |b: Vec<ParseContext<T, S>>, _: &str, _: &mut GrammerShared<T, S>|
         {
             vec![ParseContext { 
                 arg1: b[0].arg1,
@@ -503,7 +500,7 @@ impl<T> Grammer<T>
         unsafe { between.literal("{").one_raw(integer).literal(",").one_raw(integer).literal("}"); }
 
         // Exact
-        let exact_fn = |b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
+        let exact_fn = |b: Vec<ParseContext<T, S>>, _: &str, _: &mut GrammerShared<T, S>|
         {
             vec![ParseContext { 
                 arg1: b[0].arg1,
@@ -519,7 +516,7 @@ impl<T> Grammer<T>
         unsafe { exact.literal("{").one_raw(integer).literal("}"); }
 
         // Maybe
-        let maybe_fn = |_: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
+        let maybe_fn = |_: Vec<ParseContext<T, S>>, _: &str, _: &mut GrammerShared<T, S>|
         {
             vec![ParseContext { 
                 arg1: 0,
@@ -535,7 +532,7 @@ impl<T> Grammer<T>
         maybe.literal("?");
 
         // None or many
-        let none_or_many_fn = |_: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
+        let none_or_many_fn = |_: Vec<ParseContext<T, S>>, _: &str, _: &mut GrammerShared<T, S>|
         {
             vec![ParseContext { 
                 arg1: 0,
@@ -551,7 +548,7 @@ impl<T> Grammer<T>
         none_or_many.literal("*");
         
         // Not
-        let not_fn = |_: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
+        let not_fn = |_: Vec<ParseContext<T, S>>, _: &str, _: &mut GrammerShared<T, S>|
         {
             vec![ParseContext { 
                 arg1: 0,
@@ -567,11 +564,11 @@ impl<T> Grammer<T>
         not.literal("!");
 
         // Any of
-        let any_of_fn = |mut b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
+        let any_of_fn = |mut b: Vec<ParseContext<T, S>>, _: &str, _: &mut GrammerShared<T, S>|
         {
             let last = b.pop().unwrap();
             let mut rule = Rule::new(None);
-            let mut rules: Vec<Rule<T, NoShared>> = b.into_iter().map(|c| c.rule.unwrap()).collect();
+            let mut rules: Vec<Rule<T, S>> = b.into_iter().map(|c| c.rule.unwrap()).collect();
 
             match last.range_type {
                 RangeType::NoRangeType => {
@@ -594,7 +591,7 @@ impl<T> Grammer<T>
             }]
         };
 
-        let statements_fn = |b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
+        let statements_fn = |b: Vec<ParseContext<T, S>>, _: &str, _: &mut GrammerShared<T, S>|
         {
             if b.len() == 1 {
                 b
@@ -628,7 +625,7 @@ impl<T> Grammer<T>
         unsafe { any_of.literal("(").one_raw(statements).none_or_many(more).literal(")").maybe_raw(ranges); }
 
         // Alter
-        let alter_fn = |mut b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
+        let alter_fn = |mut b: Vec<ParseContext<T, S>>, _: &str, _: &mut GrammerShared<T, S>|
         {
             // TODO Can we use `ref` instead of pop and pushing?
             let last = b.pop().unwrap();
@@ -665,7 +662,7 @@ impl<T> Grammer<T>
             }        
         };
 
-        let alter_left_text_fn = |_: Vec<ParseContext<T>>, l: &str, _: &mut GrammerShared<T>|
+        let alter_left_text_fn = |_: Vec<ParseContext<T, S>>, l: &str, _: &mut GrammerShared<T, S>|
         {
             vec![ParseContext { 
                 arg1: 0,
@@ -677,7 +674,7 @@ impl<T> Grammer<T>
             }]
         };
 
-        let alter_right_text_fn = |_: Vec<ParseContext<T>>, l: &str, _: &mut GrammerShared<T>|
+        let alter_right_text_fn = |_: Vec<ParseContext<T, S>>, l: &str, _: &mut GrammerShared<T, S>|
         {
             vec![ParseContext { 
                 arg1: 0,
@@ -689,7 +686,7 @@ impl<T> Grammer<T>
             }]
         };
 
-        let alter_tuple_fn = |mut b: Vec<ParseContext<T>>, _: &str, _: &mut GrammerShared<T>|
+        let alter_tuple_fn = |mut b: Vec<ParseContext<T, S>>, _: &str, _: &mut GrammerShared<T, S>|
         {
             let to = b.pop().unwrap().arg3.unwrap();
             let from = b.pop().unwrap().arg3.unwrap();
@@ -733,7 +730,7 @@ impl<T> Grammer<T>
         unsafe { alter.literal("(~").one_raw(alter_tuple).none_or_many(alter_more).literal(")").maybe_raw(ranges); }
 
         // Whitespace
-        let at_least_one_ws_fn = |_: Vec<ParseContext<T>>, _: &str, s: &mut GrammerShared<T>|
+        let at_least_one_ws_fn = |_: Vec<ParseContext<T, S>>, _: &str, s: &mut GrammerShared<T, S>|
         {
             let mut r = Rule::new(None);
             unsafe { r.at_least_raw(1, s.keep_ws); }
@@ -748,7 +745,7 @@ impl<T> Grammer<T>
             }]
         };
 
-        let none_or_many_ws_fn = |_: Vec<ParseContext<T>>, _: &str, s: &mut GrammerShared<T>|
+        let none_or_many_ws_fn = |_: Vec<ParseContext<T, S>>, _: &str, s: &mut GrammerShared<T, S>|
         {
             let mut r = Rule::new(None);
             unsafe { r.none_or_many_raw(s.keep_ws); }
@@ -791,7 +788,7 @@ impl<T> Grammer<T>
         }
     }
     
-    pub fn add(&mut self, id: &'static str, expr: &'static str, branch_fn: BranchFn<T, NoShared>)
+    pub fn add(&mut self, id: &'static str, expr: &'static str, branch_fn: BranchFn<T, S>)
     {
         {
             let rulexp = self.rule_exps.get(id);
@@ -866,14 +863,12 @@ impl<T> Grammer<T>
     }
     
     // TODO Make a type of this return type.
-    pub fn scan(&self, root_id: &str, code: &str) -> Result<Vec<T>, Vec<RuleError>>
+    pub fn scan(&self, root_id: &str, code: &str, mut shared: &mut S) -> Result<Vec<T>, Vec<RuleError>>
     {
-        let mut dummy = NoShared {};
-
         match self.rule_exps.get(root_id) {
             Some(r) => {
                 unsafe {
-                    (*r.rule).scan(code, &mut dummy)
+                    (*r.rule).scan(code, &mut shared)
                 }
             },
             None => panic!("Rule with id \"{}\" not found.", root_id),
@@ -901,7 +896,7 @@ impl<T> Grammer<T>
     }
     
     // TODO Replace with add_range_raw.
-    fn add_range(rule: Rule<T, NoShared>, ctx: &ParseContext<T>) -> Rule<T, NoShared>
+    fn add_range(rule: Rule<T, S>, ctx: &ParseContext<T, S>) -> Rule<T, S>
     {
         match ctx.range_type {
             RangeType::AtLeast => {
@@ -933,7 +928,7 @@ impl<T> Grammer<T>
         }
     }
 
-    fn add_range_raw(rule: *const Rule<T, NoShared>, ctx: &ParseContext<T>) -> Rule<T, NoShared>
+    fn add_range_raw(rule: *const Rule<T, S>, ctx: &ParseContext<T, S>) -> Rule<T, S>
     {
         match ctx.range_type {
             RangeType::AtLeast => {

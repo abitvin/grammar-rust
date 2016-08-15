@@ -1,32 +1,31 @@
 extern crate grammer;
 use grammer::Grammer;
-use grammer::NoShared;
 
 #[test]
 fn exact()
 {
-    let f = |_: Vec<i32>, _: &str, _: &mut NoShared| {
+    let f = |_: Vec<i32>, _: &str, _: &mut bool| {
         vec![1234]
     };
 
-    let mut grammer: Grammer<i32> = Grammer::new();
+    let mut grammer: Grammer<i32, bool> = Grammer::new();
     grammer.add("root", "monkey{2}", Some(Box::new(f)));
 
-    if let Ok(_) = grammer.scan("root", "") {
+    if let Ok(_) = grammer.scan("root", "", &mut false) {
         assert!(false);
     }
     else {
         assert!(true);
     }
 
-    if let Ok(_) = grammer.scan("root", "monkey") {
+    if let Ok(_) = grammer.scan("root", "monkey", &mut false) {
         assert!(false);
     }
     else {
         assert!(true);
     }
 
-    if let Ok(branches) = grammer.scan("root", "monkeymonkey") {
+    if let Ok(branches) = grammer.scan("root", "monkeymonkey", &mut false) {
         assert_eq!(branches.len(), 1);
         assert_eq!(branches[0], 1234);
     }
@@ -34,7 +33,7 @@ fn exact()
         assert!(false);
     }
 
-    if let Ok(_) = grammer.scan("root", "monkeymonkeymonkeymonkeymonkeymonkey") {
+    if let Ok(_) = grammer.scan("root", "monkeymonkeymonkeymonkeymonkeymonkey", &mut false) {
         assert!(false);
     }
     else {
