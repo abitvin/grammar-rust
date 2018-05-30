@@ -2,30 +2,29 @@ extern crate grammer;
 use grammer::Grammer;
 
 #[test]
-fn at_least_one()
-{
-    let f = |_: Vec<i32>, _: &str, _: &mut bool| {
+fn at_least_one() {
+    let f = |_: Vec<i32>, _: &str| {
         vec![5678]
     };
 
-    let mut grammer: Grammer<i32, bool> = Grammer::new();
+    let mut grammer: Grammer<i32> = Grammer::new();
     grammer.add("root", "monkey+", Some(Box::new(f)));
 
-    if let Ok(_) = grammer.scan("root", "", &mut false) {
+    if let Ok(_) = grammer.scan("root", "") {
         assert!(false);
     }
     else {
         assert!(true);
     }
 
-    if let Ok(branches) = grammer.scan("root", "monkey", &mut false) {
+    if let Ok(branches) = grammer.scan("root", "monkey") {
         assert_eq!(branches[0], 5678);
     }
     else {
         assert!(false);
     }
 
-    if let Ok(branches) = grammer.scan("root", "monkeymonkeymonkeymonkeymonkeymonkey", &mut false) {
+    if let Ok(branches) = grammer.scan("root", "monkeymonkeymonkeymonkeymonkeymonkey") {
         assert_eq!(branches[0], 5678);
     }
     else {
