@@ -4,7 +4,7 @@
 
 extern crate rule;
 
-use ast::{ParseData, Pattern, Range};
+use ast::{ParseData, Pattern};
 use self::rule::Rule;
 
 const ESC_CTRL_CHARS: [(&'static str, &'static str); 21] = [
@@ -36,14 +36,14 @@ pub fn root() -> Rule<ParseData> {
         match b.len() {
             1 => {
                 println!("AAA");
-                vec![ParseData::Pattern(Pattern::from((false, b.remove(0), ParseData::NoRange)))]
+                vec![ParseData::Pattern(Pattern::from((false, b.remove(0), ParseData::Range { min: 1, max: 1 })))]
             },
             2 => {
                 println!("BBBB");
                 
                 if b[0].is_not() {
                     b.remove(0);
-                    vec![ParseData::Pattern(Pattern::from((true, b.remove(0), ParseData::NoRange)))]
+                    vec![ParseData::Pattern(Pattern::from((true, b.remove(0), ParseData::Range { min: 1, max: 1 })))]
                 }
                 else {
                     vec![ParseData::Pattern(Pattern::from((false, b.remove(0), b.remove(0))))]
@@ -306,7 +306,7 @@ pub fn literal(escaped_ctrl_chars: &Rule<ParseData>) -> Rule<ParseData> {
 
 pub fn at_least_one_ws() -> Rule<ParseData> {
     let f = |_: Vec<ParseData>, _: &str| {
-        vec![ParseData::Whitespace(Range::Quantity { min: 1, max: ::std::u64::MAX })]
+        vec![ParseData::Whitespace { min: 1, max: ::std::u64::MAX }]
     };
     
     let rule = Rule::new(Some(Box::new(f)));
@@ -316,7 +316,7 @@ pub fn at_least_one_ws() -> Rule<ParseData> {
 
 pub fn none_or_many_ws() -> Rule<ParseData> {
     let f = |_: Vec<ParseData>, _: &str| {
-        vec![ParseData::Whitespace(Range::Quantity { min: 0, max: ::std::u64::MAX })]
+        vec![ParseData::Whitespace { min: 0, max: ::std::u64::MAX }]
     };
 
     let rule = Rule::new(Some(Box::new(f)));

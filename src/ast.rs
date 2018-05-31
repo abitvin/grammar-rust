@@ -17,13 +17,6 @@ pub struct CharRange {
     pub (crate) end: char,
 }
 
-#[derive(Clone, Debug)]
-pub enum Range {
-    None,
-    //Not,
-    Quantity { min: u64, max: u64 },
-}
-
 #[derive(Debug)]
 pub enum ParseData {
     AlterChar { find: String, replace: String },
@@ -38,55 +31,38 @@ pub enum ParseData {
     Id(String),         // TODO Can we combine these?
     Literal(String),    // ..
     Not,
-    NoRange,
     Pattern(Pattern),
     Patterns(Vec<Pattern>),
     Range { min: u64, max: u64 },
-    Whitespace(Range),
+    Whitespace { min: u64, max: u64 },
 }
 
 // TODO Implement other not's.
 #[derive(Clone, Debug)]
 pub enum Pattern {
-    AlterChars { replacements: Vec<AlterChar>, range: Range },
-    AnyChar(Range),
-    AnyCharExcept { chars: Vec<char>, range: Range },
-    AnyOf { patterns: Vec<Vec<Pattern>>, range: Range },
-    CharRanges { ranges: Vec<CharRange>, range: Range },
+    AlterChars { replacements: Vec<AlterChar>, min: u64, max: u64 },
+    AnyChar { min: u64, max: u64 },
+    AnyCharExcept { chars: Vec<char>, min: u64, max: u64 },
+    AnyOf { patterns: Vec<Vec<Pattern>>, min: u64, max: u64 },
+    CharRanges { ranges: Vec<CharRange>, min: u64, max: u64 },
     Eof,
-    Id { name: String, range: Range },
-    Literal { not: bool, text: String, range: Range },
-    Whitespace(Range),
+    Id { name: String, min: u64, max: u64 },
+    Literal { not: bool, text: String, min: u64, max: u64 },
+    Whitespace { min: u64, max: u64 },
 }
 
 impl From<(bool, ParseData, ParseData)> for Pattern {
     fn from(val: (bool, ParseData, ParseData)) -> Self {
         match val {
-            (_, ParseData::AlterChars(replacements), ParseData::NoRange) => Pattern::AlterChars { replacements, range: Range::None },
-            (_, ParseData::AlterChars(replacements), ParseData::Range { min, max }) => Pattern::AlterChars { replacements, range: Range::Quantity { min, max }},
-
-            (_, ParseData::AnyChar, ParseData::NoRange) => Pattern::AnyChar(Range::None),
-            (_, ParseData::AnyChar, ParseData::Range { min, max }) => Pattern::AnyChar(Range::Quantity { min, max }),
-
-            (_, ParseData::AnyCharExcept(chars), ParseData::NoRange) => Pattern::AnyCharExcept { chars, range: Range::None },
-            (_, ParseData::AnyCharExcept(chars), ParseData::Range { min, max }) => Pattern::AnyCharExcept { chars, range: Range::Quantity { min, max } },
-
-            (_, ParseData::AnyOf(patterns), ParseData::NoRange) => Pattern::AnyOf { patterns, range: Range::None },
-            (_, ParseData::AnyOf(patterns), ParseData::Range { min, max }) => Pattern::AnyOf { patterns, range: Range::Quantity { min, max } },
-
-            (_, ParseData::CharRanges(ranges), ParseData::NoRange) => Pattern::CharRanges { ranges, range: Range::None },
-            (_, ParseData::CharRanges(ranges), ParseData::Range { min, max }) => Pattern::CharRanges { ranges, range: Range::Quantity { min, max } },
-
+            (_, ParseData::AlterChars(replacements), ParseData::Range { min, max }) => Pattern::AlterChars { replacements, min, max },
+            (_, ParseData::AnyChar, ParseData::Range { min, max }) => Pattern::AnyChar { min, max },
+            (_, ParseData::AnyCharExcept(chars), ParseData::Range { min, max }) => Pattern::AnyCharExcept { chars, min, max },
+            (_, ParseData::AnyOf(patterns), ParseData::Range { min, max }) => Pattern::AnyOf { patterns, min, max },
+            (_, ParseData::CharRanges(ranges), ParseData::Range { min, max }) => Pattern::CharRanges { ranges, min, max },
             (_, ParseData::Eof, _) => Pattern::Eof,
-            
-            (_, ParseData::Id(name), ParseData::NoRange) => Pattern::Id { name, range: Range::None },
-            (_, ParseData::Id(name), ParseData::Range { min, max }) => Pattern::Id { name, range: Range::Quantity { min, max } },
-
-            (not, ParseData::Literal(text), ParseData::NoRange) => Pattern::Literal { not, text, range: Range::None },
-            (not, ParseData::Literal(text), ParseData::Range { min, max }) => Pattern::Literal { not, text, range: Range::Quantity { min, max } },
-
-            (_, ParseData::Whitespace(range), _) => Pattern::Whitespace(range),
-            
+            (_, ParseData::Id(name), ParseData::Range { min, max }) => Pattern::Id { name, min, max },
+            (not, ParseData::Literal(text), ParseData::Range { min, max }) => Pattern::Literal { not, text, min, max },
+            (_, ParseData::Whitespace { min, max }, _) => Pattern::Whitespace { min, max },
             (not, pattern, range) => unreachable!("Not: {}, Pattern: {:?}\nRange: {:?}", not, pattern, range)
         }
     }

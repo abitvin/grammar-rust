@@ -1,11 +1,11 @@
 // TODO Remove any printf.
 // TODO Remove Range::Not
-// TODO Optimize Range::None, this can be Range::Quantity { min: 1, max: 1 }
 // TODO This is good: `!monkey*`, but this is weird: `"!monkey+"`.
 // TODO Refactor.
 // TODO There is a bug when using ranges in a not (!).
 // TODO Implement other "not"'s in the Pattern enum.
-// TODO Update Cargo.toml
+// TODO Update Cargo.toml, use online crate of Rule.
+// TODO Do not make some structs/functions public.
 
 // Copyright (c) 2015-2018 Vincent van Ingen <code@abitvin.net>
 // Licensed under the MIT license <LICENSE-MIT or http://opensource.org/licenses/MIT>
@@ -16,7 +16,7 @@ extern crate rule;
 mod ast;
 mod rules;
 
-use ast::{ParseData, Pattern, Range};
+use ast::{ParseData, Pattern};
 use rule::{BranchFn, Rule, RuleError};
 use rules::root;
 use std::collections::HashMap;
@@ -121,49 +121,41 @@ impl<T> PatternX<T> {
             };
 
             match p {
-                Pattern::AlterChars { ref replacements, ref range } => {
+                Pattern::AlterChars { ref replacements, min, max } => {
                     let replacements = replacements.iter()
                         .map(|x| (x.find.clone(), x.replace.clone()))
                         .collect();
 
-                    // TODO Refactor all these common ranges.
-                    match range {
-                        Range::None => {
-                            target.alter_string(replacements);
-                        },
-                        Range::Quantity { min, max } => {
-                            let rule = Rule::new(None);
-                            rule.alter_string(replacements);
-                            target.between(*min, *max, &rule);
-                        },
+                    if *min == 1 && *max == 1 {
+                        target.alter_string(replacements);
+                    }
+                    else {
+                        let rule = Rule::new(None);
+                        rule.alter_string(replacements);
+                        target.between(*min, *max, &rule);
                     }
                 }
-                Pattern::AnyChar(ref range) => {
-                    match range {
-                        Range::None => {
-                            target.any_char();
-                        },
-                        Range::Quantity { min, max } => {
-                            let rule = Rule::new(None);
-                            rule.any_char();
-                            target.between(*min, *max, &rule);
-                        },
+                Pattern::AnyChar { min, max } => {
+                    if *min == 1 && *max == 1 {
+                        target.any_char();
+                    }
+                    else {
+                        let rule = Rule::new(None);
+                        rule.any_char();
+                        target.between(*min, *max, &rule);
                     }
                 },
-                Pattern::AnyCharExcept { ref chars, ref range } => {
-                    match range {
-                        Range::None => {
-                            target.any_char_except(chars.clone());
-                        },
-                        Range::Quantity { min, max } => {
-                            let rule = Rule::new(None);
-                            rule.any_char_except(chars.clone());
-                            target.between(*min, *max, &rule);
-                        },
+                Pattern::AnyCharExcept { ref chars, min, max } => {
+                    if *min == 1 && *max == 1 {
+                        target.any_char_except(chars.clone());
+                    }
+                    else {
+                        let rule = Rule::new(None);
+                        rule.any_char_except(chars.clone());
+                        target.between(*min, *max, &rule);
                     }
                 },
-                Pattern::AnyOf { ref patterns, ref range } => {
-                    println!("ANYOF");
+                Pattern::AnyOf { ref patterns, min, max } => {
                     let mut rules = vec![];
 
                     // TODO These names are ugly!
@@ -189,18 +181,17 @@ impl<T> PatternX<T> {
                         .map(|x| x)
                         .collect();
                     
-                    match range {
-                        Range::None => {
-                            target.any_of(rules);
-                        },
-                        Range::Quantity { min, max } => {
-                            let rule = Rule::new(None);
-                            rule.any_of(rules);
-                            target.between(*min, *max, &rule);
-                        },
+                    if *min == 1 && *max == 1 {
+                        target.any_of(rules);
+
+                    }
+                    else {
+                        let rule = Rule::new(None);
+                        rule.any_of(rules);
+                        target.between(*min, *max, &rule);
                     }
                 },
-                Pattern::CharRanges { ref ranges, ref range } => {
+                Pattern::CharRanges { ref ranges, min, max } => {
                     let rules: Vec<Rule<_>> = ranges.iter()
                         .map(|r| {
                             let rule = Rule::new(None);
@@ -213,68 +204,63 @@ impl<T> PatternX<T> {
                         .map(|x| x)
                         .collect();
                     
-                    match range {
-                        Range::None => {
-                            target.any_of(rules);
-                        },
-                        Range::Quantity { min, max } => {
-                            let rule = Rule::new(None);
-                            rule.any_of(rules);
-                            target.between(*min, *max, &rule);
-                        },
+                    if *min == 1 && *max == 1 {
+                        target.any_of(rules);
+                    }
+                    else {
+                        let rule = Rule::new(None);
+                        rule.any_of(rules);
+                        target.between(*min, *max, &rule);
                     }
                 },
                 Pattern::Eof => {
                     target.eof();
                 },
-                Pattern::Id { ref name, ref range } => {
+                Pattern::Id { ref name, min, max } => {
                     match all_patterns.get(name) {
                         Some(ref patx) => {
-                            match range {
-                                Range::None => target.one(&patx.rule),
-                                Range::Quantity { min, max } => target.between(*min, *max, &patx.rule),
-                            };
+                            if *min == 1 && *max == 1 {
+                                target.one(&patx.rule);
+                            }
+                            else {
+                                target.between(*min, *max, &patx.rule);
+                            }
                         }
                         None => {
                             return Err(format!("Rule \"{}\" not found.", name));
                         }
                     }
                 },
-                Pattern::Literal { not /* TODO */, ref text, ref range } => {
-                    match range {
-                        Range::None => {
-                            if *not {
-                                let rule = Rule::new(None);
-                                rule.literal_string(text.clone());    
-                                target.not(&rule);
-                            }
-                            else {
-                                target.literal_string(text.clone());
-                            }
-                        },
-                        Range::Quantity { min, max } => {
-                            if *not {
-                                let rule = Rule::new(None);
-                                rule.literal_string(text.clone());
+                Pattern::Literal { not /* TODO */, ref text, min, max } => {
+                    if *min == 1 && *max == 1 {
+                        if *not {
+                            let rule = Rule::new(None);
+                            rule.literal_string(text.clone());    
+                            target.not(&rule);
+                        }
+                        else {
+                            target.literal_string(text.clone());
+                        }
+                    }
+                    else {
+                        if *not {
+                            let rule = Rule::new(None);
+                            rule.literal_string(text.clone());
 
-                                let between = Rule::new(None);
-                                between.between(*min, *max, &rule);
+                            let between = Rule::new(None);
+                            between.between(*min, *max, &rule);
 
-                                target.not(&between);
-                            }
-                            else {
-                                let rule = Rule::new(None);
-                                rule.literal_string(text.clone());
-                                target.between(*min, *max, &rule);
-                            }
-                        },
+                            target.not(&between);
+                        }
+                        else {
+                            let rule = Rule::new(None);
+                            rule.literal_string(text.clone());
+                            target.between(*min, *max, &rule);
+                        }
                     }
                 },
-                Pattern::Whitespace(ref range) => {
-                    match range {
-                        Range::None => unreachable!(),
-                        Range::Quantity { min, max } => target.between(*min, *max, &ws),
-                    };
+                Pattern::Whitespace { min, max } => {
+                    target.between(*min, *max, &ws);
                 },
             }
             
