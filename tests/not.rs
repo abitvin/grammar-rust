@@ -1,37 +1,37 @@
-extern crate grammer;
-use grammer::Grammer;
+extern crate grammar;
+use grammar::Grammar;
 
 #[test]
 fn not() {
-    let mut grammer: Grammer<i32> = Grammer::new();
-    grammer.add("not-monkey", "!monkey", None);
-    grammer.add("not-monkeys", "!monkey*", None);
-    grammer.add("gorilla", "gorilla", None);
-    grammer.add("not-monkey-but-gorilla", "!monkey<gorilla>", None);
-    grammer.add("not-monkeys-but-gorilla", "!monkey*<gorilla>", None);
+    let mut grammar: Grammar<i32> = Grammar::new();
+    grammar.add("not-monkey", "!monkey", None);
+    grammar.add("not-monkeys", "!monkey*", None);
+    grammar.add("gorilla", "gorilla", None);
+    grammar.add("not-monkey-but-gorilla", "!monkey<gorilla>", None);
+    grammar.add("not-monkeys-but-gorilla", "!monkey*<gorilla>", None);
 
-    if let Ok(branches) = grammer.scan("not-monkey", "") {
+    if let Ok(branches) = grammar.scan("not-monkey", "") {
         assert!(true);
     }
     else {
         assert!(false);
     }
     /* TODO Fix me
-    if let Ok(branches) = grammer.scan("not-monkeys", "") {
+    if let Ok(branches) = grammar.scan("not-monkeys", "") {
         assert!(true);
     }
     else {
         assert!(false);
     }
     */
-    if let Ok(branches) = grammer.scan("not-monkey-but-gorilla", "gorilla") {
+    if let Ok(branches) = grammar.scan("not-monkey-but-gorilla", "gorilla") {
         assert!(true);
     }
     else {
         assert!(false);
     }
     /* TODO Fix me
-    if let Ok(branches) = grammer.scan("not-monkeys-but-gorilla", "gorilla") {
+    if let Ok(branches) = grammar.scan("not-monkeys-but-gorilla", "gorilla") {
         assert!(true);
     }
     else {

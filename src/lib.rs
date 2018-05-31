@@ -1,11 +1,11 @@
-// TODO Remove any printf.
 // TODO Remove Range::Not
+// TODO Implement other "not"'s in the Pattern enum.
 // TODO This is good: `!monkey*`, but this is weird: `"!monkey+"`.
 // TODO Refactor.
 // TODO There is a bug when using ranges in a not (!).
-// TODO Implement other "not"'s in the Pattern enum.
 // TODO Update Cargo.toml, use online crate of Rule.
-// TODO Do not make some structs/functions public.
+// TODO Error messages.
+// TODO Remove most panics.
 
 // Copyright (c) 2015-2018 Vincent van Ingen <code@abitvin.net>
 // Licensed under the MIT license <LICENSE-MIT or http://opensource.org/licenses/MIT>
@@ -16,46 +16,45 @@ extern crate rule;
 mod ast;
 mod rules;
 
-use ast::{ParseData, Pattern};
+use ast::{Clause, ParseData};
 use rule::{BranchFn, Rule, RuleError};
 use rules::root;
 use std::collections::HashMap;
 
-// TODO This name!
-struct PatternX<T> {
+struct GrammarRule<T> { 
     rule: Rule<T>,
-    pattern: Vec<Pattern>,
+    sentence: Vec<Clause>,
 }
 
-type Patterns<T> = HashMap<String, PatternX<T>>;
+type GrammarRules<T> = HashMap<String, GrammarRule<T>>;
 
-pub struct Grammer<T> {
+pub struct Grammar<T> {
     compiled: bool,
-    patterns: Patterns<T>,
+    rules: GrammarRules<T>,
     parser: Rule<ParseData>,
-    ws: PatternX<T>,
+    ws: GrammarRule<T>,
 }
 
-impl<T> Grammer<T> {
+impl<T> Grammar<T> {
     pub fn new() -> Self {
         Self::new_("(\\ |\t|\n|\r)")
     }
 
-    pub fn new_with_ws(pattern: &str) -> Self {
-        Self::new_(pattern)
+    pub fn new_with_ws(expr: &str) -> Self {
+        Self::new_(expr)
     }
 
-    fn new_(ws_pattern: &str) -> Self {
+    fn new_(ws_expr: &str) -> Self {
         let parser = root();
         
-        let ws = PatternX {
+        let ws = GrammarRule {
             rule: Rule::new(None),
-            pattern: parse(&parser, &ws_pattern).unwrap(),
+            sentence: parse(&parser, &ws_expr).unwrap(),
         };
 
         Self {
             compiled: false,
-            patterns: HashMap::new(),
+            rules: HashMap::new(),
             ws,
             parser,
         }
@@ -64,14 +63,14 @@ impl<T> Grammer<T> {
     pub fn add(&mut self, id: &str, expr: &str, branch_fn: BranchFn<T>) {
         if self.compiled {
             // TODO Improve, this panic is lazy. We can parse/compile anytime (because we cannot remove rules). 
-            panic!("Cannot alter grammer when being used.");
+            panic!("Cannot alter Grammar when being used.");
         }
 
         match parse(&self.parser, expr) {
-            Ok(pattern) => {
+            Ok(sentence) => {
                 let rule = Rule::new(branch_fn);
 
-                if self.patterns.insert(String::from(id), PatternX{rule, pattern}).is_some() {
+                if self.rules.insert(String::from(id), GrammarRule { rule, sentence }).is_some() {
                     panic!("The rule \"{}\" already used.", id);
                 }
             },
@@ -84,16 +83,16 @@ impl<T> Grammer<T> {
     pub fn scan(&mut self, root_id: &str, code: &str) -> Result<Vec<T>, String> {
         if !self.compiled {
             let dummy = Rule::new(None);
-            self.ws.code_gen(&self.patterns, &dummy)?;
+            self.ws.code_gen(&self.rules, &dummy)?;
 
-            for (_, patternx) in &self.patterns {
-                patternx.code_gen(&self.patterns, &self.ws.rule)?;
+            for (_, r) in &self.rules {
+                r.code_gen(&self.rules, &self.ws.rule)?;
             }
 
             self.compiled = true;
         }
         
-        if let Some(root) = &self.patterns.get(root_id) {
+        if let Some(root) = &self.rules.get(root_id) {
             root.rule.scan(code)
                 .map_err(|_| String::from("TODO ERROR"))        // TODO Error messages.
         }
@@ -103,16 +102,16 @@ impl<T> Grammer<T> {
     }
 }
 
-fn parse(parser: &Rule<ParseData>, expr: &str) -> Result<Vec<Pattern>, Vec<RuleError>> {
+fn parse(parser: &Rule<ParseData>, expr: &str) -> Result<Vec<Clause>, Vec<RuleError>> {
     parser.scan(expr)
-        .map(|parse_data| parse_data.into_iter().map(|x| x.unwrap_pattern()).collect())
+        .map(|parse_data| parse_data.into_iter().map(|x| x.unwrap_clause()).collect())
 }
 
-impl<T> PatternX<T> {
-    fn code_gen(&self, all_patterns: &Patterns<T>, ws: &Rule<T>) -> Result<(), String> {
-        let is_one = self.pattern.len() == 1;
+impl<T> GrammarRule<T> {
+    fn code_gen(&self, all_rules: &GrammarRules<T>, ws: &Rule<T>) -> Result<(), String> {
+        let is_one = self.sentence.len() == 1;
         
-        for p in &self.pattern {
+        for clause in &self.sentence {
             let target = if is_one {
                 self.rule.clone()
             }
@@ -120,8 +119,8 @@ impl<T> PatternX<T> {
                 Rule::new(None)
             };
 
-            match p {
-                Pattern::AlterChars { ref replacements, min, max } => {
+            match clause {
+                Clause::AlterTexts { ref replacements, min, max } => {
                     let replacements = replacements.iter()
                         .map(|x| (x.find.clone(), x.replace.clone()))
                         .collect();
@@ -135,7 +134,7 @@ impl<T> PatternX<T> {
                         target.between(*min, *max, &rule);
                     }
                 }
-                Pattern::AnyChar { min, max } => {
+                Clause::AnyChar { min, max } => {
                     if *min == 1 && *max == 1 {
                         target.any_char();
                     }
@@ -145,7 +144,7 @@ impl<T> PatternX<T> {
                         target.between(*min, *max, &rule);
                     }
                 },
-                Pattern::AnyCharExcept { ref chars, min, max } => {
+                Clause::AnyCharExcept { ref chars, min, max } => {
                     if *min == 1 && *max == 1 {
                         target.any_char_except(chars.clone());
                     }
@@ -155,26 +154,23 @@ impl<T> PatternX<T> {
                         target.between(*min, *max, &rule);
                     }
                 },
-                Pattern::AnyOf { ref patterns, min, max } => {
+                Clause::AnyOf { ref sentences, min, max } => {
                     let mut rules = vec![];
 
-                    // TODO These names are ugly!
-                    for pp in patterns {
-                        let rrr = Rule::new(None);
+                    for sentence in sentences {
+                        let rule = Rule::new(None);
 
-                        for ppp in pp {
-                            println!("PP: {:?}", pp);
-
-                            let x = PatternX {
+                        for clause in sentence {
+                            let gram_rule = GrammarRule {
                                 rule: Rule::new(None),
-                                pattern: vec![ppp.clone()],     // TODO Improve.
+                                sentence: vec![clause.clone()],     // TODO Improve.
                             };
 
-                            x.code_gen(all_patterns, ws)?;
-                            rrr.one(&x.rule);
+                            gram_rule.code_gen(all_rules, ws)?;
+                            rule.one(&gram_rule.rule);
                         }
 
-                        rules.push(rrr);
+                        rules.push(rule);
                     }
 
                     let rules = rules.iter()
@@ -191,7 +187,7 @@ impl<T> PatternX<T> {
                         target.between(*min, *max, &rule);
                     }
                 },
-                Pattern::CharRanges { ref ranges, min, max } => {
+                Clause::CharRanges { ref ranges, min, max } => {
                     let rules: Vec<Rule<_>> = ranges.iter()
                         .map(|r| {
                             let rule = Rule::new(None);
@@ -213,11 +209,11 @@ impl<T> PatternX<T> {
                         target.between(*min, *max, &rule);
                     }
                 },
-                Pattern::Eof => {
+                Clause::Eof => {
                     target.eof();
                 },
-                Pattern::Id { ref name, min, max } => {
-                    match all_patterns.get(name) {
+                Clause::Id { ref name, min, max } => {
+                    match all_rules.get(name) {
                         Some(ref patx) => {
                             if *min == 1 && *max == 1 {
                                 target.one(&patx.rule);
@@ -231,7 +227,7 @@ impl<T> PatternX<T> {
                         }
                     }
                 },
-                Pattern::Literal { not /* TODO */, ref text, min, max } => {
+                Clause::Literal { not /* TODO */, ref text, min, max } => {
                     if *min == 1 && *max == 1 {
                         if *not {
                             let rule = Rule::new(None);
@@ -259,7 +255,7 @@ impl<T> PatternX<T> {
                         }
                     }
                 },
-                Pattern::Whitespace { min, max } => {
+                Clause::Whitespace { min, max } => {
                     target.between(*min, *max, &ws);
                 },
             }

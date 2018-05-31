@@ -1,5 +1,5 @@
-extern crate grammer;
-use grammer::Grammer;
+extern crate grammar;
+use grammar::Grammar;
 
 #[test]
 fn alter() {
@@ -10,11 +10,11 @@ fn alter() {
         vec![111, 222]
     };
 
-    let mut grammer: Grammer<i32> = Grammer::new();
-    grammer.add("alter", "(~\\\\<,<|\\\\>,>|東,AAA|💝,BBB|中,CCC)", None);
-    grammer.add("root", "<alter>{7}", Some(Box::new(f)));
+    let mut grammar: Grammar<i32> = Grammar::new();
+    grammar.add("alter", "(~\\\\<,<|\\\\>,>|東,AAA|💝,BBB|中,CCC)", None);
+    grammar.add("root", "<alter>{7}", Some(Box::new(f)));
     
-    if let Ok(b) = grammer.scan("root", code) {
+    if let Ok(b) = grammar.scan("root", code) {
         assert_eq!(b.len(), 2);
         assert_eq!(b[0], 111);
         assert_eq!(b[1], 222);

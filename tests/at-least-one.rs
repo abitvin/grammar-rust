@@ -1,5 +1,5 @@
-extern crate grammer;
-use grammer::Grammer;
+extern crate grammar;
+use grammar::Grammar;
 
 #[test]
 fn at_least_one() {
@@ -7,24 +7,24 @@ fn at_least_one() {
         vec![5678]
     };
 
-    let mut grammer: Grammer<i32> = Grammer::new();
-    grammer.add("root", "monkey+", Some(Box::new(f)));
+    let mut grammar: Grammar<i32> = Grammar::new();
+    grammar.add("root", "monkey+", Some(Box::new(f)));
 
-    if let Ok(_) = grammer.scan("root", "") {
+    if let Ok(_) = grammar.scan("root", "") {
         assert!(false);
     }
     else {
         assert!(true);
     }
 
-    if let Ok(branches) = grammer.scan("root", "monkey") {
+    if let Ok(branches) = grammar.scan("root", "monkey") {
         assert_eq!(branches[0], 5678);
     }
     else {
         assert!(false);
     }
 
-    if let Ok(branches) = grammer.scan("root", "monkeymonkeymonkeymonkeymonkeymonkey") {
+    if let Ok(branches) = grammar.scan("root", "monkeymonkeymonkeymonkeymonkeymonkey") {
         assert_eq!(branches[0], 5678);
     }
     else {

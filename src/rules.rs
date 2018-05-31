@@ -4,7 +4,7 @@
 
 extern crate rule;
 
-use ast::{ParseData, Pattern};
+use ast::{Clause, ParseData};
 use self::rule::Rule;
 
 const ESC_CTRL_CHARS: [(&'static str, &'static str); 21] = [
@@ -35,24 +35,20 @@ pub fn root() -> Rule<ParseData> {
     let f = |mut b: Vec<ParseData>, _: &str| {
         match b.len() {
             1 => {
-                println!("AAA");
-                vec![ParseData::Pattern(Pattern::from((false, b.remove(0), ParseData::Range { min: 1, max: 1 })))]
+                vec![ParseData::Clause(Clause::from((false, b.remove(0), ParseData::Range { min: 1, max: 1 })))]
             },
             2 => {
-                println!("BBBB");
-                
                 if b[0].is_not() {
                     b.remove(0);
-                    vec![ParseData::Pattern(Pattern::from((true, b.remove(0), ParseData::Range { min: 1, max: 1 })))]
+                    vec![ParseData::Clause(Clause::from((true, b.remove(0), ParseData::Range { min: 1, max: 1 })))]
                 }
                 else {
-                    vec![ParseData::Pattern(Pattern::from((false, b.remove(0), b.remove(0))))]
+                    vec![ParseData::Clause(Clause::from((false, b.remove(0), b.remove(0))))]
                 }
             },
             3 => {
-                println!("CCCC");
                 b.remove(0);
-                vec![ParseData::Pattern(Pattern::from((true, b.remove(0), b.remove(0))))]
+                vec![ParseData::Clause(Clause::from((true, b.remove(0), b.remove(0))))]
             },
             _ => unreachable!()
         }
@@ -119,7 +115,7 @@ pub fn any_of(pattern: &Rule<ParseData>) -> Rule<ParseData> {
     let any_of_fn = |b: Vec<ParseData>, _: &str| {
         let unwrapped = b
             .into_iter()
-            .map(|x| x.unwrap_patterns())
+            .map(|x| x.unwrap_clauses())
             .collect();
 
         vec![ParseData::AnyOf(unwrapped)]
@@ -128,10 +124,10 @@ pub fn any_of(pattern: &Rule<ParseData>) -> Rule<ParseData> {
     let patterns_fn = |b: Vec<ParseData>, _: &str| {
         let unwrapped = b
             .into_iter()
-            .map(|x| x.unwrap_pattern())
+            .map(|x| x.unwrap_clause())
             .collect();
 
-        vec![ParseData::Patterns(unwrapped)]
+        vec![ParseData::Clauses(unwrapped)]
     };
 
     let patterns = Rule::new(Some(Box::new(patterns_fn)));
@@ -152,7 +148,7 @@ pub fn alter(escaped_ctrl_chars: &Rule<ParseData>) -> Rule<ParseData> {
             .map(|x| x.unwrap_alter_text())
             .collect();
 
-        vec![ParseData::AlterChars(to_alter)]
+        vec![ParseData::AlterTexts(to_alter)]
     };
 
     let alter_tuple = alter_tuple(escaped_ctrl_chars);
@@ -167,17 +163,17 @@ pub fn alter(escaped_ctrl_chars: &Rule<ParseData>) -> Rule<ParseData> {
 
 pub fn alter_tuple(escaped_ctrl_chars: &Rule<ParseData>) -> Rule<ParseData> {
     let tuple_fn = |mut b: Vec<ParseData>, _: &str| {
-        let replace = b.pop().unwrap().unwrap_literal();
-        let find = b.pop().unwrap().unwrap_literal();
-        vec![ParseData::AlterChar{ find, replace }]
+        let replace = b.pop().unwrap().unwrap_text();
+        let find = b.pop().unwrap().unwrap_text();
+        vec![ParseData::AlterText{ find, replace }]
     };
 
     let left_text_fn = |_: Vec<ParseData>, l: &str| {
-        vec![ParseData::Literal(String::from(l))]
+        vec![ParseData::Text(String::from(l))]
     };
 
     let right_text_fn = |_: Vec<ParseData>, l: &str| {
-        vec![ParseData::Literal(String::from(l))]
+        vec![ParseData::Text(String::from(l))]
     };
 
     let all_except_left_char = Rule::new(None);
@@ -332,7 +328,6 @@ pub fn ranges() -> Rule<ParseData> {
     let rule = Rule::new(None);
     
     rule.any_of(vec![
-        // TODO Remove later &not(), 
         &at_least(&integer), &at_least_one(), &at_most(&integer), 
         &between(&integer), &exact(&integer), &maybe(), &none_or_many()
     ]);

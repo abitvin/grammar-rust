@@ -1,19 +1,19 @@
-extern crate grammer;
-use grammer::Grammer;
+extern crate grammar;
+use grammar::Grammar;
 
 #[test]
 fn custom_spaces() {
-    let mut grammer: Grammer<i32> = Grammer::new_with_ws("\\*");    // Replace whitespace with a single '*'.
+    let mut grammar: Grammar<i32> = Grammar::new_with_ws("\\*");    // Replace whitespace with a single '*'.
     
-    grammer.add("test-a", "_", None);
-    grammer.add("test-b", " ", None);
-    grammer.add("test-c", "monkey monkey_monkey", None);
+    grammar.add("test-a", "_", None);
+    grammar.add("test-b", " ", None);
+    grammar.add("test-c", "monkey monkey_monkey", None);
     
-    assert!(grammer.scan("test-a", "").is_err());
-    assert!(grammer.scan("test-a", "***").is_ok());
-    assert!(grammer.scan("test-b", "").is_ok());
-    assert!(grammer.scan("test-b", "***").is_ok());
-    assert!(grammer.scan("test-c", "monkey*****monkey*************monkey").is_ok());
-    assert!(grammer.scan("test-c", "monkeymonkey*monkey").is_ok());
-    assert!(grammer.scan("test-c", "monkey*monkeymonkey").is_err());
+    assert!(grammar.scan("test-a", "").is_err());
+    assert!(grammar.scan("test-a", "***").is_ok());
+    assert!(grammar.scan("test-b", "").is_ok());
+    assert!(grammar.scan("test-b", "***").is_ok());
+    assert!(grammar.scan("test-c", "monkey*****monkey*************monkey").is_ok());
+    assert!(grammar.scan("test-c", "monkeymonkey*monkey").is_ok());
+    assert!(grammar.scan("test-c", "monkey*monkeymonkey").is_err());
 }

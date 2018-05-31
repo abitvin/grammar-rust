@@ -1,24 +1,24 @@
-extern crate grammer;
-use grammer::Grammer;
+extern crate grammar;
+use grammar::Grammar;
 
 #[test]
 fn any_char() {
-    let mut grammer: Grammer<i32> = Grammer::new();
-    grammer.add("test-a", ".", None);
-    grammer.add("test-b", ".?", None);
-    grammer.add("test-c", ".+", None);
-    grammer.add("test-d", "\\.", None);
+    let mut grammar: Grammar<i32> = Grammar::new();
+    grammar.add("test-a", ".", None);
+    grammar.add("test-b", ".?", None);
+    grammar.add("test-c", ".+", None);
+    grammar.add("test-d", "\\.", None);
 
-    assert!(grammer.scan("test-a", "").is_err());
-    assert!(grammer.scan("test-a", "A").is_ok());
-    assert!(grammer.scan("test-a", "💝").is_ok());
-    assert!(grammer.scan("test-a", "💝💝").is_err());
-    assert!(grammer.scan("test-b", "").is_ok());
-    assert!(grammer.scan("test-b", "💝").is_ok());
-    assert!(grammer.scan("test-b", "💝💝").is_err());
-    assert!(grammer.scan("test-c", "").is_err());
-    assert!(grammer.scan("test-c", "💝").is_ok());
-    assert!(grammer.scan("test-c", "💝💝").is_ok());
-    assert!(grammer.scan("test-d", "A").is_err());
-    assert!(grammer.scan("test-d", ".").is_ok());
+    assert!(grammar.scan("test-a", "").is_err());
+    assert!(grammar.scan("test-a", "A").is_ok());
+    assert!(grammar.scan("test-a", "💝").is_ok());
+    assert!(grammar.scan("test-a", "💝💝").is_err());
+    assert!(grammar.scan("test-b", "").is_ok());
+    assert!(grammar.scan("test-b", "💝").is_ok());
+    assert!(grammar.scan("test-b", "💝💝").is_err());
+    assert!(grammar.scan("test-c", "").is_err());
+    assert!(grammar.scan("test-c", "💝").is_ok());
+    assert!(grammar.scan("test-c", "💝💝").is_ok());
+    assert!(grammar.scan("test-d", "A").is_err());
+    assert!(grammar.scan("test-d", ".").is_ok());
 }

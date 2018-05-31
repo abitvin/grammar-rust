@@ -1,10 +1,10 @@
-extern crate grammer;
-use grammer::Grammer;
+extern crate grammar;
+use grammar::Grammar;
 use std::env;
 
 fn main()
 {
-    let mut g: Grammer<f64> = Grammer::new();
+    let mut g: Grammar<f64> = Grammar::new();
 
     g.add("digit", "[0-9]", None);
     g.add("num", "(\\.<digit>+|<digit>+(\\.<digit>+)?)", Some(Box::new(|_, l| vec![l.parse::<f64>().unwrap()])));
