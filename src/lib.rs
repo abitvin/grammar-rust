@@ -1,3 +1,7 @@
+// Copyright (c) 2015-2018 Vincent van Ingen <code@abitvin.net>
+// Licensed under the MIT license <LICENSE-MIT or http://opensource.org/licenses/MIT>
+// This file may not be copied, modified, or distributed except according to those terms.
+
 // TODO Change repository names.
 // TODO This is good: `!monkey+`, but this is weird: `"!monkey*"`.
 // TODO Refactor.
@@ -5,10 +9,6 @@
 // TODO Update Cargo.toml, use online crate of Rule.
 // TODO Remove most panics.
 // TODO Analyze and optimize the AST.
-
-// Copyright (c) 2015-2018 Vincent van Ingen <code@abitvin.net>
-// Licensed under the MIT license <LICENSE-MIT or http://opensource.org/licenses/MIT>
-// This file may not be copied, modified, or distributed except according to those terms.
 
 extern crate rule;
 
