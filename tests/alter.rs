@@ -7,7 +7,7 @@ fn alter() {
     
     let f = |_: Vec<i32>, l: &str| {
         assert_eq!(l, "<AAA<BBB>CCC>");
-        vec![111, 222]
+        111
     };
 
     let mut grammar: Grammar<i32> = Grammar::new();
@@ -15,9 +15,7 @@ fn alter() {
     grammar.add("root", "<alter>{7}", Some(Box::new(f)));
     
     if let Ok(b) = grammar.scan("root", code) {
-        assert_eq!(b.len(), 2);
         assert_eq!(b[0], 111);
-        assert_eq!(b[1], 222);
     }
     else {
         assert!(false);

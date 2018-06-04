@@ -3,9 +3,7 @@ use grammar::Grammar;
 
 #[test]
 fn between() {
-    let f = |_: Vec<i32>, _: &str| {
-        vec![1234]
-    };
+    let f = |_: Vec<i32>, _: &str| 1234;
 
     let mut grammar: Grammar<i32> = Grammar::new();
     grammar.add("root", "monkey{2,4}", Some(Box::new(f)));
@@ -25,7 +23,6 @@ fn between() {
     }
 
     if let Ok(branches) = grammar.scan("root", "monkeymonkey") {
-        assert_eq!(branches.len(), 1);
         assert_eq!(branches[0], 1234);
     }
     else {
@@ -33,7 +30,6 @@ fn between() {
     }
 
     if let Ok(branches) = grammar.scan("root", "monkeymonkeymonkeymonkey") {
-        assert_eq!(branches.len(), 1);
         assert_eq!(branches[0], 1234);
     }
     else {
