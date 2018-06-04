@@ -3,7 +3,6 @@
 // TODO Refactor.
 // TODO There is a bug when using ranges in a not (!).
 // TODO Update Cargo.toml, use online crate of Rule.
-// TODO Error messages.
 // TODO Remove most panics.
 // TODO Analyze and optimize the AST.
 
@@ -20,6 +19,8 @@ use ast::{Clause, ParseData};
 use rule::{BranchFn, Rule, RuleError};
 use rules::root;
 use std::collections::HashMap;
+use std::error::Error;
+use std::fmt;
 
 struct GrammarRule<T> { 
     rule: Rule<T>,
@@ -33,6 +34,11 @@ pub struct Grammar<T> {
     rules: GrammarRules<T>,
     parser: Rule<ParseData>,
     ws: GrammarRule<T>,
+}
+
+#[derive(Debug)]
+pub struct GrammarError {
+    msg: String,
 }
 
 impl<T> Grammar<T> {
@@ -80,7 +86,8 @@ impl<T> Grammar<T> {
         }
     }
 
-    pub fn scan(&mut self, root_id: &str, code: &str) -> Result<Vec<T>, String> {
+    pub fn scan(&mut self, root_id: &str, code: &str) -> Result<Vec<T>, GrammarError> 
+     {
         if !self.compiled {
             let dummy = Rule::new(None);
             self.ws.code_gen(&self.rules, &dummy)?;
@@ -94,10 +101,10 @@ impl<T> Grammar<T> {
         
         if let Some(root) = &self.rules.get(root_id) {
             root.rule.scan(code)
-                .map_err(|_| String::from("TODO ERROR"))        // TODO Error messages.
+                .map_err(|e| GrammarError::from(e))
         }
         else {
-            return Err(format!("Rule \"{}\" not found.", root_id));
+            return Err(GrammarError::from(format!("Rule \"{}\" not found.", root_id)));
         }   
     }
 }
@@ -108,7 +115,7 @@ fn parse(parser: &Rule<ParseData>, expr: &str) -> Result<Vec<Clause>, Vec<RuleEr
 }
 
 impl<T> GrammarRule<T> {
-    fn code_gen(&self, all_rules: &GrammarRules<T>, ws: &Rule<T>) -> Result<(), String> {
+    fn code_gen(&self, all_rules: &GrammarRules<T>, ws: &Rule<T>) -> Result<(), GrammarError> {
         let is_one = self.sentence.len() == 1;
         
         for clause in &self.sentence {
@@ -179,9 +186,7 @@ impl<T> GrammarRule<T> {
                 Clause::Id { not, ref name, min, max } => {
                     let rule = match all_rules.get(name) {
                         Some(ref r) => &r.rule,
-                        None => {
-                            return Err(format!("Rule \"{}\" not found.", name));
-                        }
+                        None => return Err(GrammarError::from(format!("Rule \"{}\" not found.", name)))
                     };
 
                     if *min == 1 && *max == 1 {
@@ -243,5 +248,35 @@ fn add_extra<T, F>(target: &Rule<T>, not: bool, min: u64, max: u64, f: F)
             let rule = Rule::new(None);
             target.between(min, max, f(&rule));
         }
+    }
+}
+
+impl fmt::Display for GrammarError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.msg)
+    }
+}
+
+impl Error for GrammarError {
+    fn description(&self) -> &str {
+        &self.msg
+    }
+}
+
+impl From<String> for GrammarError {
+    fn from(err_msg: String) -> Self {
+        GrammarError {
+            msg: err_msg,
+        }
+    }
+}
+
+impl From<Vec<RuleError>> for GrammarError {
+    fn from(err: Vec<RuleError>) -> Self {
+        let msg = err
+            .into_iter()
+            .fold(String::from("Parse error\n"), |msg, err| format!("{}- index {}: {}\n", msg, err.index, err.msg));
+        
+        GrammarError { msg }
     }
 }
