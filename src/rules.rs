@@ -53,29 +53,72 @@ pub fn root() -> Rule<ParseData> {
             _ => unreachable!()
         }
     };
-    
-    let pattern = Rule::new(Some(Box::new(f)));
-    let instr = instr(&pattern);
+
+    let clause = Rule::new(Some(Box::new(f)));
+    let instr = instr(&clause);
     let ranges = ranges();
     let not = not();
     
-    pattern.maybe(&not).one(&instr).maybe(&ranges);
+    clause.maybe(&not).one(&instr).maybe(&ranges);
 
     let root = Rule::new(None);
-    root.none_or_many(&pattern);
+    root.none_or_many(&clause);
     root
+
+    /* TODO WIP
+    let escaped_ctrl_chars = escaped_ctrl_chars();
+    let clauses = Rule::new(Some(Box::new(f)));
+    let ranges = ranges();
+    let not = not();
+    
+    let alter_clause = alter(&escaped_ctrl_chars);
+
+    let any_char_clause = Rule::new(None);
+    any_char_clause.maybe(&not).one(&any_char()).maybe(&ranges);
+    
+    let any_char_except_clause = Rule::new(None);
+    any_char_except_clause.maybe(&not).one(&any_char_except(&escaped_ctrl_chars)).maybe(&ranges);
+
+    let any_of_clause = Rule::new(None);
+    any_of_clause.maybe(&not).one(&any_of(&clauses)).maybe(&ranges);
+
+    let at_least_one_ws_clause = at_least_one_ws();
+    
+    let char_ranges_clause = Rule::new(None);
+    char_ranges_clause.maybe(&not).one(&char_ranges(&escaped_ctrl_chars)).maybe(&ranges);
+
+    let eof_clause = eof();
+
+    let id_clause = Rule::new(None);
+    id_clause.maybe(&not).one(&id(&escaped_ctrl_chars)).maybe(&ranges);
+    
+    let literal_clause = Rule::new(None);
+    literal_clause.maybe(&not).one(&literal(&escaped_ctrl_chars)).maybe(&ranges);
+
+    let none_or_many_ws_clause = none_or_many_ws();
+    
+    clauses.any_of(vec![
+        &any_char_clause, &at_least_one_ws_clause, &none_or_many_ws_clause, 
+        &eof_clause, &alter_clause, &any_char_except_clause, 
+        &char_ranges_clause, &id_clause, &any_of_clause, &literal_clause
+    ]);
+
+    let root = Rule::new(None);
+    root.none_or_many(&clauses);
+    root
+    */
 }
 
 // Instructions
 
-pub fn instr(pattern: &Rule<ParseData>) -> Rule<ParseData> {
+pub fn instr(sentence: &Rule<ParseData>) -> Rule<ParseData> {
     let escaped_ctrl_chars = escaped_ctrl_chars();
     let rule = Rule::new(None);
     
     rule.any_of(vec![
         &any_char(), &at_least_one_ws(), &none_or_many_ws(), &eof(), &alter(&escaped_ctrl_chars), 
         &any_char_except(&escaped_ctrl_chars), &char_ranges(&escaped_ctrl_chars), 
-        &id(&escaped_ctrl_chars), &any_of(pattern), &literal(&escaped_ctrl_chars)
+        &id(&escaped_ctrl_chars), &any_of(sentence), &literal(&escaped_ctrl_chars)
     ]);
 
     rule
@@ -111,7 +154,7 @@ pub fn any_char_except(escaped_ctrl_chars: &Rule<ParseData>) -> Rule<ParseData> 
     rule
 }
 
-pub fn any_of(pattern: &Rule<ParseData>) -> Rule<ParseData> {
+pub fn any_of(clause: &Rule<ParseData>) -> Rule<ParseData> {
     let any_of_fn = |b: Vec<ParseData>, _: &str| {
         let unwrapped = b
             .into_iter()
@@ -121,7 +164,7 @@ pub fn any_of(pattern: &Rule<ParseData>) -> Rule<ParseData> {
         vec![ParseData::AnyOf(unwrapped)]
     };
 
-    let patterns_fn = |b: Vec<ParseData>, _: &str| {
+    let sentence_fn = |b: Vec<ParseData>, _: &str| {
         let unwrapped = b
             .into_iter()
             .map(|x| x.unwrap_clause())
@@ -130,14 +173,14 @@ pub fn any_of(pattern: &Rule<ParseData>) -> Rule<ParseData> {
         vec![ParseData::Clauses(unwrapped)]
     };
 
-    let patterns = Rule::new(Some(Box::new(patterns_fn)));
-    patterns.at_least(1, pattern);
+    let sentence = Rule::new(Some(Box::new(sentence_fn)));
+    sentence.at_least(1, clause);
 
     let more = Rule::new(None);
-    more.literal("|").one(&patterns);
+    more.literal("|").one(&sentence);
 
     let rule = Rule::new(Some(Box::new(any_of_fn)));
-    rule.literal("(").one(&patterns).none_or_many(&more).literal(")");
+    rule.literal("(").one(&sentence).none_or_many(&more).literal(")");
     rule
 }
 

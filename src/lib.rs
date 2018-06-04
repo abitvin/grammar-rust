@@ -1,11 +1,11 @@
-// TODO Remove Range::Not
-// TODO Implement other "not"'s in the Pattern enum.
-// TODO This is good: `!monkey*`, but this is weird: `"!monkey+"`.
+// TODO Change repository names.
+// TODO This is good: `!monkey+`, but this is weird: `"!monkey*"`.
 // TODO Refactor.
 // TODO There is a bug when using ranges in a not (!).
 // TODO Update Cargo.toml, use online crate of Rule.
 // TODO Error messages.
 // TODO Remove most panics.
+// TODO Analyze and optimize the AST.
 
 // Copyright (c) 2015-2018 Vincent van Ingen <code@abitvin.net>
 // Licensed under the MIT license <LICENSE-MIT or http://opensource.org/licenses/MIT>
@@ -125,36 +125,15 @@ impl<T> GrammarRule<T> {
                         .map(|x| (x.find.clone(), x.replace.clone()))
                         .collect();
 
-                    if *min == 1 && *max == 1 {
-                        target.alter_string(replacements);
-                    }
-                    else {
-                        let rule = Rule::new(None);
-                        rule.alter_string(replacements);
-                        target.between(*min, *max, &rule);
-                    }
+                    add_extra(&target, false, *min, *max, |r: &Rule<T>| r.alter_string(replacements));
                 }
-                Clause::AnyChar { min, max } => {
-                    if *min == 1 && *max == 1 {
-                        target.any_char();
-                    }
-                    else {
-                        let rule = Rule::new(None);
-                        rule.any_char();
-                        target.between(*min, *max, &rule);
-                    }
+                Clause::AnyChar { not, min, max } => {
+                    add_extra(&target, *not, *min, *max, |r: &Rule<T>| r.any_char());
                 },
-                Clause::AnyCharExcept { ref chars, min, max } => {
-                    if *min == 1 && *max == 1 {
-                        target.any_char_except(chars.clone());
-                    }
-                    else {
-                        let rule = Rule::new(None);
-                        rule.any_char_except(chars.clone());
-                        target.between(*min, *max, &rule);
-                    }
+                Clause::AnyCharExcept { not, ref chars, min, max } => {
+                    add_extra(&target, *not, *min, *max, |r: &Rule<T>| r.any_char_except(chars.clone()));
                 },
-                Clause::AnyOf { ref sentences, min, max } => {
+                Clause::AnyOf { not, ref sentences, min, max } => {
                     let mut rules = vec![];
 
                     for sentence in sentences {
@@ -177,17 +156,9 @@ impl<T> GrammarRule<T> {
                         .map(|x| x)
                         .collect();
                     
-                    if *min == 1 && *max == 1 {
-                        target.any_of(rules);
-
-                    }
-                    else {
-                        let rule = Rule::new(None);
-                        rule.any_of(rules);
-                        target.between(*min, *max, &rule);
-                    }
+                    add_extra(&target, *not, *min, *max, |r: &Rule<T>| r.any_of(rules));
                 },
-                Clause::CharRanges { ref ranges, min, max } => {
+                Clause::CharRanges { not, ref ranges, min, max } => {
                     let rules: Vec<Rule<_>> = ranges.iter()
                         .map(|r| {
                             let rule = Rule::new(None);
@@ -199,61 +170,41 @@ impl<T> GrammarRule<T> {
                     let rules = rules.iter()
                         .map(|x| x)
                         .collect();
-                    
-                    if *min == 1 && *max == 1 {
-                        target.any_of(rules);
-                    }
-                    else {
-                        let rule = Rule::new(None);
-                        rule.any_of(rules);
-                        target.between(*min, *max, &rule);
-                    }
+
+                    add_extra(&target, *not, *min, *max, |r: &Rule<T>| r.any_of(rules));
                 },
                 Clause::Eof => {
                     target.eof();
                 },
-                Clause::Id { ref name, min, max } => {
-                    match all_rules.get(name) {
-                        Some(ref patx) => {
-                            if *min == 1 && *max == 1 {
-                                target.one(&patx.rule);
-                            }
-                            else {
-                                target.between(*min, *max, &patx.rule);
-                            }
-                        }
+                Clause::Id { not, ref name, min, max } => {
+                    let rule = match all_rules.get(name) {
+                        Some(ref r) => &r.rule,
                         None => {
                             return Err(format!("Rule \"{}\" not found.", name));
                         }
-                    }
-                },
-                Clause::Literal { not /* TODO */, ref text, min, max } => {
+                    };
+
                     if *min == 1 && *max == 1 {
                         if *not {
-                            let rule = Rule::new(None);
-                            rule.literal_string(text.clone());    
                             target.not(&rule);
                         }
                         else {
-                            target.literal_string(text.clone());
+                            target.one(&rule);
                         }
                     }
                     else {
                         if *not {
-                            let rule = Rule::new(None);
-                            rule.literal_string(text.clone());
-
-                            let between = Rule::new(None);
-                            between.between(*min, *max, &rule);
-
-                            target.not(&between);
+                            let quantity = Rule::new(None);
+                            quantity.between(*min, *max, &rule);
+                            target.not(&quantity);
                         }
                         else {
-                            let rule = Rule::new(None);
-                            rule.literal_string(text.clone());
                             target.between(*min, *max, &rule);
                         }
                     }
+                },
+                Clause::Literal { not, ref text, min, max } => {
+                    add_extra(&target, *not, *min, *max, |r: &Rule<T>| r.literal_string(text.clone()));
                 },
                 Clause::Whitespace { min, max } => {
                     target.between(*min, *max, &ws);
@@ -266,5 +217,31 @@ impl<T> GrammarRule<T> {
         }
 
         Ok(())
+    }
+}
+
+fn add_extra<T, F>(target: &Rule<T>, not: bool, min: u64, max: u64, f: F) 
+    where F: FnOnce(&Rule<T>) -> &Rule<T>
+{
+    if min == 1 && max == 1 {
+        if not {
+            let rule = Rule::new(None);
+            target.not(f(&rule));
+        }
+        else {
+            f(target);
+        }
+    }
+    else {
+        if not {
+            let rule = Rule::new(None);
+            let quantity = Rule::new(None);
+            quantity.between(min, max, f(&rule));
+            target.not(&quantity);
+        }
+        else {
+            let rule = Rule::new(None);
+            target.between(min, max, f(&rule));
+        }
     }
 }
