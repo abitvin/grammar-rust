@@ -2,11 +2,9 @@
 // Licensed under the MIT license <LICENSE-MIT or http://opensource.org/licenses/MIT>
 // This file may not be copied, modified, or distributed except according to those terms.
 
-// TODO Change repository names.
 // TODO This is good: `!monkey+`, but this is weird: `"!monkey*"`.
 // TODO Refactor.
 // TODO There is a bug when using ranges in a not (!).
-// TODO Update Cargo.toml, use online crate of Rule.
 // TODO Remove most panics.
 // TODO Analyze and optimize the AST.
 
@@ -68,7 +66,6 @@ impl<T> Grammar<T> {
 
     pub fn add(&mut self, id: &str, expr: &str, branch_fn: BranchFn<T>) {
         if self.compiled {
-            // TODO Improve, this panic is lazy. We can parse/compile anytime (because we cannot remove rules). 
             panic!("Cannot alter Grammar when being used.");
         }
 
@@ -86,8 +83,7 @@ impl<T> Grammar<T> {
         }
     }
 
-    pub fn scan(&mut self, root_id: &str, code: &str) -> Result<Vec<T>, GrammarError> 
-     {
+    pub fn scan(&mut self, root_id: &str, code: &str) -> Result<Vec<T>, GrammarError> {
         if !self.compiled {
             let dummy = Rule::new(None);
             self.ws.code_gen(&self.rules, &dummy)?;
@@ -144,19 +140,13 @@ impl<T> GrammarRule<T> {
                     let mut rules = vec![];
 
                     for sentence in sentences {
-                        let rule = Rule::new(None);
+                        let gram_rule = GrammarRule {
+                            rule: Rule::new(None),
+                            sentence: sentence.clone(), // TODO Can we remove the clone?
+                        };
 
-                        for clause in sentence {
-                            let gram_rule = GrammarRule {
-                                rule: Rule::new(None),
-                                sentence: vec![clause.clone()],     // TODO Improve.
-                            };
-
-                            gram_rule.code_gen(all_rules, ws)?;
-                            rule.one(&gram_rule.rule);
-                        }
-
-                        rules.push(rule);
+                        gram_rule.code_gen(all_rules, ws)?;
+                        rules.push(gram_rule.rule);
                     }
 
                     let rules = rules.iter()
@@ -226,8 +216,7 @@ impl<T> GrammarRule<T> {
 }
 
 fn add_extra<T, F>(target: &Rule<T>, not: bool, min: u64, max: u64, f: F) 
-    where F: FnOnce(&Rule<T>) -> &Rule<T>
-{
+where F: FnOnce(&Rule<T>) -> &Rule<T> {
     if min == 1 && max == 1 {
         if not {
             let rule = Rule::new(None);
