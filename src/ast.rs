@@ -48,22 +48,18 @@ pub enum Clause {
     Whitespace { min: u64, max: u64 },
 }
 
-// TODO Remove panics.
 impl From<(bool, ParseData, ParseData)> for Clause {
     fn from(val: (bool, ParseData, ParseData)) -> Self {
         match val {
             (false, ParseData::AlterTexts(replacements), ParseData::Range { min, max }) => Clause::AlterTexts { replacements, min, max },
-            (_, ParseData::AlterTexts(_), _) => panic!("Syntax error using altering text."),
             (not, ParseData::AnyChar, ParseData::Range { min, max }) => Clause::AnyChar { not, min, max },
             (not, ParseData::AnyCharExcept(chars), ParseData::Range { min, max }) => Clause::AnyCharExcept { not, chars, min, max },
             (not, ParseData::AnyOf(sentences), ParseData::Range { min, max }) => Clause::AnyOf { not, sentences, min, max },
             (not, ParseData::CharRanges(ranges), ParseData::Range { min, max }) => Clause::CharRanges { not, ranges, min, max },
             (false, ParseData::Eof, ParseData::Range { min: 1, max: 1 }) => Clause::Eof,
-            (_, ParseData::Eof, _) => panic!("Syntax error using `$`."),
             (not, ParseData::Id(name), ParseData::Range { min, max }) => Clause::Id { not, name, min, max },
             (not, ParseData::Literal(text), ParseData::Range { min, max }) => Clause::Literal { not, text, min, max },
             (false, ParseData::Whitespace { min, max: ::std::u64::MAX }, _) => Clause::Whitespace { min, max: ::std::u64::MAX },
-            (_, ParseData::Whitespace { min: _, max: _ }, _) => panic!("Syntax error using whitespace."),
             (not, clause, range) => unreachable!("Unexpected match of\n- not: {},\n- clause: {:?}\n- range: {:?}", not, clause, range)
         }
     }

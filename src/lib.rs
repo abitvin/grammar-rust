@@ -3,10 +3,8 @@
 // This file may not be copied, modified, or distributed except according to those terms.
 
 // TODO This is good: `!monkey+`, but this is weird: `"!monkey*"`.
-// TODO Refactor.
 // TODO There is a bug when using ranges in a not (!).
-// TODO Remove most panics.
-// TODO Analyze and optimize the AST.
+// TODO GrammarRule is kinda weird structure, better to make an enum { Uncompiled(Vec<Clause>), Compiled(Rule) }.
 
 extern crate rule;
 

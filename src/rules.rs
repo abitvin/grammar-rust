@@ -50,24 +50,12 @@ pub fn root() -> Rule<ParseData> {
                 b.remove(0);
                 ParseData::Clause(Clause::from((true, b.remove(0), b.remove(0))))
             },
-            _ => unreachable!()
+            _ => unreachable!("Unexpected length")
         }
     };
-
-    let clause = Rule::new(Some(Box::new(f)));
-    let instr = instr(&clause);
-    let ranges = ranges();
-    let not = not();
     
-    clause.maybe(&not).one(&instr).maybe(&ranges);
-
-    let root = Rule::new(None);
-    root.none_or_many(&clause);
-    root
-
-    /* TODO WIP
     let escaped_ctrl_chars = escaped_ctrl_chars();
-    let clauses = Rule::new(Some(Box::new(f)));
+    let clause = Rule::new(Some(Box::new(f)));
     let ranges = ranges();
     let not = not();
     
@@ -80,10 +68,8 @@ pub fn root() -> Rule<ParseData> {
     any_char_except_clause.maybe(&not).one(&any_char_except(&escaped_ctrl_chars)).maybe(&ranges);
 
     let any_of_clause = Rule::new(None);
-    any_of_clause.maybe(&not).one(&any_of(&clauses)).maybe(&ranges);
+    any_of_clause.maybe(&not).one(&any_of(&clause)).maybe(&ranges);
 
-    let at_least_one_ws_clause = at_least_one_ws();
-    
     let char_ranges_clause = Rule::new(None);
     char_ranges_clause.maybe(&not).one(&char_ranges(&escaped_ctrl_chars)).maybe(&ranges);
 
@@ -95,34 +81,21 @@ pub fn root() -> Rule<ParseData> {
     let literal_clause = Rule::new(None);
     literal_clause.maybe(&not).one(&literal(&escaped_ctrl_chars)).maybe(&ranges);
 
+    let at_least_one_ws_clause = at_least_one_ws();
     let none_or_many_ws_clause = none_or_many_ws();
     
-    clauses.any_of(vec![
+    clause.any_of(vec![
         &any_char_clause, &at_least_one_ws_clause, &none_or_many_ws_clause, 
         &eof_clause, &alter_clause, &any_char_except_clause, 
-        &char_ranges_clause, &id_clause, &any_of_clause, &literal_clause
+        &char_ranges_clause, &id_clause, &any_of_clause, &literal_clause,
     ]);
 
     let root = Rule::new(None);
-    root.none_or_many(&clauses);
+    root.none_or_many(&clause);
     root
-    */
 }
 
-// Instructions
-
-pub fn instr(sentence: &Rule<ParseData>) -> Rule<ParseData> {
-    let escaped_ctrl_chars = escaped_ctrl_chars();
-    let rule = Rule::new(None);
-    
-    rule.any_of(vec![
-        &any_char(), &at_least_one_ws(), &none_or_many_ws(), &eof(), &alter(&escaped_ctrl_chars), 
-        &any_char_except(&escaped_ctrl_chars), &char_ranges(&escaped_ctrl_chars), 
-        &id(&escaped_ctrl_chars), &any_of(sentence), &literal(&escaped_ctrl_chars)
-    ]);
-
-    rule
-}
+// Clauses
 
 pub fn any_char() -> Rule<ParseData> {
     let f = |_: Vec<ParseData>, _: &str| {
