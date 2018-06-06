@@ -103,7 +103,7 @@ impl<T> Grammar<T> {
     }
 }
 
-fn parse(parser: &Rule<ParseData>, expr: &str) -> Result<Vec<Clause>, Vec<RuleError>> {
+fn parse(parser: &Rule<ParseData>, expr: &str) -> Result<Vec<Clause>, RuleError> {
     parser.scan(expr)
         .map(|parse_data| parse_data.into_iter().map(|x| x.unwrap_clause()).collect())
 }
@@ -246,7 +246,7 @@ impl fmt::Display for GrammarError {
 
 impl Error for GrammarError {
     fn description(&self) -> &str {
-        &self.msg
+        "Grammer error"
     }
 }
 
@@ -258,12 +258,10 @@ impl From<String> for GrammarError {
     }
 }
 
-impl From<Vec<RuleError>> for GrammarError {
-    fn from(err: Vec<RuleError>) -> Self {
-        let msg = err
-            .into_iter()
-            .fold(String::from("Parse error\n"), |msg, err| format!("{}- index {}: {}\n", msg, err.index, err.msg));
-        
-        GrammarError { msg }
+impl From<RuleError> for GrammarError {
+    fn from(err: RuleError) -> Self {
+        GrammarError { 
+            msg: format!("{}", err),
+        }
     }
 }

@@ -1,7 +1,7 @@
 [package]
 name = "grammar"
-version = "0.8.7"
+version = "0.8.8"
 authors = ["Vincent van Ingen <code@abitvin.net>"]
 
 [dependencies]
-rule = { version = "0.8.2", git = "https://github.com/abitvin/rule-rust" }
+rule = { version = "0.8.8", git = "https://github.com/abitvin/rule-rust" }
