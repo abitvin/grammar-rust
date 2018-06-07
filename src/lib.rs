@@ -63,15 +63,30 @@ impl<T> Grammar<T> {
     }
 
     pub fn add(&mut self, id: &str, expr: &str, branch_fn: BranchFn<T>) {
+        self._add(id, expr, None, branch_fn)
+    }
+
+    pub fn add_with_err_msg(&mut self, id: &str, expr: &str, err_msg: &str, branch_fn: BranchFn<T>) {
+        self._add(id, expr, Some(err_msg), branch_fn)
+    }
+
+    fn _add(&mut self, id: &str, expr: &str, err_msg: Option<&str>, branch_fn: BranchFn<T>) {
         if self.compiled {
             panic!("Cannot alter Grammar when being used.");
         }
 
         match parse(&self.parser, expr) {
             Ok(sentence) => {
-                let rule = Rule::new(branch_fn);
+                let rule = match err_msg {
+                    Some(msg) => Rule::new_with_err_msg(branch_fn, msg),
+                    None => Rule::new(branch_fn),
+                };
+                
+                let gram_rule = GrammarRule {
+                    rule, sentence,
+                };
 
-                if self.rules.insert(String::from(id), GrammarRule { rule, sentence }).is_some() {
+                if self.rules.insert(String::from(id), gram_rule).is_some() {
                     panic!("The rule \"{}\" already used.", id);
                 }
             },
