@@ -7,7 +7,7 @@ extern crate rule;
 use ast::{Clause, ParseData};
 use self::rule::Rule;
 
-const ESC_CTRL_CHARS: [(&'static str, &'static str); 21] = [
+const ESC_CTRL_CHARS: [(&'static str, &'static str); 22] = [
     ("\\<", "<"), 
     ("\\>", ">"), 
     ("\\{", "{"),
@@ -29,6 +29,7 @@ const ESC_CTRL_CHARS: [(&'static str, &'static str); 21] = [
     ("\\ ", " "), 
     ("\\_", "_"),
     ("\\!", "!"),
+    ("\\@", "@"),
 ];
 
 pub fn root() -> Rule<ParseData> {
@@ -83,11 +84,14 @@ pub fn root() -> Rule<ParseData> {
 
     let at_least_one_ws_clause = at_least_one_ws();
     let none_or_many_ws_clause = none_or_many_ws();
+
+    let no_backtrack = no_backtrack(&escaped_ctrl_chars);
     
     clause.any_of(vec![
         &any_char_clause, &at_least_one_ws_clause, &none_or_many_ws_clause, 
         &eof_clause, &alter_clause, &any_char_except_clause, 
-        &char_ranges_clause, &id_clause, &any_of_clause, &literal_clause,
+        &char_ranges_clause, &id_clause, &any_of_clause, &no_backtrack,
+        &literal_clause,
     ]);
 
     let root = Rule::new(None);
@@ -433,5 +437,26 @@ pub fn not() -> Rule<ParseData> {
 
     let rule = Rule::new(Some(Box::new(f)));
     rule.literal("!");
+    rule
+}
+
+// No backtrace
+
+pub fn no_backtrack(escaped_ctrl_chars: &Rule<ParseData>) -> Rule<ParseData> {
+    let f = |_: Vec<ParseData>, l: &str| {
+        ParseData::NoBacktrack(String::from(l))
+    };
+
+    let any_char_except = Rule::new(None);
+    any_char_except.any_char_except(vec!['@']);
+
+    let chr = Rule::new(None);
+    chr.any_of(vec![escaped_ctrl_chars, &any_char_except]);
+
+    let err_msg = Rule::new(Some(Box::new(f)));
+    err_msg.none_or_many(&chr);
+    
+    let rule = Rule::new(None);
+    rule.literal("@").one(&err_msg).literal("@");
     rule
 }

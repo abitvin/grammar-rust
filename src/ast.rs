@@ -29,6 +29,7 @@ pub enum ParseData {
     Integer(u64),
     Id(String),
     Literal(String),
+    NoBacktrack(String),
     Not,
     Range { min: u64, max: u64 },
     Text(String),
@@ -45,6 +46,7 @@ pub enum Clause {
     Eof,
     Id { not: bool, name: String, min: u64, max: u64 },
     Literal { not: bool, text: String, min: u64, max: u64 },
+    NoBacktrack(String),
     Whitespace { min: u64, max: u64 },
 }
 
@@ -59,6 +61,7 @@ impl From<(bool, ParseData, ParseData)> for Clause {
             (false, ParseData::Eof, ParseData::Range { min: 1, max: 1 }) => Clause::Eof,
             (not, ParseData::Id(name), ParseData::Range { min, max }) => Clause::Id { not, name, min, max },
             (not, ParseData::Literal(text), ParseData::Range { min, max }) => Clause::Literal { not, text, min, max },
+            (false, ParseData::NoBacktrack(err_msg), ParseData::Range { min: 1, max: 1 }) => Clause::NoBacktrack(err_msg),
             (false, ParseData::Whitespace { min, max: ::std::u64::MAX }, _) => Clause::Whitespace { min, max: ::std::u64::MAX },
             (not, clause, range) => unreachable!("Unexpected match of\n- not: {},\n- clause: {:?}\n- range: {:?}", not, clause, range)
         }

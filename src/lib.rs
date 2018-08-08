@@ -63,24 +63,13 @@ impl<T> Grammar<T> {
     }
 
     pub fn add(&mut self, id: &str, expr: &str, branch_fn: BranchFn<T>) {
-        self._add(id, expr, None, branch_fn)
-    }
-
-    pub fn add_with_err_msg(&mut self, id: &str, expr: &str, err_msg: &str, branch_fn: BranchFn<T>) {
-        self._add(id, expr, Some(err_msg), branch_fn)
-    }
-
-    fn _add(&mut self, id: &str, expr: &str, err_msg: Option<&str>, branch_fn: BranchFn<T>) {
         if self.compiled {
             panic!("Cannot alter Grammar when being used.");
         }
 
         match parse(&self.parser, expr) {
             Ok(sentence) => {
-                let rule = match err_msg {
-                    Some(msg) => Rule::new_with_err_msg(branch_fn, msg),
-                    None => Rule::new(branch_fn),
-                };
+                let rule = Rule::new(branch_fn);
                 
                 let gram_rule = GrammarRule {
                     rule, sentence,
@@ -213,6 +202,9 @@ impl<T> GrammarRule<T> {
                 },
                 Clause::Literal { not, ref text, min, max } => {
                     add_extra(&target, *not, *min, *max, |r: &Rule<T>| r.literal_string(text.clone()));
+                },
+                Clause::NoBacktrack(ref err_msg) => {
+                    target.no_backtrack(err_msg.clone());
                 },
                 Clause::Whitespace { min, max } => {
                     target.between(*min, *max, &ws);
