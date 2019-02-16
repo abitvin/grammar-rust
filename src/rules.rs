@@ -2,10 +2,8 @@
 // Licensed under the MIT license <LICENSE-MIT or http://opensource.org/licenses/MIT>
 // This file may not be copied, modified, or distributed except according to those terms.
 
-extern crate rule;
-
-use ast::{Clause, ParseData};
-use self::rule::Rule;
+use super::ast::{Clause, ParseData};
+use crate::rule::Rule;
 
 const ESC_CTRL_CHARS: [(&'static str, &'static str); 22] = [
     ("\\<", "<"), 

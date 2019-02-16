@@ -1,4 +1,3 @@
-extern crate grammar;
 use grammar::Grammar;
 
 #[test]
@@ -10,7 +9,7 @@ fn not() {
     grammar.add("not-monkey-but-gorilla", "!monkey<gorilla>", None);
     grammar.add("not-monkeys-but-gorilla", "!monkey*<gorilla>", None);
 
-    if let Ok(branches) = grammar.scan("not-monkey", "") {
+    if let Ok(_) = grammar.scan("not-monkey", "") {
         assert!(true);
     }
     else {
@@ -24,7 +23,7 @@ fn not() {
         assert!(false);
     }
     */
-    if let Ok(branches) = grammar.scan("not-monkey-but-gorilla", "gorilla") {
+    if let Ok(_) = grammar.scan("not-monkey-but-gorilla", "gorilla") {
         assert!(true);
     }
     else {

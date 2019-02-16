@@ -1,9 +1,8 @@
-extern crate grammar;
 use grammar::Grammar;
 
 #[test]
 fn at_least() {
-    let f = |_: Vec<i32>, _: &str| 1234;
+    let f = |_, _: &str| 1234;
 
     let mut grammar: Grammar<i32> = Grammar::new();
     grammar.add("root", "monkey{2,}", Some(Box::new(f)));

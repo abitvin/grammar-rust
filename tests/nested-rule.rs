@@ -1,9 +1,8 @@
-extern crate grammar;
 use grammar::Grammar;
 
 #[test]
 fn nested_rule() {
-    let f = |_: Vec<i32>, _: &str| 7777;
+    let f = |_, _: &str| 7777;
 
     let mut grammar: Grammar<i32> = Grammar::new();
     grammar.add("test-a", "<monkey>", None);

@@ -1,11 +1,10 @@
-extern crate grammar;
 use grammar::Grammar;
 
 #[test]
 fn alter() {
     let code = "\\<東\\<💝\\>中\\>"; // There are gonna be 7 replacements.
     
-    let f = |_: Vec<i32>, l: &str| {
+    let f = |_, l: &str| {
         assert_eq!(l, "<AAA<BBB>CCC>");
         111
     };

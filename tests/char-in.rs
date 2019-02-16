@@ -1,4 +1,3 @@
-extern crate grammar;
 use grammar::Grammar;
 
 #[test]
