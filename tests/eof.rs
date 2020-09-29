@@ -3,7 +3,7 @@ use grammar::Grammar;
 #[test]
 fn eof() {
     let mut grammar: Grammar<i32> = Grammar::new();
-    grammar.add("new-line", "\r?\n", None);      // TODO Fix id naming bug, rename this id to something like "aaaaaaa" will make the test successfull.
+    grammar.add("new-line", "\r?\n", None);
     grammar.add("line", "line(<new-line>|$)", None);
     grammar.add("root", "<line>*", None);
 
