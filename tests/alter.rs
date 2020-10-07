@@ -10,8 +10,8 @@ fn alter() {
     };
 
     let mut grammar: Grammar<i32> = Grammar::new();
-    grammar.add("alter", "(~\\\\<,<|\\\\>,>|東,AAA|💝,BBB|中,CCC)", None);
-    grammar.add("root", "<alter>{7}", Some(Box::new(f)));
+    grammar.rule("alter", "(~\\\\<,<|\\\\>,>|東,AAA|💝,BBB|中,CCC)");
+    grammar.map("root", "<alter>{7}", f);
     
     if let Ok(b) = grammar.scan("root", code) {
         assert_eq!(b[0], 111);

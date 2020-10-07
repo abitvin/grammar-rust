@@ -3,12 +3,12 @@ use grammar::Grammar;
 #[test]
 fn any_of() {
     let mut grammar: Grammar<i32> = Grammar::new();
-    grammar.add("a", "a", None);
-    grammar.add("abc", "(<a>|b|c+)", None);
-    grammar.add("test-a", "<abc>", None);
-    grammar.add("test-b", "XXX<abc>", None);
-    grammar.add("test-c", "<abc>YYY", None);
-    grammar.add("test-d", "XXX<abc>YYY", None);
+    grammar.rule("a", "a");
+    grammar.rule("abc", "(<a>|b|c+)");
+    grammar.rule("test-a", "<abc>");
+    grammar.rule("test-b", "XXX<abc>");
+    grammar.rule("test-c", "<abc>YYY");
+    grammar.rule("test-d", "XXX<abc>YYY");
 
     assert!(grammar.scan("test-a", "a").is_ok());
     assert!(grammar.scan("test-a", "aa").is_err());

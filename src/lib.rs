@@ -50,7 +50,7 @@ impl<T> Grammar<T> {
         let parser = root();
         
         let ws = GrammarRule {
-            rule: Rule::new(None),
+            rule: Rule::default(),
             sentence: parse(&parser, &ws_expr).unwrap(),
         };
 
@@ -62,32 +62,17 @@ impl<T> Grammar<T> {
         }
     }
 
-    pub fn add(&mut self, id: &str, expr: &str, branch_fn: BranchFn<T>) {
-        if self.compiled {
-            panic!("Cannot alter Grammar when being used.");
-        }
-
-        match parse(&self.parser, expr) {
-            Ok(sentence) => {
-                let rule = Rule::new(branch_fn);
-                
-                let gram_rule = GrammarRule {
-                    rule, sentence,
-                };
-
-                if self.rules.insert(String::from(id), gram_rule).is_some() {
-                    panic!("The rule \"{}\" already used.", id);
-                }
-            },
-            Err(err) => {
-                panic!("Error parsing rule \"{}\": {:?}", id, err)
-            },
-        }
+    pub fn map(&mut self, id: &str, expr: &str, branch_fn: BranchFn<T>) {
+        self.add(id, expr, Some(branch_fn));
+    }
+    
+    pub fn rule(&mut self, id: &str, expr: &str) {
+        self.add(id, expr, None);
     }
 
     pub fn scan(&mut self, root_id: &str, code: &str) -> Result<Vec<T>, GrammarError> {
         if !self.compiled {
-            let dummy = Rule::new(None);
+            let dummy = Rule::default();
             self.ws.code_gen(&self.rules, &dummy)?;
 
             for (_, r) in &self.rules {
@@ -105,6 +90,31 @@ impl<T> Grammar<T> {
             return Err(GrammarError::from(format!("Rule \"{}\" not found.", root_id)));
         }   
     }
+
+    fn add(&mut self, id: &str, expr: &str, branch_fn: Option<BranchFn<T>>) {
+        if self.compiled {
+            panic!("Cannot alter Grammar when being used.");
+        }
+
+        match parse(&self.parser, expr) {
+            Ok(sentence) => {
+                let rule = branch_fn
+                    .map(|f| Rule::new(f))
+                    .unwrap_or(Rule::default());
+                
+                let gram_rule = GrammarRule {
+                    rule, sentence,
+                };
+
+                if self.rules.insert(String::from(id), gram_rule).is_some() {
+                    panic!("The rule \"{}\" already used.", id);
+                }
+            },
+            Err(err) => {
+                panic!("Error parsing rule \"{}\": {:?}", id, err)
+            },
+        }
+    }
 }
 
 fn parse(parser: &Rule<ParseData>, expr: &str) -> Result<Vec<Clause>, RuleError> {
@@ -121,7 +131,7 @@ impl<T> GrammarRule<T> {
                 self.rule.clone()
             }
             else {
-                Rule::new(None)
+                Rule::default()
             };
 
             match clause {
@@ -143,7 +153,7 @@ impl<T> GrammarRule<T> {
 
                     for sentence in sentences {
                         let gram_rule = GrammarRule {
-                            rule: Rule::new(None),
+                            rule: Rule::default(),
                             sentence: sentence.clone(), // TODO Can we remove the clone?
                         };
 
@@ -160,7 +170,7 @@ impl<T> GrammarRule<T> {
                 Clause::CharRanges { not, ref ranges, min, max } => {
                     let rules: Vec<Rule<_>> = ranges.iter()
                         .map(|r| {
-                            let rule = Rule::new(None);
+                            let rule = Rule::default();
                             rule.char_in(r.start, r.end);
                             rule
                         })
@@ -191,7 +201,7 @@ impl<T> GrammarRule<T> {
                     }
                     else {
                         if *not {
-                            let quantity = Rule::new(None);
+                            let quantity = Rule::default();
                             quantity.between(*min, *max, &rule);
                             target.not(&quantity);
                         }
@@ -224,7 +234,7 @@ fn add_extra<T, F>(target: &Rule<T>, not: bool, min: u64, max: u64, f: F)
 where F: FnOnce(&Rule<T>) -> &Rule<T> {
     if min == 1 && max == 1 {
         if not {
-            let rule = Rule::new(None);
+            let rule = Rule::default();
             target.not(f(&rule));
         }
         else {
@@ -233,13 +243,13 @@ where F: FnOnce(&Rule<T>) -> &Rule<T> {
     }
     else {
         if not {
-            let rule = Rule::new(None);
-            let quantity = Rule::new(None);
+            let rule = Rule::default();
+            let quantity = Rule::default();
             quantity.between(min, max, f(&rule));
             target.not(&quantity);
         }
         else {
-            let rule = Rule::new(None);
+            let rule = Rule::default();
             target.between(min, max, f(&rule));
         }
     }

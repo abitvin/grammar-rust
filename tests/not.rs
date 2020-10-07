@@ -3,11 +3,11 @@ use grammar::Grammar;
 #[test]
 fn not() {
     let mut grammar: Grammar<i32> = Grammar::new();
-    grammar.add("not-monkey", "!monkey", None);
-    grammar.add("not-monkeys", "!monkey*", None);
-    grammar.add("gorilla", "gorilla", None);
-    grammar.add("not-monkey-but-gorilla", "!monkey<gorilla>", None);
-    grammar.add("not-monkeys-but-gorilla", "!monkey*<gorilla>", None);
+    grammar.rule("not-monkey", "!monkey");
+    grammar.rule("not-monkeys", "!monkey*");
+    grammar.rule("gorilla", "gorilla");
+    grammar.rule("not-monkey-but-gorilla", "!monkey<gorilla>");
+    grammar.rule("not-monkeys-but-gorilla", "!monkey*<gorilla>");
 
     if let Ok(_) = grammar.scan("not-monkey", "") {
         assert!(true);

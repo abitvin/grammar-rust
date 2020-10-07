@@ -3,10 +3,10 @@ use grammar::Grammar;
 #[test]
 fn any_char() {
     let mut grammar: Grammar<i32> = Grammar::new();
-    grammar.add("test-a", ".", None);
-    grammar.add("test-b", ".?", None);
-    grammar.add("test-c", ".+", None);
-    grammar.add("test-d", "\\.", None);
+    grammar.rule("test-a", ".");
+    grammar.rule("test-b", ".?");
+    grammar.rule("test-c", ".+");
+    grammar.rule("test-d", "\\.");
 
     assert!(grammar.scan("test-a", "").is_err());
     assert!(grammar.scan("test-a", "A").is_ok());

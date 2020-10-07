@@ -54,30 +54,30 @@ pub fn root() -> Rule<ParseData> {
     };
     
     let escaped_ctrl_chars = escaped_ctrl_chars();
-    let clause = Rule::new(Some(Box::new(f)));
+    let clause = Rule::new(f);
     let ranges = ranges();
     let not = not();
     
     let alter_clause = alter(&escaped_ctrl_chars);
 
-    let any_char_clause = Rule::new(None);
+    let any_char_clause = Rule::default();
     any_char_clause.maybe(&not).one(&any_char()).maybe(&ranges);
     
-    let any_char_except_clause = Rule::new(None);
+    let any_char_except_clause = Rule::default();
     any_char_except_clause.maybe(&not).one(&any_char_except(&escaped_ctrl_chars)).maybe(&ranges);
 
-    let any_of_clause = Rule::new(None);
+    let any_of_clause = Rule::default();
     any_of_clause.maybe(&not).one(&any_of(&clause)).maybe(&ranges);
 
-    let char_ranges_clause = Rule::new(None);
+    let char_ranges_clause = Rule::default();
     char_ranges_clause.maybe(&not).one(&char_ranges(&escaped_ctrl_chars)).maybe(&ranges);
 
     let eof_clause = eof();
 
-    let id_clause = Rule::new(None);
+    let id_clause = Rule::default();
     id_clause.maybe(&not).one(&id(&escaped_ctrl_chars)).maybe(&ranges);
     
-    let literal_clause = Rule::new(None);
+    let literal_clause = Rule::default();
     literal_clause.maybe(&not).one(&literal(&escaped_ctrl_chars)).maybe(&ranges);
 
     let at_least_one_ws_clause = at_least_one_ws();
@@ -92,7 +92,7 @@ pub fn root() -> Rule<ParseData> {
         &literal_clause,
     ]);
 
-    let root = Rule::new(None);
+    let root = Rule::default();
     root.none_or_many(&clause);
     root
 }
@@ -104,7 +104,7 @@ pub fn any_char() -> Rule<ParseData> {
         ParseData::AnyChar
     };
 
-    let rule = Rule::new(Some(Box::new(f)));
+    let rule = Rule::new(f);
     rule.literal(".");
     rule
 }
@@ -115,16 +115,16 @@ pub fn any_char_except(escaped_ctrl_chars: &Rule<ParseData>) -> Rule<ParseData> 
         ParseData::AnyCharExcept(chars)
     };
 
-    let any_other = Rule::new(None); 
+    let any_other = Rule::default(); 
     any_other.any_char_except(vec![']']);
 
-    let chr = Rule::new(None); 
+    let chr = Rule::default(); 
     chr.any_of(vec![escaped_ctrl_chars, &any_other]);
 
-    let chars = Rule::new(Some(Box::new(f))); 
+    let chars = Rule::new(f); 
     chars.at_least(1, &chr);
 
-    let rule = Rule::new(None); 
+    let rule = Rule::default(); 
     rule.literal("[^").one(&chars).literal("]");
     rule
 }
@@ -148,13 +148,13 @@ pub fn any_of(clause: &Rule<ParseData>) -> Rule<ParseData> {
         ParseData::Clauses(unwrapped)
     };
 
-    let sentence = Rule::new(Some(Box::new(sentence_fn)));
+    let sentence = Rule::new(sentence_fn);
     sentence.at_least(1, clause);
 
-    let more = Rule::new(None);
+    let more = Rule::default();
     more.literal("|").one(&sentence);
 
-    let rule = Rule::new(Some(Box::new(any_of_fn)));
+    let rule = Rule::new(any_of_fn);
     rule.literal("(").one(&sentence).none_or_many(&more).literal(")");
     rule
 }
@@ -171,10 +171,10 @@ pub fn alter(escaped_ctrl_chars: &Rule<ParseData>) -> Rule<ParseData> {
 
     let alter_tuple = alter_tuple(escaped_ctrl_chars);
 
-    let more = Rule::new(None);
+    let more = Rule::default();
     more.literal("|").one(&alter_tuple);
 
-    let alter = Rule::new(Some(Box::new(f)));
+    let alter = Rule::new(f);
     alter.literal("(~").one(&alter_tuple).none_or_many(&more).literal(")");
     alter
 }
@@ -194,25 +194,25 @@ pub fn alter_tuple(escaped_ctrl_chars: &Rule<ParseData>) -> Rule<ParseData> {
         ParseData::Text(String::from(l))
     };
 
-    let all_except_left_char = Rule::new(None);
+    let all_except_left_char = Rule::default();
     all_except_left_char.any_char_except(vec![',']);
     
-    let left_char = Rule::new(None);
+    let left_char = Rule::default();
     left_char.any_of(vec![escaped_ctrl_chars, &all_except_left_char]);
 
-    let left_text = Rule::new(Some(Box::new(left_text_fn)));
+    let left_text = Rule::new(left_text_fn);
     left_text.at_least(1, &left_char);
 
-    let all_except_right_char = Rule::new(None);
+    let all_except_right_char = Rule::default();
     all_except_right_char.any_char_except(vec!['|', ')']);
     
-    let right_char = Rule::new(None);
+    let right_char = Rule::default();
     right_char.any_of(vec![escaped_ctrl_chars, &all_except_right_char]);
 
-    let right_text = Rule::new(Some(Box::new(right_text_fn)));
+    let right_text = Rule::new(right_text_fn);
     right_text.at_least(1, &right_char);
 
-    let tuple = Rule::new(Some(Box::new(tuple_fn)));
+    let tuple = Rule::new(tuple_fn);
     tuple.one(&left_text).literal(",").one(&right_text);
     tuple
 }
@@ -236,20 +236,20 @@ pub fn char_ranges(escaped_ctrl_chars: &Rule<ParseData>) -> Rule<ParseData> {
 
     let char_range_char = char_range_char(escaped_ctrl_chars);
 
-    let char_range = Rule::new(Some(Box::new(char_range_fn)));
+    let char_range = Rule::new(char_range_fn);
     char_range.one(&char_range_char).literal("-").one(&char_range_char);
 
-    let char_ranges = Rule::new(Some(Box::new(char_ranges_fn)));
+    let char_ranges = Rule::new(char_ranges_fn);
     char_ranges.literal("[").at_least(1, &char_range).literal("]");
 
     char_ranges
 }
 
 pub fn char_range_char(escaped_ctrl_chars: &Rule<ParseData>) -> Rule<ParseData> {
-    let all_except = Rule::new(None);
+    let all_except = Rule::default();
     all_except.any_char_except(vec!['-', ']']);
 
-    let rule = Rule::new(None);
+    let rule = Rule::default();
     rule.any_of(vec![escaped_ctrl_chars, &all_except]);
     rule
 }
@@ -259,13 +259,13 @@ pub fn eof() -> Rule<ParseData> {
         ParseData::Eof
     };
 
-    let rule = Rule::new(Some(Box::new(f)));
+    let rule = Rule::new(f);
     rule.literal("$");
     rule
 }
 
 pub fn escaped_ctrl_chars() -> Rule<ParseData> {
-    let rule = Rule::new(None);
+    let rule = Rule::default();
     rule.alter(ESC_CTRL_CHARS.to_vec());
     rule
 }
@@ -275,16 +275,16 @@ pub fn id(escaped_ctrl_chars: &Rule<ParseData>) -> Rule<ParseData> {
         ParseData::Id(String::from(l))
     };
 
-    let any_char_except = Rule::new(None);
+    let any_char_except = Rule::default();
     any_char_except.any_char_except(vec!['>']);
 
-    let chr = Rule::new(None);
+    let chr = Rule::default();
     chr.any_of(vec![escaped_ctrl_chars, &any_char_except]);
 
-    let id = Rule::new(Some(Box::new(f)));
+    let id = Rule::new(f);
     id.at_least(1, &chr);
 
-    let rule = Rule::new(None);
+    let rule = Rule::default();
     rule.literal("<").one(&id).literal(">");
     rule
 }
@@ -294,10 +294,10 @@ pub fn integer() -> Rule<ParseData> {
         ParseData::Integer(l.parse::<u64>().unwrap())
     };
 
-    let digit = Rule::new(None);
+    let digit = Rule::default();
     digit.char_in('0', '9');
 
-    let integer = Rule::new(Some(Box::new(f)));
+    let integer = Rule::new(f);
     integer.at_least(1, &digit);
     integer
 }
@@ -307,13 +307,13 @@ pub fn literal(escaped_ctrl_chars: &Rule<ParseData>) -> Rule<ParseData> {
         ParseData::Literal(String::from(l))
     };
 
-    let all_except = Rule::new(None);
+    let all_except = Rule::default();
     all_except.any_char_except(vec!['<', '{', '(', ')', '|', '[', '+', '?', '*', '.', '$', ' ', '_', '!']);
 
-    let chr = Rule::new(None);
+    let chr = Rule::default();
     chr.any_of(vec![escaped_ctrl_chars, &all_except]);
     
-    let rule = Rule::new(Some(Box::new(f)));
+    let rule = Rule::new(f);
     rule.at_least(1, &chr);
     rule
 }
@@ -323,7 +323,7 @@ pub fn at_least_one_ws() -> Rule<ParseData> {
         ParseData::Whitespace { min: 1, max: ::std::u64::MAX }
     };
     
-    let rule = Rule::new(Some(Box::new(f)));
+    let rule = Rule::new(f);
     rule.literal("_");
     rule
 }
@@ -333,7 +333,7 @@ pub fn none_or_many_ws() -> Rule<ParseData> {
         ParseData::Whitespace { min: 0, max: ::std::u64::MAX }
     };
 
-    let rule = Rule::new(Some(Box::new(f)));
+    let rule = Rule::new(f);
     rule.literal(" ");
     rule
 }
@@ -343,7 +343,7 @@ pub fn none_or_many_ws() -> Rule<ParseData> {
 pub fn ranges() -> Rule<ParseData> {
     let integer = integer();
 
-    let rule = Rule::new(None);
+    let rule = Rule::default();
     
     rule.any_of(vec![
         &at_least(&integer), &at_least_one(), &at_most(&integer), 
@@ -359,7 +359,7 @@ pub fn at_least(integer: &Rule<ParseData>) -> Rule<ParseData> {
         ParseData::Range { min: count, max: ::std::u64::MAX }
     };
 
-    let rule = Rule::new(Some(Box::new(f)));
+    let rule = Rule::new(f);
     rule.literal("{").one(integer).literal(",}");
     rule
 }
@@ -369,7 +369,7 @@ pub fn at_least_one() -> Rule<ParseData> {
         ParseData::Range { min: 1, max: ::std::u64::MAX }
     };
 
-    let rule = Rule::new(Some(Box::new(f)));
+    let rule = Rule::new(f);
     rule.literal("+");
     rule
 }
@@ -380,7 +380,7 @@ pub fn at_most(integer: &Rule<ParseData>) -> Rule<ParseData> {
         ParseData::Range { min: 0, max: count }
     };
 
-    let rule = Rule::new(Some(Box::new(f)));
+    let rule = Rule::new(f);
     rule.literal("{,").one(integer).literal("}");
     rule
 }
@@ -392,7 +392,7 @@ pub fn between(integer: &Rule<ParseData>) -> Rule<ParseData> {
         ParseData::Range { min, max }
     };
 
-    let rule = Rule::new(Some(Box::new(f)));
+    let rule = Rule::new(f);
     rule.literal("{").one(integer).literal(",").one(integer).literal("}");
     rule
 }
@@ -403,7 +403,7 @@ pub fn exact(integer: &Rule<ParseData>) -> Rule<ParseData> {
         ParseData::Range { min: count, max: count }
     };
 
-    let rule = Rule::new(Some(Box::new(f)));
+    let rule = Rule::new(f);
     rule.literal("{").one(integer).literal("}");
     rule
 }
@@ -413,7 +413,7 @@ pub fn maybe() -> Rule<ParseData> {
         ParseData::Range { min: 0, max: 1 }
     };
 
-    let rule = Rule::new(Some(Box::new(f)));
+    let rule = Rule::new(f);
     rule.literal("?");
     rule
 }
@@ -423,7 +423,7 @@ pub fn none_or_many() -> Rule<ParseData> {
         ParseData::Range { min: 0, max: ::std::u64::MAX }
     };
 
-    let rule = Rule::new(Some(Box::new(f)));
+    let rule = Rule::new(f);
     rule.literal("*");
     rule
 }
@@ -433,7 +433,7 @@ pub fn not() -> Rule<ParseData> {
         ParseData::Not
     };
 
-    let rule = Rule::new(Some(Box::new(f)));
+    let rule = Rule::new(f);
     rule.literal("!");
     rule
 }
@@ -445,16 +445,16 @@ pub fn no_backtrack(escaped_ctrl_chars: &Rule<ParseData>) -> Rule<ParseData> {
         ParseData::NoBacktrack(String::from(l))
     };
 
-    let any_char_except = Rule::new(None);
+    let any_char_except = Rule::default();
     any_char_except.any_char_except(vec!['@']);
 
-    let chr = Rule::new(None);
+    let chr = Rule::default();
     chr.any_of(vec![escaped_ctrl_chars, &any_char_except]);
 
-    let err_msg = Rule::new(Some(Box::new(f)));
+    let err_msg = Rule::new(f);
     err_msg.none_or_many(&chr);
     
-    let rule = Rule::new(None);
+    let rule = Rule::default();
     rule.literal("@").one(&err_msg).literal("@");
     rule
 }

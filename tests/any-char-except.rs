@@ -3,8 +3,8 @@ use grammar::Grammar;
 #[test]
 fn any_char_except() {
     let mut grammar: Grammar<i32> = Grammar::new();
-    grammar.add("test-a", "[^ABC💝]", None);
-    grammar.add("test-b", "[^ABC💝]*", None);
+    grammar.rule("test-a", "[^ABC💝]");
+    grammar.rule("test-b", "[^ABC💝]*");
     
     assert!(grammar.scan("test-a", "").is_err());
     assert!(grammar.scan("test-a", "a").is_ok());

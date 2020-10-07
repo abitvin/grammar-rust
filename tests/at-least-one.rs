@@ -2,10 +2,8 @@ use grammar::Grammar;
 
 #[test]
 fn at_least_one() {
-    let f = |_, _: &str| 5678;
-
     let mut grammar: Grammar<i32> = Grammar::new();
-    grammar.add("root", "monkey+", Some(Box::new(f)));
+    grammar.map("root", "monkey+", |_, _: &str| 5678);
 
     if let Ok(_) = grammar.scan("root", "") {
         assert!(false);

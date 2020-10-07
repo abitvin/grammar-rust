@@ -3,9 +3,9 @@ use grammar::Grammar;
 #[test]
 fn char_in() {
     let mut grammar: Grammar<i32> = Grammar::new();
-    grammar.add("test-a", "[a-z]", None);
-    grammar.add("test-b", "[😀-🙏]", None);         // Emoticons (Emoji) U+1F600 — U+1F64F
-    grammar.add("test-c", "[a-zA-Z0-9]+", None);
+    grammar.rule("test-a", "[a-z]");
+    grammar.rule("test-b", "[😀-🙏]");         // Emoticons (Emoji) U+1F600 — U+1F64F
+    grammar.rule("test-c", "[a-zA-Z0-9]+");
     
     assert!(grammar.scan("test-a", "").is_err());
     assert!(grammar.scan("test-a", "x").is_ok());

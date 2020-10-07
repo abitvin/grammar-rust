@@ -5,11 +5,11 @@ fn nested_rule() {
     let f = |_, _: &str| 7777;
 
     let mut grammar: Grammar<i32> = Grammar::new();
-    grammar.add("test-a", "<monkey>", None);
-    grammar.add("test-b", "<monkey><monkey><monkey>", None);
-    grammar.add("test-c", "<monkey>+", None);
-    grammar.add("test-d", "<monkey>*", None);
-    grammar.add("monkey", "monkey", Some(Box::new(f)));
+    grammar.rule("test-a", "<monkey>");
+    grammar.rule("test-b", "<monkey><monkey><monkey>");
+    grammar.rule("test-c", "<monkey>+");
+    grammar.rule("test-d", "<monkey>*");
+    grammar.map("monkey", "monkey", f);
 
     if let Ok(_) = grammar.scan("test-a", "ape") {
         assert!(false);

@@ -4,9 +4,9 @@ use grammar::Grammar;
 fn custom_spaces() {
     let mut grammar: Grammar<i32> = Grammar::new_with_ws("\\*");    // Replace whitespace with a single '*'.
     
-    grammar.add("test-a", "_", None);
-    grammar.add("test-b", " ", None);
-    grammar.add("test-c", "monkey monkey_monkey", None);
+    grammar.rule("test-a", "_");
+    grammar.rule("test-b", " ");
+    grammar.rule("test-c", "monkey monkey_monkey");
     
     assert!(grammar.scan("test-a", "").is_err());
     assert!(grammar.scan("test-a", "***").is_ok());

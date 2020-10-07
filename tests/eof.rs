@@ -3,9 +3,9 @@ use grammar::Grammar;
 #[test]
 fn eof() {
     let mut grammar: Grammar<i32> = Grammar::new();
-    grammar.add("new-line", "\r?\n", None);
-    grammar.add("line", "line(<new-line>|$)", None);
-    grammar.add("root", "<line>*", None);
+    grammar.rule("new-line", "\r?\n");
+    grammar.rule("line", "line(<new-line>|$)");
+    grammar.rule("root", "<line>*");
 
     assert!(grammar.scan("root", "").is_ok());
     assert!(grammar.scan("root", "line").is_ok());

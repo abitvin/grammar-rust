@@ -2,10 +2,8 @@ use grammar::Grammar;
 
 #[test]
 fn maybe() {
-    let f = |_, _: &str| 1234;
-
     let mut grammar: Grammar<i32> = Grammar::new();
-    grammar.add("root", "Maybe?", Some(Box::new(f)));
+    grammar.map("root", "Maybe?", |_, _: &str| 1234);
 
     if let Ok(branches) = grammar.scan("root", "") {
         assert_eq!(branches[0], 1234);

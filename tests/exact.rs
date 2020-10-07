@@ -2,10 +2,8 @@ use grammar::Grammar;
 
 #[test]
 fn exact() {
-    let f = |_, _: &str| 1234;
-
     let mut grammar: Grammar<i32> = Grammar::new();
-    grammar.add("root", "monkey{2}", Some(Box::new(f)));
+    grammar.map("root", "monkey{2}", |_, _: &str| 1234);
 
     if let Ok(_) = grammar.scan("root", "") {
         assert!(false);
