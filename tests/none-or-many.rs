@@ -2,26 +2,26 @@ use grammar::Grammar;
 
 #[test]
 fn none_or_many() {
-    let f = |_, _: &str| 1234;
-
     let mut grammar: Grammar<i32> = Grammar::new();
-    grammar.map("root", "monkey*", f);
+    grammar.map("root", "monkey*", |_, _: &str| 1234);
 
-    if let Ok(branches) = grammar.scan("root", "") {
+    let compiled = grammar.compile().unwrap();
+
+    if let Ok(branches) = compiled.scan("root", "") {
         assert_eq!(branches[0], 1234);
     }
     else {
         assert!(false);
     }
 
-    if let Ok(branches) = grammar.scan("root", "monkey") {
+    if let Ok(branches) = compiled.scan("root", "monkey") {
         assert_eq!(branches[0], 1234);
     }
     else {
         assert!(false);
     }
 
-    if let Ok(branches) = grammar.scan("root", "monkeymonkeymonkey") {
+    if let Ok(branches) = compiled.scan("root", "monkeymonkeymonkey") {
         assert_eq!(branches[0], 1234);
     }
     else {

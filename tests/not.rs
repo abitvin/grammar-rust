@@ -9,28 +9,30 @@ fn not() {
     grammar.rule("not-monkey-but-gorilla", "!monkey<gorilla>");
     grammar.rule("not-monkeys-but-gorilla", "!monkey*<gorilla>");
 
-    if let Ok(_) = grammar.scan("not-monkey", "") {
+    let compiled = grammar.compile().unwrap();
+
+    if let Ok(_) = compiled.scan("not-monkey", "") {
         assert!(true);
     }
     else {
         assert!(false);
     }
     /* TODO Fix me
-    if let Ok(branches) = grammar.scan("not-monkeys", "") {
+    if let Ok(branches) = compiled.scan("not-monkeys", "") {
         assert!(true);
     }
     else {
         assert!(false);
     }
     */
-    if let Ok(_) = grammar.scan("not-monkey-but-gorilla", "gorilla") {
+    if let Ok(_) = compiled.scan("not-monkey-but-gorilla", "gorilla") {
         assert!(true);
     }
     else {
         assert!(false);
     }
     /* TODO Fix me
-    if let Ok(branches) = grammar.scan("not-monkeys-but-gorilla", "gorilla") {
+    if let Ok(branches) = compiled.scan("not-monkeys-but-gorilla", "gorilla") {
         assert!(true);
     }
     else {

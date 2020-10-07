@@ -8,16 +8,18 @@ fn any_char() {
     grammar.rule("test-c", ".+");
     grammar.rule("test-d", "\\.");
 
-    assert!(grammar.scan("test-a", "").is_err());
-    assert!(grammar.scan("test-a", "A").is_ok());
-    assert!(grammar.scan("test-a", "💝").is_ok());
-    assert!(grammar.scan("test-a", "💝💝").is_err());
-    assert!(grammar.scan("test-b", "").is_ok());
-    assert!(grammar.scan("test-b", "💝").is_ok());
-    assert!(grammar.scan("test-b", "💝💝").is_err());
-    assert!(grammar.scan("test-c", "").is_err());
-    assert!(grammar.scan("test-c", "💝").is_ok());
-    assert!(grammar.scan("test-c", "💝💝").is_ok());
-    assert!(grammar.scan("test-d", "A").is_err());
-    assert!(grammar.scan("test-d", ".").is_ok());
+    let compiled = grammar.compile().unwrap();
+
+    assert!(compiled.scan("test-a", "").is_err());
+    assert!(compiled.scan("test-a", "A").is_ok());
+    assert!(compiled.scan("test-a", "💝").is_ok());
+    assert!(compiled.scan("test-a", "💝💝").is_err());
+    assert!(compiled.scan("test-b", "").is_ok());
+    assert!(compiled.scan("test-b", "💝").is_ok());
+    assert!(compiled.scan("test-b", "💝💝").is_err());
+    assert!(compiled.scan("test-c", "").is_err());
+    assert!(compiled.scan("test-c", "💝").is_ok());
+    assert!(compiled.scan("test-c", "💝💝").is_ok());
+    assert!(compiled.scan("test-d", "A").is_err());
+    assert!(compiled.scan("test-d", ".").is_ok());
 }

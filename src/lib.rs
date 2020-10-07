@@ -25,8 +25,11 @@ struct GrammarRule<T> {
 
 type GrammarRules<T> = HashMap<String, GrammarRule<T>>;
 
+pub struct CompiledGrammar<T> {
+    rules: GrammarRules<T>,
+}
+
 pub struct Grammar<T> {
-    compiled: bool,
     rules: GrammarRules<T>,
     parser: Rule<ParseData>,
     ws: GrammarRule<T>,
@@ -55,11 +58,23 @@ impl<T> Grammar<T> {
         };
 
         Self {
-            compiled: false,
             rules: HashMap::new(),
             ws,
             parser,
         }
+    }
+
+    pub fn compile(self) -> Result<CompiledGrammar<T>, GrammarError> {
+        let dummy = Rule::default();
+        self.ws.code_gen(&self.rules, &dummy)?;
+
+        for (_, r) in &self.rules {
+            r.code_gen(&self.rules, &self.ws.rule)?;
+        }
+
+        Ok(CompiledGrammar {
+            rules: self.rules,
+        })
     }
 
     pub fn map(&mut self, id: &str, expr: &str, branch_fn: BranchFn<T>) {
@@ -70,32 +85,7 @@ impl<T> Grammar<T> {
         self.add(id, expr, None);
     }
 
-    pub fn scan(&mut self, root_id: &str, code: &str) -> Result<Vec<T>, GrammarError> {
-        if !self.compiled {
-            let dummy = Rule::default();
-            self.ws.code_gen(&self.rules, &dummy)?;
-
-            for (_, r) in &self.rules {
-                r.code_gen(&self.rules, &self.ws.rule)?;
-            }
-
-            self.compiled = true;
-        }
-        
-        if let Some(root) = &self.rules.get(root_id) {
-            root.rule.scan(code)
-                .map_err(|e| GrammarError::from(e))
-        }
-        else {
-            return Err(GrammarError::from(format!("Rule \"{}\" not found.", root_id)));
-        }   
-    }
-
     fn add(&mut self, id: &str, expr: &str, branch_fn: Option<BranchFn<T>>) {
-        if self.compiled {
-            panic!("Cannot alter Grammar when being used.");
-        }
-
         match parse(&self.parser, expr) {
             Ok(sentence) => {
                 let rule = branch_fn
@@ -114,6 +104,18 @@ impl<T> Grammar<T> {
                 panic!("Error parsing rule \"{}\": {:?}", id, err)
             },
         }
+    }
+}
+
+impl<T> CompiledGrammar<T> {
+    pub fn scan(&self, root_id: &str, code: &str) -> Result<Vec<T>, GrammarError> {
+        if let Some(root) = &self.rules.get(root_id) {
+            root.rule.scan(code)
+                .map_err(|e| GrammarError::from(e))
+        }
+        else {
+            return Err(GrammarError::from(format!("Rule \"{}\" not found.", root_id)));
+        }   
     }
 }
 

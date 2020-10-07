@@ -13,7 +13,9 @@ fn alter() {
     grammar.rule("alter", "(~\\\\<,<|\\\\>,>|東,AAA|💝,BBB|中,CCC)");
     grammar.map("root", "<alter>{7}", f);
     
-    if let Ok(b) = grammar.scan("root", code) {
+    let compiled = grammar.compile().unwrap();
+    
+    if let Ok(b) = compiled.scan("root", code) {
         assert_eq!(b[0], 111);
     }
     else {

@@ -11,21 +11,23 @@ fn nested_rule() {
     grammar.rule("test-d", "<monkey>*");
     grammar.map("monkey", "monkey", f);
 
-    if let Ok(_) = grammar.scan("test-a", "ape") {
+    let compiled = grammar.compile().unwrap();
+
+    if let Ok(_) = compiled.scan("test-a", "ape") {
         assert!(false);
     }
     else {
         assert!(true);
     }
 
-    if let Ok(branches) = grammar.scan("test-a", "monkey") {
+    if let Ok(branches) = compiled.scan("test-a", "monkey") {
         assert_eq!(branches[0], 7777);
     }
     else {
         assert!(false);
     }
 
-    if let Ok(branches) = grammar.scan("test-b", "monkeymonkeymonkey") {
+    if let Ok(branches) = compiled.scan("test-b", "monkeymonkeymonkey") {
         assert_eq!(branches.len(), 3);
         assert_eq!(branches[0], 7777);
         assert_eq!(branches[1], 7777);
@@ -35,14 +37,14 @@ fn nested_rule() {
         assert!(false);
     }
 
-    if let Ok(_) = grammar.scan("test-c", "") {
+    if let Ok(_) = compiled.scan("test-c", "") {
         assert!(false);
     }
     else {
         assert!(true);
     }
 
-    if let Ok(branches) = grammar.scan("test-c", "monkeymonkeymonkeymonkey") {
+    if let Ok(branches) = compiled.scan("test-c", "monkeymonkeymonkeymonkey") {
         assert_eq!(branches.len(), 4);
         assert_eq!(branches[0], 7777);
         assert_eq!(branches[1], 7777);
@@ -53,14 +55,14 @@ fn nested_rule() {
         assert!(false);
     }
 
-    if let Ok(branches) = grammar.scan("test-d", "") {
+    if let Ok(branches) = compiled.scan("test-d", "") {
         assert_eq!(branches.len(), 0);
     }
     else {
         assert!(false);
     }
 
-    if let Ok(branches) = grammar.scan("test-d", "monkeymonkeymonkeymonkey") {
+    if let Ok(branches) = compiled.scan("test-d", "monkeymonkeymonkeymonkey") {
         assert_eq!(branches.len(), 4);
         assert_eq!(branches[0], 7777);
         assert_eq!(branches[1], 7777);

@@ -7,9 +7,11 @@ fn eof() {
     grammar.rule("line", "line(<new-line>|$)");
     grammar.rule("root", "<line>*");
 
-    assert!(grammar.scan("root", "").is_ok());
-    assert!(grammar.scan("root", "line").is_ok());
-    assert!(grammar.scan("root", "line\n").is_ok());
-    assert!(grammar.scan("root", "line\nline").is_ok());
-    assert!(grammar.scan("root", "line\r\nline\n").is_ok());
+    let compiled = grammar.compile().unwrap();
+
+    assert!(compiled.scan("root", "").is_ok());
+    assert!(compiled.scan("root", "line").is_ok());
+    assert!(compiled.scan("root", "line\n").is_ok());
+    assert!(compiled.scan("root", "line\nline").is_ok());
+    assert!(compiled.scan("root", "line\r\nline\n").is_ok());
 }

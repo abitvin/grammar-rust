@@ -46,12 +46,14 @@ fn main()
     g.rule("func", "(<abs>|<acos>|<acosh>|<asin>|<asinh>|<atan>|<atanh>|<ceil>|<cos>|<cosh>|<exp>|<floor>|<fract>|<ln>|<log>|<recip>|<round>|<signum>|<sin>|<sinh>|<sqrt>|<tan>|<tanh>|<trunc>)");
     
     g.rule("base", "(\\(<expr>\\)|<num>|<func>)");
+
+    let c = g.compile().unwrap();
     
     // Combine the command line arguments into one String.
     let collected: Vec<String> = env::args().collect();
     let expr = &collected[1..].join("");
 
-    match g.scan("expr", expr) {
+    match c.scan("expr", expr) {
         Ok(branches) => println!("{}", branches[0]),
         Err(_) => println!("Not a valid expression."),
     }
