@@ -4,7 +4,6 @@
 
 // TODO This is good: `!monkey+`, but this is weird: `"!monkey*"`.
 // TODO There is a bug when using ranges in a not (!).
-// TODO GrammarRule is kinda weird structure, better to make an enum { Uncompiled(Vec<Clause>), Compiled(Rule) }.
 
 extern crate rule;
 
@@ -23,10 +22,11 @@ struct GrammarRule<T> {
     sentence: Vec<Clause>,
 }
 
+type CompiledGrammarRules<T> = HashMap<String, Rule<T>>;
 type GrammarRules<T> = HashMap<String, GrammarRule<T>>;
 
 pub struct CompiledGrammar<T> {
-    rules: GrammarRules<T>,
+    rules: CompiledGrammarRules<T>,
 }
 
 pub struct Grammar<T> {
@@ -67,14 +67,18 @@ impl<T> Grammar<T> {
     pub fn compile(self) -> Result<CompiledGrammar<T>, GrammarError> {
         let dummy = Rule::default();
         self.ws.code_gen(&self.rules, &dummy)?;
-
+        
         for (_, r) in &self.rules {
             r.code_gen(&self.rules, &self.ws.rule)?;
         }
+        
+        let mut rules = HashMap::new();
 
-        Ok(CompiledGrammar {
-            rules: self.rules,
-        })
+        for (k, r) in self.rules {
+            rules.insert(k, r.rule);
+        }
+
+        Ok(CompiledGrammar { rules })
     }
 
     pub fn map(&mut self, id: &str, expr: &str, branch_fn: BranchFn<T>) {
@@ -110,7 +114,7 @@ impl<T> Grammar<T> {
 impl<T> CompiledGrammar<T> {
     pub fn scan(&self, root_id: &str, code: &str) -> Result<Vec<T>, GrammarError> {
         if let Some(root) = &self.rules.get(root_id) {
-            root.rule.scan(code)
+            root.scan(code)
                 .map_err(|e| GrammarError::from(e))
         }
         else {
