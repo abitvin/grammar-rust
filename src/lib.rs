@@ -2,9 +2,6 @@
 // Licensed under the MIT license <LICENSE-MIT or http://opensource.org/licenses/MIT>
 // This file may not be copied, modified, or distributed except according to those terms.
 
-// TODO This is good: `!monkey+`, but this is weird: `"!monkey*"`.
-// TODO There is a bug when using ranges in a not (!).
-
 extern crate rule;
 
 mod ast;
