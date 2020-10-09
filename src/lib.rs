@@ -157,7 +157,7 @@ impl<T> GrammarRule<T> {
                     for sentence in sentences {
                         let gram_rule = GrammarRule {
                             rule: Rule::default(),
-                            sentence: sentence.clone(), // TODO Can we remove the clone?
+                            sentence: sentence.clone(),
                         };
 
                         gram_rule.code_gen(all_rules, ws)?;
