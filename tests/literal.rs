@@ -3,7 +3,7 @@ use grammar::Grammar;
 #[test]
 fn literal() {
     let mut grammar: Grammar<i32> = Grammar::new();
-    grammar.map("root", "monkey", |_, _: &str| 123);
+    grammar.map("root", "monkey", |_, _: &str| Ok(123));
 
     let compiled = grammar.compile().unwrap();
 

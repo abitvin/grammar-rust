@@ -3,7 +3,7 @@ use grammar::Grammar;
 #[test]
 fn at_least_one() {
     let mut grammar: Grammar<i32> = Grammar::new();
-    grammar.map("root", "monkey+", |_, _: &str| 5678);
+    grammar.map("root", "monkey+", |_, _: &str| Ok(5678));
 
     let compiled = grammar.compile().unwrap();
 

@@ -34,20 +34,20 @@ pub fn root() -> Rule<ParseData> {
     let f = |mut b: Vec<ParseData>, _: &str| {
         match b.len() {
             1 => {
-                ParseData::Clause(Clause::from((false, b.remove(0), ParseData::Range { min: 1, max: 1 })))
+                Ok(ParseData::Clause(Clause::from((false, b.remove(0), ParseData::Range { min: 1, max: 1 }))))
             },
             2 => {
                 if b[0].is_not() {
                     b.remove(0);
-                    ParseData::Clause(Clause::from((true, b.remove(0), ParseData::Range { min: 1, max: 1 })))
+                    Ok(ParseData::Clause(Clause::from((true, b.remove(0), ParseData::Range { min: 1, max: 1 }))))
                 }
                 else {
-                    ParseData::Clause(Clause::from((false, b.remove(0), b.remove(0))))
+                    Ok(ParseData::Clause(Clause::from((false, b.remove(0), b.remove(0)))))
                 }
             },
             3 => {
                 b.remove(0);
-                ParseData::Clause(Clause::from((true, b.remove(0), b.remove(0))))
+                Ok(ParseData::Clause(Clause::from((true, b.remove(0), b.remove(0)))))
             },
             _ => unreachable!("Unexpected length")
         }
@@ -101,7 +101,7 @@ pub fn root() -> Rule<ParseData> {
 
 pub fn any_char() -> Rule<ParseData> {
     let f = |_: Vec<ParseData>, _: &str| {
-        ParseData::AnyChar
+        Ok(ParseData::AnyChar)
     };
 
     let rule = Rule::new(f);
@@ -112,7 +112,7 @@ pub fn any_char() -> Rule<ParseData> {
 pub fn any_char_except(escaped_ctrl_chars: &Rule<ParseData>) -> Rule<ParseData> {
     let f = |_: Vec<ParseData>, l: &str| {
         let chars = String::from(l).chars().map(|c| c).collect();
-        ParseData::AnyCharExcept(chars)
+        Ok(ParseData::AnyCharExcept(chars))
     };
 
     let any_other = Rule::default(); 
@@ -136,7 +136,7 @@ pub fn any_of(clause: &Rule<ParseData>) -> Rule<ParseData> {
             .map(|x| x.unwrap_clauses())
             .collect();
 
-        ParseData::AnyOf(unwrapped)
+        Ok(ParseData::AnyOf(unwrapped))
     };
 
     let sentence_fn = |b: Vec<ParseData>, _: &str| {
@@ -145,7 +145,7 @@ pub fn any_of(clause: &Rule<ParseData>) -> Rule<ParseData> {
             .map(|x| x.unwrap_clause())
             .collect();
 
-        ParseData::Clauses(unwrapped)
+        Ok(ParseData::Clauses(unwrapped))
     };
 
     let sentence = Rule::new(sentence_fn);
@@ -166,7 +166,7 @@ pub fn alter(escaped_ctrl_chars: &Rule<ParseData>) -> Rule<ParseData> {
             .map(|x| x.unwrap_alter_text())
             .collect();
 
-        ParseData::AlterTexts(to_alter)
+        Ok(ParseData::AlterTexts(to_alter))
     };
 
     let alter_tuple = alter_tuple(escaped_ctrl_chars);
@@ -183,15 +183,15 @@ pub fn alter_tuple(escaped_ctrl_chars: &Rule<ParseData>) -> Rule<ParseData> {
     let tuple_fn = |mut b: Vec<ParseData>, _: &str| {
         let replace = b.pop().unwrap().unwrap_text();
         let find = b.pop().unwrap().unwrap_text();
-        ParseData::AlterText{ find, replace }
+        Ok(ParseData::AlterText{ find, replace })
     };
 
     let left_text_fn = |_: Vec<ParseData>, l: &str| {
-        ParseData::Text(String::from(l))
+        Ok(ParseData::Text(String::from(l)))
     };
 
     let right_text_fn = |_: Vec<ParseData>, l: &str| {
-        ParseData::Text(String::from(l))
+        Ok(ParseData::Text(String::from(l)))
     };
 
     let all_except_left_char = Rule::default();
@@ -222,7 +222,7 @@ pub fn char_ranges(escaped_ctrl_chars: &Rule<ParseData>) -> Rule<ParseData> {
         let mut chars = l.chars();
         let start = chars.next().unwrap();
         let end = chars.skip(1).next().unwrap();
-        ParseData::CharRange { start, end }
+        Ok(ParseData::CharRange { start, end })
     };
 
     let char_ranges_fn = |b: Vec<ParseData>, _: &str| {
@@ -231,7 +231,7 @@ pub fn char_ranges(escaped_ctrl_chars: &Rule<ParseData>) -> Rule<ParseData> {
             .map(|x| x.unwrap_char_range())
             .collect();
 
-        ParseData::CharRanges(char_ranges)
+        Ok(ParseData::CharRanges(char_ranges))
     };
 
     let char_range_char = char_range_char(escaped_ctrl_chars);
@@ -256,7 +256,7 @@ pub fn char_range_char(escaped_ctrl_chars: &Rule<ParseData>) -> Rule<ParseData> 
 
 pub fn eof() -> Rule<ParseData> {
     let f = |_: Vec<ParseData>, _: &str| {
-        ParseData::Eof
+        Ok(ParseData::Eof)
     };
 
     let rule = Rule::new(f);
@@ -272,7 +272,7 @@ pub fn escaped_ctrl_chars() -> Rule<ParseData> {
 
 pub fn id(escaped_ctrl_chars: &Rule<ParseData>) -> Rule<ParseData> {
     let f = |_: Vec<ParseData>, l: &str| {
-        ParseData::Id(String::from(l))
+        Ok(ParseData::Id(String::from(l)))
     };
 
     let any_char_except = Rule::default();
@@ -291,7 +291,7 @@ pub fn id(escaped_ctrl_chars: &Rule<ParseData>) -> Rule<ParseData> {
 
 pub fn integer() -> Rule<ParseData> {
     let f = |_: Vec<ParseData>, l: &str| {
-        ParseData::Integer(l.parse::<u64>().unwrap())
+        Ok(ParseData::Integer(l.parse::<u64>().unwrap()))
     };
 
     let digit = Rule::default();
@@ -304,7 +304,7 @@ pub fn integer() -> Rule<ParseData> {
 
 pub fn literal(escaped_ctrl_chars: &Rule<ParseData>) -> Rule<ParseData> {
     let f = |_: Vec<ParseData>, l: &str| {
-        ParseData::Literal(String::from(l))
+        Ok(ParseData::Literal(String::from(l)))
     };
 
     let all_except = Rule::default();
@@ -320,7 +320,7 @@ pub fn literal(escaped_ctrl_chars: &Rule<ParseData>) -> Rule<ParseData> {
 
 pub fn at_least_one_ws() -> Rule<ParseData> {
     let f = |_: Vec<ParseData>, _: &str| {
-        ParseData::Whitespace { min: 1, max: ::std::u64::MAX }
+        Ok(ParseData::Whitespace { min: 1, max: ::std::u64::MAX })
     };
     
     let rule = Rule::new(f);
@@ -330,7 +330,7 @@ pub fn at_least_one_ws() -> Rule<ParseData> {
 
 pub fn none_or_many_ws() -> Rule<ParseData> {
     let f = |_: Vec<ParseData>, _: &str| {
-        ParseData::Whitespace { min: 0, max: ::std::u64::MAX }
+        Ok(ParseData::Whitespace { min: 0, max: ::std::u64::MAX })
     };
 
     let rule = Rule::new(f);
@@ -356,7 +356,7 @@ pub fn ranges() -> Rule<ParseData> {
 pub fn at_least(integer: &Rule<ParseData>) -> Rule<ParseData> {
     let f = |mut b: Vec<ParseData>, _: &str| {
         let count = b.pop().unwrap().unwrap_int();
-        ParseData::Range { min: count, max: ::std::u64::MAX }
+        Ok(ParseData::Range { min: count, max: ::std::u64::MAX })
     };
 
     let rule = Rule::new(f);
@@ -366,7 +366,7 @@ pub fn at_least(integer: &Rule<ParseData>) -> Rule<ParseData> {
 
 pub fn at_least_one() -> Rule<ParseData> {
     let f = |_: Vec<ParseData>, _: &str| {
-        ParseData::Range { min: 1, max: ::std::u64::MAX }
+        Ok(ParseData::Range { min: 1, max: ::std::u64::MAX })
     };
 
     let rule = Rule::new(f);
@@ -377,7 +377,7 @@ pub fn at_least_one() -> Rule<ParseData> {
 pub fn at_most(integer: &Rule<ParseData>) -> Rule<ParseData> {
     let f = |mut b: Vec<ParseData>, _: &str| {
         let count = b.pop().unwrap().unwrap_int();
-        ParseData::Range { min: 0, max: count }
+        Ok(ParseData::Range { min: 0, max: count })
     };
 
     let rule = Rule::new(f);
@@ -389,7 +389,7 @@ pub fn between(integer: &Rule<ParseData>) -> Rule<ParseData> {
     let f = |mut b: Vec<ParseData>, _: &str| {
         let max = b.pop().unwrap().unwrap_int();
         let min = b.pop().unwrap().unwrap_int();
-        ParseData::Range { min, max }
+        Ok(ParseData::Range { min, max })
     };
 
     let rule = Rule::new(f);
@@ -400,7 +400,7 @@ pub fn between(integer: &Rule<ParseData>) -> Rule<ParseData> {
 pub fn exact(integer: &Rule<ParseData>) -> Rule<ParseData> {
     let f = |mut b: Vec<ParseData>, _: &str| {
         let count = b.pop().unwrap().unwrap_int();
-        ParseData::Range { min: count, max: count }
+        Ok(ParseData::Range { min: count, max: count })
     };
 
     let rule = Rule::new(f);
@@ -410,7 +410,7 @@ pub fn exact(integer: &Rule<ParseData>) -> Rule<ParseData> {
 
 pub fn maybe() -> Rule<ParseData> {
     let f = |_: Vec<ParseData>, _: &str| {
-        ParseData::Range { min: 0, max: 1 }
+        Ok(ParseData::Range { min: 0, max: 1 })
     };
 
     let rule = Rule::new(f);
@@ -420,7 +420,7 @@ pub fn maybe() -> Rule<ParseData> {
 
 pub fn none_or_many() -> Rule<ParseData> {
     let f = |_: Vec<ParseData>, _: &str| {
-        ParseData::Range { min: 0, max: ::std::u64::MAX }
+        Ok(ParseData::Range { min: 0, max: ::std::u64::MAX })
     };
 
     let rule = Rule::new(f);
@@ -430,7 +430,7 @@ pub fn none_or_many() -> Rule<ParseData> {
 
 pub fn not() -> Rule<ParseData> {
     let f = |_: Vec<ParseData>, _: &str| {
-        ParseData::Not
+        Ok(ParseData::Not)
     };
 
     let rule = Rule::new(f);
@@ -442,7 +442,7 @@ pub fn not() -> Rule<ParseData> {
 
 pub fn no_backtrack(escaped_ctrl_chars: &Rule<ParseData>) -> Rule<ParseData> {
     let f = |_: Vec<ParseData>, l: &str| {
-        ParseData::NoBacktrack(String::from(l))
+        Ok(ParseData::NoBacktrack(String::from(l)))
     };
 
     let any_char_except = Rule::default();

@@ -3,7 +3,7 @@ use grammar::Grammar;
 #[test]
 fn maybe() {
     let mut grammar: Grammar<i32> = Grammar::new();
-    grammar.map("root", "Maybe?", |_, _: &str| 1234);
+    grammar.map("root", "Maybe?", |_, _: &str| Ok(1234));
 
     let compiled = grammar.compile().unwrap();
 

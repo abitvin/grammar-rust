@@ -3,7 +3,7 @@ use grammar::Grammar;
 #[test]
 fn none_or_many() {
     let mut grammar: Grammar<i32> = Grammar::new();
-    grammar.map("root", "monkey*", |_, _: &str| 1234);
+    grammar.map("root", "monkey*", |_, _: &str| Ok(1234));
 
     let compiled = grammar.compile().unwrap();
 

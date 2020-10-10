@@ -2,7 +2,7 @@ use grammar::Grammar;
 
 #[test]
 fn nested_rule() {
-    let f = |_, _: &str| 7777;
+    let f = |_, _: &str| Ok(7777);
 
     let mut grammar: Grammar<i32> = Grammar::new();
     grammar.rule("test-a", "<monkey>");
