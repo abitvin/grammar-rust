@@ -8,7 +8,7 @@ mod ast;
 mod rules;
 
 use ast::{Clause, ParseData};
-use rule::{BranchFn, Rule, RuleError};
+use rule::{Rule, RuleError};
 use rules::root;
 use std::collections::HashMap;
 use std::error::Error;
@@ -22,6 +22,7 @@ struct GrammarRule<T> {
 type CompiledGrammarRules<T> = HashMap<String, Rule<T>>;
 type GrammarRules<T> = HashMap<String, GrammarRule<T>>;
 
+#[derive(Clone)]
 pub struct CompiledGrammar<T> {
     rules: CompiledGrammarRules<T>,
 }
@@ -78,21 +79,17 @@ impl<T> Grammar<T> {
         Ok(CompiledGrammar { rules })
     }
 
-    pub fn map(&mut self, id: &str, expr: &str, branch_fn: BranchFn<T>) {
-        self.add(id, expr, Some(branch_fn));
+    pub fn map(&mut self, id: &str, expr: &str, branch_fn: impl Fn(Vec<T>, &str) -> Result<T, String> + 'static) {
+        self.add(id, expr, Rule::new(branch_fn));
     }
     
     pub fn rule(&mut self, id: &str, expr: &str) {
-        self.add(id, expr, None);
+        self.add(id, expr, Rule::default());
     }
 
-    fn add(&mut self, id: &str, expr: &str, branch_fn: Option<BranchFn<T>>) {
+    fn add(&mut self, id: &str, expr: &str, rule: Rule<T>) {
         match parse(&self.parser, expr) {
             Ok(sentence) => {
-                let rule = branch_fn
-                    .map(|f| Rule::new(f))
-                    .unwrap_or(Rule::default());
-                
                 let gram_rule = GrammarRule {
                     rule, sentence,
                 };
